@@ -1,10 +1,18 @@
-import type {GameType, Generation, Generations, ID, MoveName, StatsTable, TypeName} from '@pkmn/data';
+import type {
+  GameType,
+  Generation,
+  Generations,
+  ID,
+  MoveName,
+  StatsTable,
+  TypeName,
+} from '@pkmn/data';
 
-import {State} from '../state';
 import {Context} from '../context';
-import {HitResult, Result} from '../result';
-import {DeepReadonly, has} from '../utils';
 import {parse} from '../parse';
+import {HitResult, Result} from '../result';
+import {State} from '../state';
+import {DeepReadonly, has} from '../utils';
 
 import {Abilities} from './abilities';
 import {Conditions} from './conditions';
@@ -47,7 +55,8 @@ export class Appliers {
 
   apply(
     kind: Exclude<HandlerKind, 'Conditions'>,
-    side: 'p1' | 'p2', id: ID | undefined,
+    side: 'p1' | 'p2',
+    id: ID | undefined,
     state: State,
     guaranteed?: boolean
   ) {
@@ -58,8 +67,8 @@ export class Appliers {
       case 'Items':
         return this.handlers[kind][id]?.apply?.(side, state, guaranteed);
       case 'Moves': {
-      // If a Move handler is defined, use it, otherwise try to see if an 'apply' function can
-      // can be inferred based purely on information from the data files
+        // If a Move handler is defined, use it, otherwise try to see if an 'apply' function can
+        // can be inferred based purely on information from the data files
         const handler = this.handlers.Moves[id];
         if (handler?.apply) return handler.apply(side, state, guaranteed);
 
@@ -68,13 +77,17 @@ export class Appliers {
 
         const secondaries = move.secondaries
           ? move.secondaries
-          : move.secondary ? [move.secondary] : undefined;
+          : move.secondary
+          ? [move.secondary]
+          : undefined;
         if (!secondaries) return;
 
         for (const secondary of secondaries) {
-          if (guaranteed && secondary.chance && secondary.chance < 100) continue;
-        // TODO apply secondary! need to take into account Simple etc for boosts, other affects
-        // for slot conditions etc
+          if (guaranteed && secondary.chance && secondary.chance < 100) {
+            continue;
+          }
+          // TODO apply secondary! need to take into account Simple etc for boosts, other affects
+          // for slot conditions etc
         }
         return;
       }
@@ -87,8 +100,16 @@ export class Appliers {
 export const APPLIERS = new Appliers(HANDLERS);
 
 export const HANDLER_FNS: Set<keyof Handler> = new Set([
-  'basePowerCallback', 'damageCallback', 'onModifyBasePower', 'onModifyAtk', 'onModifySpA',
-  'onModifyDef', 'onModifySpD', 'onModifySpe', 'onModifyWeight', 'onResidual',
+  'basePowerCallback',
+  'damageCallback',
+  'onModifyBasePower',
+  'onModifyAtk',
+  'onModifySpA',
+  'onModifyDef',
+  'onModifySpD',
+  'onModifySpe',
+  'onModifyWeight',
+  'onResidual',
 ]);
 
 // Convenience overload for most programs
@@ -98,7 +119,8 @@ export function calculate(
   defender: State.Side | State.Pokemon,
   move: State.Move,
   field?: State.Field,
-  gameType?: GameType): Result;
+  gameType?: GameType
+): Result;
 // Convenience overload for humans
 export function calculate(gens: Generation | Generations, args: string): Result;
 // Main API offered - state can be created and the mutated, handlers can be overriden
@@ -118,7 +140,6 @@ export function calculate(...args: any[]) {
   // Admittedly, somewhat odd to be creating a result and then letting it get mutated, but
   // this means we don't need to plumb state/handlers/context/relevancy in separately
   const hit = new HitResult(state as DeepReadonly<State>, handlers);
-
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
 
   return new Result(hit); // TODO handle multihit / parental bond etc
@@ -129,9 +150,14 @@ export function computeStats(gen: Generation, pokemon: State.Pokemon) {
   const stats = {} as StatsTable;
   if (pokemon.stats) {
     for (const stat of gen.stats) {
-      stats[stat] = stat === 'hp'
-        ? pokemon.stats[stat]
-        : computeBoostedStat(pokemon.stats[stat], pokemon.boosts?.[stat] || 0, gen);
+      stats[stat] =
+        stat === 'hp'
+          ? pokemon.stats[stat]
+          : computeBoostedStat(
+              pokemon.stats[stat],
+              pokemon.boosts?.[stat] || 0,
+              gen
+            );
     }
     return stats;
   } else {
@@ -145,44 +171,52 @@ export function computeStats(gen: Generation, pokemon: State.Pokemon) {
         gen.natures.get(pokemon.nature!)
       );
       if (stat !== 'hp') {
-        stats[stat] = computeBoostedStat(stats[stat], pokemon.boosts?.[stat] || 0, gen);
+        stats[stat] = computeBoostedStat(
+          stats[stat],
+          pokemon.boosts?.[stat] || 0,
+          gen
+        );
       }
     }
   }
   return stats;
 }
 
-const LEGACY_BOOSTS = [25, 28, 33, 40, 50, 66, 100, 150, 200, 250, 300, 350, 400];
+const LEGACY_BOOSTS = [
+  25, 28, 33, 40, 50, 66, 100, 150, 200, 250, 300, 350, 400,
+];
 
 function computeBoostedStat(stat: number, mod: number, gen?: Generation) {
-  if (gen && gen.num <= 2) return clamp(1, stat * LEGACY_BOOSTS[mod + 6] / 100, 999);
-  return floor(trunc(stat * mod >= 0 ? 2 + mod : 2, 16) / (mod >= 0 ? 2 : abs(mod) + 2));
+  if (gen && gen.num <= 2) {
+    return clamp(1, (stat * LEGACY_BOOSTS[mod + 6]) / 100, 999);
+  }
+  return floor(
+    trunc(stat * (mod >= 0 ? 2 + mod : 2), 16) / (mod >= 0 ? 2 : abs(mod) + 2)
+  );
 }
 
 export function computeModifiedSpeed(context: Context | State) {
   context = 'relevant' in context ? context : Context.fromState(context);
   const {gen, p1} = context;
-  let spe = computeBoostedStat(p1.pokemon.stats?.spe || 0, p1.pokemon.boosts.spe || 0, gen);
+  let spe = computeBoostedStat(
+    p1.pokemon.stats?.spe || 0,
+    p1.pokemon.boosts.spe || 0,
+    gen
+  );
   let mod = 0x1000;
-
   const ability = p1.pokemon.ability && Abilities[p1.pokemon.ability.id];
-  if (ability?.onModifySpe) spe = chain(mod, ability.onModifySpe(context));
-
+  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(context));
   const item = p1.pokemon.item && Items[p1.pokemon.item.id];
-  if (item?.onModifySpe) spe = chain(mod, item.onModifySpe(context));
-
-  if (p1.sideConditions['tailwind']) spe = chain(mod, 0x2000);
+  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(context));
+  if (p1.sideConditions['tailwind']) mod = chain(mod, 0x2000);
   if (p1.sideConditions['grasspledge']) mod = chain(mod, 0x400);
-
-  spe = apply(spe, mod);
-  if (p1.pokemon.status?.name === 'par' && p1.pokemon.ability?.id !== 'quickfeet') {
-    spe = trunc(spe * (gen.num <= 6 ? 0x400 : 0x800)) / 0x1000;
-  }
-  spe = trunc(spe, 16);
-  return gen.num <= 2 ? max(min(spe, 1), 999) : max(spe, 10000);
+  spe = trunc(apply(spe, mod), 16);
+  return gen.num <= 2 ? min(max(spe, 1), 999) : min(spe, 10000);
 }
 
-export function computeModifiedWeight(pokemon: Context.Pokemon | State.Pokemon) {
+export function computeModifiedWeight(
+  pokemon: Context.Pokemon | State.Pokemon
+) {
   const autotomize = pokemon.volatiles.autotomize?.level || 0;
   let weighthg = Math.max(1, pokemon.weighthg - 1000 * autotomize);
   if (pokemon.ability === 'heavymetal') {
@@ -196,7 +230,7 @@ export function computeModifiedWeight(pokemon: Context.Pokemon | State.Pokemon) 
   return weighthg;
 }
 
-const Z_MOVES: { [type in Exclude<TypeName, '???' | 'Stellar'>]: string } = {
+const Z_MOVES: {[type in Exclude<TypeName, '???' | 'Stellar'>]: string} = {
   Bug: 'Savage Spin-Out',
   Dark: 'Black Hole Eclipse',
   Dragon: 'Devastating Drake',
@@ -225,7 +259,9 @@ export function getZMoveName(
     item?: string;
   } = {}
 ) {
-  if (gen.num < 7) throw new TypeError(`Z-Moves do not exist in gen ${gen.num}`);
+  if (gen.num < 7) {
+    throw new TypeError(`Z-Moves do not exist in gen ${gen.num}`);
+  }
   if (pokemon.item) {
     const item = gen.items.get(pokemon.item);
     const matching =
@@ -234,10 +270,10 @@ export function getZMoveName(
       item.zMoveFrom === move.name;
     if (matching) return item.zMove;
   }
-  return Z_MOVES[move.type as Exclude<TypeName, '???'| 'Stellar'>];
+  return Z_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
 }
 
-const MAX_MOVES: { [type in Exclude<TypeName, '???' | 'Stellar'>]: string } = {
+const MAX_MOVES: {[type in Exclude<TypeName, '???' | 'Stellar'>]: string} = {
   Bug: 'Max Flutterby',
   Dark: 'Max Darkness',
   Dragon: 'Max Wyrmwind',
@@ -266,7 +302,9 @@ export function getMaxMovename(
     item?: string;
   } = {}
 ) {
-  if (gen.num < 8) throw new TypeError(`Max Moves do not exist in gen ${gen.num}`);
+  if (gen.num < 8) {
+    throw new TypeError(`Max Moves do not exist in gen ${gen.num}`);
+  }
   if (move.category === 'Status') return 'Max Guard';
   if (pokemon.species?.isGigantamax) {
     const gmaxMove = gen.moves.get(pokemon.species.isGigantamax)!;
@@ -382,4 +420,3 @@ setAbility(ability: string | Ability, source?: Pokemon | null, isFromFormeChange
 // function is(x: string | string[] | undefined, ...xs: string[]) {
 //   return !!(x && (Array.isArray(x) ? x.some(y => xs.includes(y)) : xs.includes(x)));
 // }
-

@@ -5,14 +5,20 @@ import {is, toID} from './utils';
 export type Player = 'p1' | 'p2';
 
 export type ConditionName =
-  WeatherName | TerrainName | PseudoWeatherName |
-  SideConditionName |
-  VolatileStatusName | StatusName;
+  | WeatherName
+  | TerrainName
+  | PseudoWeatherName
+  | SideConditionName
+  | VolatileStatusName
+  | StatusName;
 
 export type ConditionKind =
-  'Weather' | 'Terrain' | 'Pseudo Weather' |
-  'Side Condition' | // 'Slot Condition' |
-  'Volatile Status' | 'Status';
+  | 'Weather'
+  | 'Terrain'
+  | 'Pseudo Weather'
+  | 'Side Condition' // 'Slot Condition' |
+  | 'Volatile Status'
+  | 'Status';
 
 // This primarily exists to convert between Pokémon Showdown's names for these conditions
 // (though also supports shortcuts) and the names used internally by the calculator.
@@ -21,6 +27,7 @@ const ALIASES: {[id: string]: string} = {
   sandstorm: 'sand',
   sunnyday: 'sun',
   raindance: 'rain',
+  snowscape: 'snow',
   desolateland: 'harshsunshine',
   primordialsea: 'heavyrain',
   deltastream: 'strongwinds',
@@ -38,12 +45,19 @@ const ALIASES: {[id: string]: string} = {
   gmaxvinelash: 'vinelash',
 
   // Status
-  sleep: 'slp', asleep: 'slp',
-  poison: 'psn', poisoned: 'psn',
-  burn: 'brn', burned: 'brn',
-  freeze: 'frz', frozen: 'frz',
-  paralysis: 'par', paralyzed: 'par',
-  toxic: 'tox', badpoisoned: 'tox', badlypoisoned: 'tox',
+  sleep: 'slp',
+  asleep: 'slp',
+  poison: 'psn',
+  poisoned: 'psn',
+  burn: 'brn',
+  burned: 'brn',
+  freeze: 'frz',
+  frozen: 'frz',
+  paralysis: 'par',
+  paralyzed: 'par',
+  toxic: 'tox',
+  badpoisoned: 'tox',
+  badlypoisoned: 'tox',
 };
 
 /** Map between condition name and Pokémon Showdown's name for the condition.  */
@@ -52,6 +66,7 @@ const REVERSE: {[id: string]: string} = {
   sun: 'sunnyday',
   rain: 'raindance',
   hail: 'hail',
+  snow: 'snow',
   harshsunshine: 'desolateland',
   heavyrain: 'primordialsea',
   strongwinds: 'deltastream',
@@ -84,7 +99,7 @@ const REVERSE: {[id: string]: string} = {
  * in this file are mostly chosen based on `@smogon/calc` and Pokémon Showdown for familiarity,
  * though in most cases the name of the move or ability that causes the condition is used.
  */
-export const Conditions = new class {
+export const Conditions = new (class {
   /**
    * Similar to `Dex#getEffect` but restricted to conditions (so more like `Dex#getPureEffectByID`),
    * searches for a condition named `name` in the respective `gen` and returns the canonical name,
@@ -99,28 +114,38 @@ export const Conditions = new class {
     name: string
   ): [ConditionName, ConditionKind, (Player | 'field')?] | undefined {
     let id = toID(name);
-    id = ALIASES[id] as ID || id;
+    id = (ALIASES[id] as ID) || id;
 
     let condition: [ConditionName, GenerationNum, Player?];
 
-    if ((is(id, 'mudsport', 'watersport') && gen.num <= 5) ||
-        (is(id, 'reflect', 'lightscreen') && gen.num === 1)) {
+    if (
+      (is(id, 'mudsport', 'watersport') && gen.num <= 5) ||
+      (is(id, 'reflect', 'lightscreen') && gen.num === 1)
+    ) {
       condition = Volatiles[id];
       return [condition[0], 'Volatile Status', condition[2]!];
     }
 
     // Field Conditions
     if ((condition = Weathers[id])) {
-      return gen.num >= condition[1] ? [condition[0], 'Weather', 'field'] : undefined;
+      return gen.num >= condition[1]
+        ? [condition[0], 'Weather', 'field']
+        : undefined;
     } else if ((condition = Terrains[id])) {
-      return gen.num >= condition[1] ? [condition[0], 'Terrain', 'field'] : undefined;
+      return gen.num >= condition[1]
+        ? [condition[0], 'Terrain', 'field']
+        : undefined;
     } else if ((condition = PseudoWeathers[id])) {
-      return gen.num >= condition[1] ? [condition[0], 'Pseudo Weather', 'field'] : undefined;
+      return gen.num >= condition[1]
+        ? [condition[0], 'Pseudo Weather', 'field']
+        : undefined;
     }
 
     // Side Conditions
     if ((condition = SideConditions[id])) {
-      return gen.num >= condition[1] ? [condition[0], 'Side Condition', condition[2]!] : undefined;
+      return gen.num >= condition[1]
+        ? [condition[0], 'Side Condition', condition[2]!]
+        : undefined;
     }
 
     // Pokemon Conditions
@@ -138,21 +163,28 @@ export const Conditions = new class {
   /** Turns a Condition name into Pokémon Showdown's version of the name.  */
   toPS(name: string) {
     const id = toID(name);
-    return REVERSE[id] as ID || id;
+    return (REVERSE[id] as ID) || id;
   }
-};
+})();
 
 // Weather
 
 export type WeatherName =
-  'Sand' | 'Sun' | 'Rain' | 'Hail' |
-  'Harsh Sunshine' | 'Heavy Rain' | 'Strong Winds';
+  | 'Sand'
+  | 'Sun'
+  | 'Rain'
+  | 'Hail'
+  | 'Snow'
+  | 'Harsh Sunshine'
+  | 'Heavy Rain'
+  | 'Strong Winds';
 
 export const Weathers: {[id: string]: [WeatherName, GenerationNum]} = {
   sand: ['Sand', 2],
   sun: ['Sun', 2],
   rain: ['Rain', 2],
   hail: ['Hail', 2],
+  snow: ['Snow', 2],
   harshsunshine: ['Harsh Sunshine', 6],
   heavyrain: ['Heavy Rain', 6],
   strongwinds: ['Strong Winds', 6],
@@ -160,8 +192,7 @@ export const Weathers: {[id: string]: [WeatherName, GenerationNum]} = {
 
 // Terrain
 
-export type TerrainName =
-  'Electric' | 'Grassy' | 'Psychic' | 'Misty';
+export type TerrainName = 'Electric' | 'Grassy' | 'Psychic' | 'Misty';
 
 export const Terrains: {[id: string]: [TerrainName, GenerationNum]} = {
   electric: ['Electric', 4],
@@ -173,11 +204,19 @@ export const Terrains: {[id: string]: [TerrainName, GenerationNum]} = {
 // Pseudo Weather
 
 export type PseudoWeatherName =
-  'Fairy Lock' | 'Gravity' | 'Ion Deluge' |
-  'Mud Sport' | 'Water Sport' | 'Echoed Voice' |
-  'Trick Room' | 'Magic Room' | 'Wonder Room';
+  | 'Fairy Lock'
+  | 'Gravity'
+  | 'Ion Deluge'
+  | 'Mud Sport'
+  | 'Water Sport'
+  | 'Echoed Voice'
+  | 'Trick Room'
+  | 'Magic Room'
+  | 'Wonder Room';
 
-export const PseudoWeathers: {[id: string]: [PseudoWeatherName, GenerationNum]} = {
+export const PseudoWeathers: {
+  [id: string]: [PseudoWeatherName, GenerationNum];
+} = {
   gravity: ['Gravity', 4],
   fairylock: ['Fairy Lock', 6],
   iondeluge: ['Ion Deluge', 6],
@@ -193,13 +232,29 @@ export const PseudoWeathers: {[id: string]: [PseudoWeatherName, GenerationNum]} 
 // Side Condition
 
 export type SideConditionName =
-  'Tailwind' | 'Stealth Rock' | 'Spikes' | 'Toxic Spikes' |
-  'Aurora Veil' | 'Light Screen' | 'Reflect' |
-  'Safeguard' | 'Quick Guard' | 'Wide Guard' |
-  'Steelsurge' | 'Cannonade' | 'Volcalith' | 'Vinelash' | 'Wildfire' |
-  'Crafty Shield' | 'Lucky Chant' | 'Mist' | 'Sticky Web';
+  | 'Tailwind'
+  | 'Stealth Rock'
+  | 'Spikes'
+  | 'Toxic Spikes'
+  | 'Aurora Veil'
+  | 'Light Screen'
+  | 'Reflect'
+  | 'Safeguard'
+  | 'Quick Guard'
+  | 'Wide Guard'
+  | 'Steelsurge'
+  | 'Cannonade'
+  | 'Volcalith'
+  | 'Vinelash'
+  | 'Wildfire'
+  | 'Crafty Shield'
+  | 'Lucky Chant'
+  | 'Mist'
+  | 'Sticky Web';
 
-export const SideConditions: {[id: string]: [SideConditionName, GenerationNum, Player?]} = {
+export const SideConditions: {
+  [id: string]: [SideConditionName, GenerationNum, Player?];
+} = {
   tailwind: ['Tailwind', 4],
   stealthrock: ['Stealth Rock', 4, 'p2'],
   spikes: ['Spikes', 2, 'p2'],
@@ -225,14 +280,48 @@ export const SideConditions: {[id: string]: [SideConditionName, GenerationNum, P
 // Volatile Status
 
 export type VolatileStatusName =
-  'Slow Start' | 'Unburden' | 'Zen Mode' | 'Flash Fire' | 'Parental Bond' | 'Charge' |
-  'Leech Seed' | 'Beak Blast' | 'Stall' | 'Gastro Acid' | 'Aqua Ring' | 'Magnet Rise' |
-  'Autotomize' | 'Curse' | 'Baneful Bunker' | 'Defense Curl' | 'Protect' | 'Electrify' |
-  'Foresight' | 'Helping Hand' | 'Ingrain' | 'King\'s Shield' | 'Max Guard' | 'Dynamax' |
-  'Miracle Eye' | 'Minimize' | 'Obstruct' | 'Octolock' | 'Roost' | 'Smack Down' | 'Spiky Shield' |
-  'Stockpile' | 'Tar Shot' | 'Uproar' | 'Light Screen' | 'Reflect' | 'Mud Sport' | 'Water Sport';
+  | 'Slow Start'
+  | 'Unburden'
+  | 'Zen Mode'
+  | 'Flash Fire'
+  | 'Parental Bond'
+  | 'Charge'
+  | 'Leech Seed'
+  | 'Beak Blast'
+  | 'Stall'
+  | 'Gastro Acid'
+  | 'Aqua Ring'
+  | 'Magnet Rise'
+  | 'Autotomize'
+  | 'Curse'
+  | 'Baneful Bunker'
+  | 'Defense Curl'
+  | 'Protect'
+  | 'Electrify'
+  | 'Foresight'
+  | 'Helping Hand'
+  | 'Ingrain'
+  | "King's Shield"
+  | 'Max Guard'
+  | 'Dynamax'
+  | 'Miracle Eye'
+  | 'Minimize'
+  | 'Obstruct'
+  | 'Octolock'
+  | 'Roost'
+  | 'Smack Down'
+  | 'Spiky Shield'
+  | 'Stockpile'
+  | 'Tar Shot'
+  | 'Uproar'
+  | 'Light Screen'
+  | 'Reflect'
+  | 'Mud Sport'
+  | 'Water Sport';
 
-export const Volatiles: {[id: string]: [VolatileStatusName, GenerationNum, Player?]} = {
+export const Volatiles: {
+  [id: string]: [VolatileStatusName, GenerationNum, Player?];
+} = {
   slowstart: ['Slow Start', 4, 'p1'],
   unburden: ['Unburden', 4],
   zenmode: ['Zen Mode', 5],
@@ -253,7 +342,7 @@ export const Volatiles: {[id: string]: [VolatileStatusName, GenerationNum, Playe
   foresight: ['Foresight', 2, 'p1'],
   helpinghand: ['Helping Hand', 3, 'p1'],
   ingrain: ['Ingrain', 3, 'p2'],
-  kingsshield: ['King\'s Shield', 6, 'p2'],
+  kingsshield: ["King's Shield", 6, 'p2'],
   maxguard: ['Max Guard', 8, 'p2'],
   dynamax: ['Dynamax', 8],
   miracleeye: ['Miracle Eye', 4, 'p2'],
