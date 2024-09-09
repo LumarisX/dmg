@@ -20,13 +20,19 @@ import type {
   StatsTable,
   StatusName,
   TypeName,
-} from '@pkmn/data';
+} from "@pkmn/data";
 
-import {TerrainName, WeatherName} from './conditions';
-import {HANDLERS, HANDLER_FNS, Handler, HandlerKind, Handlers} from './mechanics';
-import {Relevancy} from './result';
-import {DeepReadonly, extend, toID} from './utils';
-import {State} from './state';
+import { TerrainName, WeatherName } from "./conditions";
+import {
+  HANDLERS,
+  HANDLER_FNS,
+  Handler,
+  HandlerKind,
+  Handlers,
+} from "./mechanics";
+import { Relevancy } from "./result";
+import { DeepReadonly, extend, toID } from "./utils";
+import { State } from "./state";
 
 export class Context {
   gameType: GameType;
@@ -74,9 +80,9 @@ export class Context {
 
 export namespace Context {
   export class Field {
-    weather?: {name: WeatherName} & Partial<Handler>;
-    terrain?: {name: TerrainName} & Partial<Handler>;
-    pseudoWeather: {[id: string]: {data: object} & Partial<Handler>};
+    weather?: { name: WeatherName } & Partial<Handler>;
+    terrain?: { name: TerrainName } & Partial<Handler>;
+    pseudoWeather: { [id: string]: { data: object } & Partial<Handler> };
 
     readonly relevant: Relevancy.Field;
 
@@ -89,27 +95,41 @@ export namespace Context {
 
       if (state.weather) {
         const id = toID(state.weather);
-        this.weather = reify({name: state.weather}, id, handlers.Conditions, () => {
-          this.relevant.weather = true;
-        });
+        this.weather = reify(
+          { name: state.weather },
+          id,
+          handlers.Conditions,
+          () => {
+            this.relevant.weather = true;
+          }
+        );
       }
       if (state.terrain) {
         const id = toID(state.terrain);
-        this.terrain = reify({name: state.terrain}, id, handlers.Conditions, () => {
-          this.relevant.terrain = true;
-        });
+        this.terrain = reify(
+          { name: state.terrain },
+          id,
+          handlers.Conditions,
+          () => {
+            this.relevant.terrain = true;
+          }
+        );
       }
       this.pseudoWeather = {};
       for (const pw in state.pseudoWeather) {
-        this.pseudoWeather[pw] =
-          reify({data: state.pseudoWeather[pw]}, pw as ID, handlers.Conditions, () => {
+        this.pseudoWeather[pw] = reify(
+          { data: state.pseudoWeather[pw] },
+          pw as ID,
+          handlers.Conditions,
+          () => {
             this.relevant.pseudoWeather[pw] = true;
-          });
+          }
+        );
       }
     }
 
     toState(): State.Field {
-      const pseudoWeather: {[id: string]: object} = {};
+      const pseudoWeather: { [id: string]: object } = {};
       for (const pw in this.pseudoWeather) {
         pseudoWeather[pw] = this.pseudoWeather[pw].data;
       }
@@ -127,14 +147,14 @@ export namespace Context {
 
   export class Side {
     pokemon: Pokemon;
-    sideConditions: {[id: string]: {level?: number} & Partial<Handler>};
+    sideConditions: { [id: string]: { level?: number } & Partial<Handler> };
     active?: Array<{
       ability?: ID;
       position?: number;
       fainted?: boolean;
     } | null>;
     team?: Array<{
-      species: {baseStat: {atk: number}};
+      species: { baseStat: { atk: number } };
       status?: StatusName;
       fainted?: boolean;
       position?: number;
@@ -150,30 +170,40 @@ export namespace Context {
     ) {
       this.relevant = relevant;
 
-      this.pokemon = new Pokemon(gen, state.pokemon, relevant.pokemon, handlers);
+      this.pokemon = new Pokemon(
+        gen,
+        state.pokemon,
+        relevant.pokemon,
+        handlers
+      );
       this.sideConditions = {};
       for (const sc in state.sideConditions) {
-        this.sideConditions[sc] =
-          reify(extend({}, state.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
+        this.sideConditions[sc] = reify(
+          extend({}, state.sideConditions[sc]),
+          sc as ID,
+          handlers.Conditions,
+          () => {
             this.relevant.sideConditions[sc] = true;
-          });
+          }
+        );
       }
-      this.active = this.active?.map(p => extend({}, p));
-      this.team = this.team?.map(p => extend({}, p));
+      this.active = this.active?.map((p) => extend({}, p));
+      this.team = this.team?.map((p) => extend({}, p));
     }
 
     toState(): State.Side {
-      const sideConditions: {[id: string]: {level?: number}} = {};
+      const sideConditions: { [id: string]: { level?: number } } = {};
       for (const sc in this.sideConditions) {
-        sideConditions[sc] = 'level' in this.sideConditions[sc]
-          ? {level: this.sideConditions[sc].level}
-          : {};
+        sideConditions[sc] =
+          "level" in this.sideConditions[sc]
+            ? { level: this.sideConditions[sc].level }
+            : {};
       }
       return {
         pokemon: this.pokemon.toState(),
         sideConditions: extend({}, this.sideConditions),
-        active: this.active?.map(p => extend({}, p)),
-        team: this.team?.map(p => extend({}, p)),
+        active: this.active?.map((p) => extend({}, p)),
+        team: this.team?.map((p) => extend({}, p)),
       };
     }
   }
@@ -183,14 +213,14 @@ export namespace Context {
     level: number;
     weighthg: number;
 
-    item?: {id: ID} & Partial<Handler>;
-    ability?: {id: ID} & Partial<Handler>;
+    item?: { id: ID } & Partial<Handler>;
+    ability?: { id: ID } & Partial<Handler>;
     gender?: GenderName;
     happiness?: number;
 
-    status?: {name: StatusName} & Partial<Handler>;
-    statusData?: {toxicTurns: number};
-    volatiles: {[id: string]: {level?: number} & Partial<Handler>};
+    status?: { name: StatusName } & Partial<Handler>;
+    statusData?: { toxicTurns: number };
+    volatiles: { [id: string]: { level?: number } & Partial<Handler> };
 
     types: [TypeName] | [TypeName, TypeName];
     addedType?: TypeName;
@@ -204,7 +234,7 @@ export namespace Context {
 
     position?: number;
 
-    switching?: 'in' | 'out';
+    switching?: "in" | "out";
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
 
@@ -227,34 +257,52 @@ export namespace Context {
       this.weighthg = state.weighthg;
 
       if (state.item) {
-        this.item = reify({id: state.item}, state.item, handlers.Items, () => {
-          this.relevant.item = true;
-        });
+        this.item = reify(
+          { id: state.item },
+          state.item,
+          handlers.Items,
+          () => {
+            this.relevant.item = true;
+          }
+        );
       }
       if (state.ability) {
-        this.ability = reify({id: state.ability}, state.ability, handlers.Abilities, () => {
-          this.relevant.ability = true;
-        });
+        this.ability = reify(
+          { id: state.ability },
+          state.ability,
+          handlers.Abilities,
+          () => {
+            this.relevant.ability = true;
+          }
+        );
       }
       this.gender = state.gender;
       this.happiness = state.happiness;
 
       if (state.status) {
-        this.status =
-          reify({name: state.status}, state.status as ID, handlers.Conditions, () => {
+        this.status = reify(
+          { name: state.status },
+          state.status as ID,
+          handlers.Conditions,
+          () => {
             this.relevant.status = true;
-          });
+          }
+        );
       }
       this.statusData = this.statusData && extend({}, state.statusState);
       this.volatiles = {};
       for (const v in state.volatiles) {
-        this.volatiles[v] =
-          reify(extend({}, state.volatiles[v]), v as ID, handlers.Conditions, () => {
+        this.volatiles[v] = reify(
+          extend({}, state.volatiles[v]),
+          v as ID,
+          handlers.Conditions,
+          () => {
             this.relevant.volatiles[v] = true;
-          });
+          }
+        );
       }
 
-      this.types = state.types.slice() as Pokemon['types'];
+      this.types = state.types.slice() as Pokemon["types"];
       this.addedType = state.addedType;
 
       this.maxhp = state.maxhp;
@@ -289,11 +337,12 @@ export namespace Context {
     }
 
     toState(): State.Pokemon {
-      const volatiles: {[id: string]: {level?: number}} = {};
+      const volatiles: { [id: string]: { level?: number } } = {};
       for (const v in this.volatiles) {
-        volatiles[v] = 'level' in this.volatiles[v]
-          ? {level: this.volatiles[v].level}
-          : {};
+        volatiles[v] =
+          "level" in this.volatiles[v]
+            ? { level: this.volatiles[v].level }
+            : {};
       }
       return {
         species: this.species,
@@ -306,7 +355,7 @@ export namespace Context {
         status: this.status?.name,
         statusState: this.statusData && extend({}, this.statusData),
         volatiles,
-        types: this.types.slice() as Pokemon['types'],
+        types: this.types.slice() as Pokemon["types"],
         addedType: this.addedType,
         maxhp: this.maxhp,
         hp: this.hp,
@@ -335,10 +384,10 @@ export namespace Context {
     isNonstandard!: Nonstandard | null;
     duration?: number;
 
-    effectType!: 'Move';
-    kind!: 'Move';
+    effectType!: "Move";
+    kind!: "Move";
     secondaries!: SecondaryEffect[] | null;
-    flags!: DMove['flags'];
+    flags!: DMove["flags"];
     zMoveEffect?: ID;
     isZ!: boolean | ID;
     zMove?: {
@@ -368,16 +417,16 @@ export namespace Context {
 
     realMove?: string;
     condition?: Partial<ConditionData>;
-    damage?: number | 'level' | false | null;
+    damage?: number | "level" | false | null;
     noPPBoosts?: boolean;
 
-    ohko?: boolean | TypeName;
+    ohko?: boolean | "Ice";
     thawsTarget?: boolean;
     heal?: number[] | null;
     forceSwitch?: boolean;
-    selfSwitch?: boolean | 'copyvolatile';
+    selfSwitch?: boolean | "copyvolatile";
     selfBoost?: { boosts?: Partial<BoostsTable> };
-    selfdestruct?: boolean | 'ifHit' | 'always';
+    selfdestruct?: boolean | "ifHit" | "always";
     breaksProtect?: boolean;
     recoil?: [number, number];
     drain?: [number, number];
@@ -391,10 +440,10 @@ export namespace Context {
     basePowerModifier?: number;
     critModifier?: number;
     critRatio?: number;
-    overrideOffensivePokemon?: 'target' | 'source';
-    overrideOffensiveStat?: Exclude<StatID, 'hp'>;
-    overrideDefensivePokemon?: 'target' | 'source';
-    overrideDefensiveStat?: Exclude<StatID, 'hp'>;
+    overrideOffensivePokemon?: "target" | "source";
+    overrideOffensiveStat?: Exclude<StatID, "hp">;
+    overrideDefensivePokemon?: "target" | "source";
+    overrideDefensiveStat?: Exclude<StatID, "hp">;
     forceSTAB?: boolean;
     ignoreAbility?: boolean;
     ignoreAccuracy?: boolean;
@@ -471,10 +520,10 @@ function reify<T>(
     for (const n in handler) {
       const k = n as keyof Handler; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
-      if (fn && HANDLER_FNS.has(k) && typeof fn === 'function') {
+      if (fn && HANDLER_FNS.has(k) && typeof fn === "function") {
         obj[k] = (c: Context) => {
           const r = (fn as any)(c);
-          if (typeof r !== 'undefined' && cbfn) cbfn();
+          if (typeof r !== "undefined" && cbfn) cbfn();
           return r;
         };
       }
