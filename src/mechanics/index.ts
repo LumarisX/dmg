@@ -19,7 +19,17 @@ import { Conditions } from "./conditions";
 import { Items } from "./items";
 import { Moves } from "./moves";
 
-import { abs, apply, chain, clamp, floor, max, min, trunc } from "../math";
+import {
+  abs,
+  apply,
+  chain,
+  clamp,
+  floor,
+  max,
+  min,
+  roundDown,
+  trunc,
+} from "../math";
 import { stat } from "fs";
 
 export interface Applier {
@@ -135,13 +145,136 @@ export function calculate(...args: any[]) {
     state = args[0];
     handlers = args[1] || handlers;
   }
+
   // Admittedly, somewhat odd to be creating a result and then letting it get mutated, but
   // this means we don't need to plumb state/handlers/context/relevancy in separately
   const hit = new HitResult(state as DeepReadonly<State>, handlers);
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
   const result = new Result(hit); // TODO handle multihit / parental bond etc
-  console.log(result);
+
   return result;
+}
+
+// Custom BP: Determining the base power of moves that don’t have a fixed base power, like Heavy Slam or Eruption.
+// BP modifiers: Applying modifiers like Terrains, Auras, Helping Hand, etc.
+// Attack modifiers: Applying modifiers like boosts/drops, Choice Band, Water Bubble, etc.
+// Defense modifiers: Applying modifiers like boosts/drops, Fur Coat, Eviolite, etc.
+// Base Damage: The initial “big calculation”, combining base power, attack, and defense.
+// General damage modifiers: Applying modifiers like weather, type effectiveness, STAB, etc.
+// Final damage modifiers: Applying modifiers like Life Orb, screens, Friend Guard, etc.
+// When reading, these sections can mostly be tackled in any order, and you can click on the links above to jump around to whatever interests you the most. If you’re new to damage calculation, I recommend you start with the base damage and go through general damage modifiers, then final damage modifiers (basically, do 5-7 first, then come back to 1-4).
+
+// In addition to the above, the following topics will also be covered:
+
+// Speed modifiers: Applying modifiers like boosts/drops, Tailwind, Choice Scarf, etc.
+// Weight modifiers: Applying modifiers like Heavy Metal, Float Stone, etc.
+// Special cases: Moves like Psywave or Guardian of Alola that calculate their damage in other ways.
+// Damage overflow: How limitations of 3DS hardware affects damage calculation.
+// A one-turn setup for maximum damage: How to get the maximum damage in Pokémon in a single turn.
+
+export function calculate2(context: Context) {
+  let attackStat =
+    (context.move.category === "Physical"
+      ? context.p1.pokemon.stats?.atk
+      : context.move.category === "Special"
+      ? context.p1.pokemon.stats?.spa
+      : 0) || 0;
+
+  let defenseStat =
+    (context.move.category === "Physical"
+      ? context.p2.pokemon.stats?.def
+      : context.move.category === "Special"
+      ? context.p2.pokemon.stats?.spd
+      : 0) || 0;
+
+  let baseDamage = getBaseDamage(
+    context.p1.pokemon.level,
+    context.move.basePower,
+    attackStat,
+    defenseStat
+  );
+
+  const isSpread =
+    context.gameType !== "singles" &&
+    ["allAdjacent", "allAdjacentFoes"].includes(context.move.target);
+  if (isSpread) {
+    baseDamage = roundDown(trunc(baseDamage * 0xc00, 32) / 0x1000);
+  }
+
+  if (context.p1.pokemon.ability?.id === "Parental Bond (Child)") {
+    baseDamage = roundDown(trunc(baseDamage * 0x400, 32) / 0x1000);
+  }
+
+  if (
+    context.field.weather?.name === "Sun" &&
+    context.move.name === "Hydro Steam" &&
+    context.p1.pokemon.item?.id !== "Utility Umbrella"
+  ) {
+    baseDamage = roundDown(trunc(baseDamage * 0x1800, 32) / 0x1000);
+  } else if (context.p2.pokemon.item?.id !== "Utility Umbrella") {
+    if (
+      (["Sun", "Harsh Sunshine"].includes(context.field.weather?.name || "") &&
+        context.move.type === "Fire") ||
+      (["Rain", "Heavy Rain"].includes(context.field.weather?.name || "") &&
+        context.move.type === "Water")
+    ) {
+      baseDamage = roundDown(trunc(baseDamage * 0x1800, 32) / 0x1000);
+    } else if (
+      (context.field.weather?.name === "Sun" &&
+        context.move.type === "Water") ||
+      (context.field.weather?.name === "Rain" && context.move.type === "Fire")
+    ) {
+      baseDamage = roundDown(trunc(baseDamage * 0x800, 32) / 0x1000);
+    }
+  }
+
+  if (context.move.crit) {
+    baseDamage = Math.floor(trunc(baseDamage * 1.5, 32));
+  }
+
+  const stabMod = 0x1000;
+  const finalMod = 0x1000;
+  const effectiveness = 2;
+  const isBurned = false;
+  const protect = false;
+  let damage = [];
+  for (let i = 0; i < 16; i++) {
+    let damageAmount = Math.floor(trunc(baseDamage * (85 + i), 32) / 100);
+    // If the stabMod would not accomplish anything we avoid applying it because it could cause
+    // us to calculate damage overflow incorrectly (DaWoblefet)
+    if (stabMod !== 0x1000)
+      damageAmount = trunc(damageAmount * stabMod, 0x1000) / 0x1000;
+    damageAmount = floor(trunc(roundDown(damageAmount) * effectiveness, 32));
+
+    if (isBurned) damageAmount = floor(damageAmount / 2);
+    if (protect) damageAmount = floor(trunc(damageAmount * 0x400, 32) / 0x1000);
+    damage.push(
+      trunc(
+        roundDown(Math.max(1, trunc(damageAmount * finalMod, 32) / 0x1000)),
+        16
+      )
+    );
+  }
+  return damage;
+}
+
+export function getBaseDamage(
+  level: number,
+  basePower: number,
+  attack: number,
+  defense: number
+) {
+  return floor(
+    trunc(
+      floor(
+        trunc(trunc(floor((2 * level) / 5 + 2) * basePower, 32) * attack, 32) /
+          defense
+      ) /
+        50 +
+        2,
+      32
+    )
+  );
 }
 
 // FIXME: other modifiers beyond just boosts

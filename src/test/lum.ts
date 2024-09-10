@@ -1,31 +1,44 @@
 import { Generations } from "@pkmn/data";
 import { Dex } from "@pkmn/sim";
-import { WeatherName } from "../conditions";
-import { calculate } from "../mechanics";
+import { Field, Move, Pokemon } from "@smogon/calc";
+import { Context } from "../context";
+import { calculate2 } from "../mechanics";
+import { calculateBaseDamageSMSSSV } from "../mechanics/smogonMech";
+import { getFinalDamage } from "../mechanics/smogonUtil";
 import { State } from "../state";
 
 const gens = new Generations(Dex as any);
 const gen = gens.get(9);
 
-const attacker = State.createPokemon(gen, "Poliwrath", {
-  nature: "Jolly",
-  evs: { spe: 252 },
-  ability: "Swift Swim",
-  item: "Choice Scarf",
-});
+let baseDamage = calculateBaseDamageSMSSSV(
+  gen,
+  new Pokemon(gen, "Incineroar", { evs: { atk: 4 }, level: 50 }),
+  new Pokemon(gen, "Amoonguss", { evs: { def: 76 }, level: 50 }),
+  70,
+  136,
+  100,
+  new Move(gen, "U-Turn"),
+  new Field(),
+  {
+    attackerName: "Incineroar",
+    moveName: "U-Turn",
+    defenderName: "Amoongus",
+    isDefenderDynamaxed: false,
+    isWonderRoom: false,
+  }
+);
+console.log(baseDamage);
+let lowFinal = getFinalDamage(baseDamage, 0, 2, false, 0x1000, 0x1000, false);
+let highFinal = getFinalDamage(baseDamage, 15, 2, false, 0x1000, 0x1000, false);
 
-const p1 = State.createSide(gen, attacker, {
-  sideConditions: ["tailwind"],
-  abilities: ["swiftswim"],
-});
-const defender = {
-  pokemon: State.createPokemon(gen, "Blissey", {
-    evs: { hp: 252, spd: 252 },
-  }),
-  sideConditions: { spikes: { level: 2 }, stealthrock: {} },
-};
-const move = State.createMove(gen, "Focus Blast");
-const field = { weather: "Rain" as WeatherName, pseudoWeather: {} };
-const result = calculate(gen, attacker, defender, move, field);
+console.log(lowFinal, highFinal);
 
-// console.log(result);
+const state = new State(
+  gen,
+  State.createPokemon(gen, "Incineroar", { evs: { atk: 4 }, level: 50 }),
+  State.createPokemon(gen, "Amoonguss", { evs: { def: 76 }, level: 50 }),
+  State.createMove(gen, "U-Turn"),
+  State.createField(gen)
+);
+
+console.log(calculate2(Context.fromState(state)));
