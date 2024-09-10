@@ -6,45 +6,44 @@ import type {
   MoveName,
   StatsTable,
   TypeName,
-} from '@pkmn/data';
+} from "@pkmn/data";
 
-import {Context} from '../context';
-import {parse} from '../parse';
-import {HitResult, Result} from '../result';
-import {State} from '../state';
-import {DeepReadonly, has} from '../utils';
+import { Context } from "../context";
+import { parse } from "../parse";
+import { HitResult, Result } from "../result";
+import { State } from "../state";
+import { DeepReadonly, has } from "../utils";
 
-import {Abilities} from './abilities';
-import {Conditions} from './conditions';
-import {Items} from './items';
-import {Moves} from './moves';
+import { Abilities } from "./abilities";
+import { Conditions } from "./conditions";
+import { Items } from "./items";
+import { Moves } from "./moves";
 
-import {abs, apply, chain, clamp, floor, max, min, trunc} from '../math';
+import { abs, apply, chain, clamp, floor, max, min, trunc } from "../math";
+import { stat } from "fs";
 
 export interface Applier {
-  apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
+  apply(side: "p1" | "p2", state: State, guaranteed?: boolean): void;
 }
 
 export interface Handler {
   basePowerCallback(context: Context): number;
   damageCallback(context: Context): number;
-
   onModifyBasePower(context: Context): number | undefined;
 
-  onModifyAtk(context: Context): number | undefined;
-  onModifySpA(context: Context): number | undefined;
-  onModifyDef(context: Context): number | undefined;
-  onModifySpD(context: Context): number | undefined;
+  onModifyAtk(pokemon: Context.Pokemon): number | undefined;
+  onModifySpA(pokemon: Context.Pokemon): number | undefined;
+  onModifyDef(pokemon: Context.Pokemon): number | undefined;
+  onModifySpD(pokemon: Context.Pokemon): number | undefined;
+  onModifySpe(pokemon: Context.Pokemon): number | undefined;
+  onModifyWeight(pokemon: Context.Pokemon): number | undefined;
 
-  onModifySpe(context: Context): number | undefined;
-  onModifyWeight(context: Context): number | undefined;
-
-  onResidual(context: Context): number | undefined;
+  onResidual(pokemon: Context.Pokemon): number | undefined;
 }
 
-export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
+export type HandlerKind = "Abilities" | "Items" | "Moves" | "Conditions";
 export type Handlers = typeof HANDLERS;
-export const HANDLERS = {Abilities, Conditions, Items, Moves};
+export const HANDLERS = { Abilities, Conditions, Items, Moves };
 
 export class Appliers {
   private handlers: Handlers;
@@ -54,8 +53,8 @@ export class Appliers {
   }
 
   apply(
-    kind: Exclude<HandlerKind, 'Conditions'>,
-    side: 'p1' | 'p2',
+    kind: Exclude<HandlerKind, "Conditions">,
+    side: "p1" | "p2",
     id: ID | undefined,
     state: State,
     guaranteed?: boolean
@@ -63,10 +62,10 @@ export class Appliers {
     if (!id) return;
 
     switch (kind) {
-      case 'Abilities':
-      case 'Items':
+      case "Abilities":
+      case "Items":
         return this.handlers[kind][id]?.apply?.(side, state, guaranteed);
-      case 'Moves': {
+      case "Moves": {
         // If a Move handler is defined, use it, otherwise try to see if an 'apply' function can
         // can be inferred based purely on information from the data files
         const handler = this.handlers.Moves[id];
@@ -100,16 +99,16 @@ export class Appliers {
 export const APPLIERS = new Appliers(HANDLERS);
 
 export const HANDLER_FNS: Set<keyof Handler> = new Set([
-  'basePowerCallback',
-  'damageCallback',
-  'onModifyBasePower',
-  'onModifyAtk',
-  'onModifySpA',
-  'onModifyDef',
-  'onModifySpD',
-  'onModifySpe',
-  'onModifyWeight',
-  'onResidual',
+  "basePowerCallback",
+  "damageCallback",
+  "onModifyBasePower",
+  "onModifyAtk",
+  "onModifySpA",
+  "onModifyDef",
+  "onModifySpD",
+  "onModifySpe",
+  "onModifyWeight",
+  "onResidual",
 ]);
 
 // Convenience overload for most programs
@@ -130,19 +129,19 @@ export function calculate(...args: any[]) {
   let handlers = HANDLERS;
   if (args.length > 3) {
     state = new State(args[0], args[1], args[2], args[3], args[4], args[5]);
-  } else if (typeof args[1] === 'string') {
+  } else if (typeof args[1] === "string") {
     state = parse(args[0], args[1]);
   } else {
     state = args[0];
     handlers = args[1] || handlers;
   }
-
   // Admittedly, somewhat odd to be creating a result and then letting it get mutated, but
   // this means we don't need to plumb state/handlers/context/relevancy in separately
   const hit = new HitResult(state as DeepReadonly<State>, handlers);
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
-
-  return new Result(hit); // TODO handle multihit / parental bond etc
+  const result = new Result(hit); // TODO handle multihit / parental bond etc
+  console.log(result);
+  return result;
 }
 
 // FIXME: other modifiers beyond just boosts
@@ -151,7 +150,7 @@ export function computeStats(gen: Generation, pokemon: State.Pokemon) {
   if (pokemon.stats) {
     for (const stat of gen.stats) {
       stats[stat] =
-        stat === 'hp'
+        stat === "hp"
           ? pokemon.stats[stat]
           : computeBoostedStat(
               pokemon.stats[stat],
@@ -170,7 +169,7 @@ export function computeStats(gen: Generation, pokemon: State.Pokemon) {
         pokemon.level,
         gen.natures.get(pokemon.nature!)
       );
-      if (stat !== 'hp') {
+      if (stat !== "hp") {
         stats[stat] = computeBoostedStat(
           stats[stat],
           pokemon.boosts?.[stat] || 0,
@@ -196,22 +195,22 @@ function computeBoostedStat(stat: number, mod: number, gen?: Generation) {
 }
 
 export function computeModifiedSpeed(context: Context | State) {
-  context = 'relevant' in context ? context : Context.fromState(context);
-  const {gen, p1} = context;
+  context = "relevant" in context ? context : Context.fromState(context);
+  const { p1 } = context;
   let spe = computeBoostedStat(
     p1.pokemon.stats?.spe || 0,
     p1.pokemon.boosts.spe || 0,
-    gen
+    context.gen
   );
   let mod = 0x1000;
   const ability = p1.pokemon.ability && Abilities[p1.pokemon.ability.id];
-  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(context));
+  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(p1.pokemon));
   const item = p1.pokemon.item && Items[p1.pokemon.item.id];
-  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(context));
-  if (p1.sideConditions['tailwind']) mod = chain(mod, 0x2000);
-  if (p1.sideConditions['grasspledge']) mod = chain(mod, 0x400);
+  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(p1.pokemon));
+  if (p1.sideConditions["tailwind"]) mod = chain(mod, 0x2000);
+  if (p1.sideConditions["grasspledge"]) mod = chain(mod, 0x400);
   spe = trunc(apply(spe, mod), 16);
-  return gen.num <= 2 ? min(max(spe, 1), 999) : min(spe, 10000);
+  return context.gen.num <= 2 ? min(max(spe, 1), 999) : min(spe, 10000);
 }
 
 export function computeModifiedWeight(
@@ -219,43 +218,43 @@ export function computeModifiedWeight(
 ) {
   const autotomize = pokemon.volatiles.autotomize?.level || 0;
   let weighthg = Math.max(1, pokemon.weighthg - 1000 * autotomize);
-  if (pokemon.ability === 'heavymetal') {
+  if (pokemon.ability === "heavymetal") {
     weighthg *= 2;
-  } else if (pokemon.ability === 'lightmetal') {
+  } else if (pokemon.ability === "lightmetal") {
     weighthg = floor(weighthg / 2);
   }
-  if (pokemon.item === 'floatstone') {
+  if (pokemon.item === "floatstone") {
     weighthg = floor(weighthg / 2);
   }
   return weighthg;
 }
 
-const Z_MOVES: {[type in Exclude<TypeName, '???' | 'Stellar'>]: string} = {
-  Bug: 'Savage Spin-Out',
-  Dark: 'Black Hole Eclipse',
-  Dragon: 'Devastating Drake',
-  Electric: 'Gigavolt Havoc',
-  Fairy: 'Twinkle Tackle',
-  Fighting: 'All-Out Pummeling',
-  Fire: 'Inferno Overdrive',
-  Flying: 'Supersonic Skystrike',
-  Ghost: 'Never-Ending Nightmare',
-  Grass: 'Bloom Doom',
-  Ground: 'Tectonic Rage',
-  Ice: 'Subzero Slammer',
-  Normal: 'Breakneck Blitz',
-  Poison: 'Acid Downpour',
-  Psychic: 'Shattered Psyche',
-  Rock: 'Continental Crush',
-  Steel: 'Corkscrew Crash',
-  Water: 'Hydro Vortex',
+const Z_MOVES: { [type in Exclude<TypeName, "???" | "Stellar">]: string } = {
+  Bug: "Savage Spin-Out",
+  Dark: "Black Hole Eclipse",
+  Dragon: "Devastating Drake",
+  Electric: "Gigavolt Havoc",
+  Fairy: "Twinkle Tackle",
+  Fighting: "All-Out Pummeling",
+  Fire: "Inferno Overdrive",
+  Flying: "Supersonic Skystrike",
+  Ghost: "Never-Ending Nightmare",
+  Grass: "Bloom Doom",
+  Ground: "Tectonic Rage",
+  Ice: "Subzero Slammer",
+  Normal: "Breakneck Blitz",
+  Poison: "Acid Downpour",
+  Psychic: "Shattered Psyche",
+  Rock: "Continental Crush",
+  Steel: "Corkscrew Crash",
+  Water: "Hydro Vortex",
 };
 
 export function getZMoveName(
   gen: Generation,
   move: State.Move,
   pokemon: {
-    species?: {name: string};
+    species?: { name: string };
     item?: string;
   } = {}
 ) {
@@ -270,47 +269,47 @@ export function getZMoveName(
       item.zMoveFrom === move.name;
     if (matching) return item.zMove;
   }
-  return Z_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
+  return Z_MOVES[move.type as Exclude<TypeName, "???" | "Stellar">];
 }
 
-const MAX_MOVES: {[type in Exclude<TypeName, '???' | 'Stellar'>]: string} = {
-  Bug: 'Max Flutterby',
-  Dark: 'Max Darkness',
-  Dragon: 'Max Wyrmwind',
-  Electric: 'Max Lightning',
-  Fairy: 'Max Starfall',
-  Fighting: 'Max Knuckle',
-  Fire: 'Max Flare',
-  Flying: 'Max Airstream',
-  Ghost: 'Max Phantasm',
-  Grass: 'Max Overgrowth',
-  Ground: 'Max Quake',
-  Ice: 'Max Hailstorm',
-  Normal: 'Max Strike',
-  Poison: 'Max Ooze',
-  Psychic: 'Max Mindstorm',
-  Rock: 'Max Rockfall',
-  Steel: 'Max Steelspike',
-  Water: 'Max Geyser',
+const MAX_MOVES: { [type in Exclude<TypeName, "???" | "Stellar">]: string } = {
+  Bug: "Max Flutterby",
+  Dark: "Max Darkness",
+  Dragon: "Max Wyrmwind",
+  Electric: "Max Lightning",
+  Fairy: "Max Starfall",
+  Fighting: "Max Knuckle",
+  Fire: "Max Flare",
+  Flying: "Max Airstream",
+  Ghost: "Max Phantasm",
+  Grass: "Max Overgrowth",
+  Ground: "Max Quake",
+  Ice: "Max Hailstorm",
+  Normal: "Max Strike",
+  Poison: "Max Ooze",
+  Psychic: "Max Mindstorm",
+  Rock: "Max Rockfall",
+  Steel: "Max Steelspike",
+  Water: "Max Geyser",
 };
 
 export function getMaxMovename(
   gen: Generation,
   move: State.Move,
   pokemon: {
-    species?: {isGigantamax: MoveName};
+    species?: { isGigantamax: MoveName };
     item?: string;
   } = {}
 ) {
   if (gen.num < 8) {
     throw new TypeError(`Max Moves do not exist in gen ${gen.num}`);
   }
-  if (move.category === 'Status') return 'Max Guard';
+  if (move.category === "Status") return "Max Guard";
   if (pokemon.species?.isGigantamax) {
     const gmaxMove = gen.moves.get(pokemon.species.isGigantamax)!;
     if (move.type === gmaxMove.type) return pokemon.species.isGigantamax;
   }
-  return MAX_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
+  return MAX_MOVES[move.type as Exclude<TypeName, "???" | "Stellar">];
 }
 
 // function takeItem(pokemon: State.Pokemon | Context.Pokemon, boost: BoostID, amount: number) {
@@ -321,86 +320,83 @@ export function getMaxMovename(
 
 // }
 
-/*
+// function setAbility(ability: string | Ability, source?: Pokemon | null, isFromFormeChange?: boolean) {
+//     if (!this.hp) return false;
+//     if (typeof ability === 'string') ability = this.battle.dex.getAbility(ability);
+//     const oldAbility = this.ability;
+//     if (!isFromFormeChange) {
+//       const abilities = [
+//         'battlebond', 'comatose', 'disguise', 'gulpmissile', 'hungerswitch', 'iceface',
+//         'multitype', 'powerconstruct', 'rkssystem', 'schooling', 'shieldsdown', 'stancechange',
+//       ];
+//       if (ability.id === 'illusion' ||
+//           abilities.includes(ability.id) ||
+//           abilities.includes(oldAbility)) {
+//         return false;
+//       }
+//       if (this.battle.gen >= 7 && (ability.id === 'zenmode' || oldAbility === 'zenmode')) {
+//         return false;
+//       }
+//     }
 
-setAbility(ability: string | Ability, source?: Pokemon | null, isFromFormeChange?: boolean) {
-    if (!this.hp) return false;
-    if (typeof ability === 'string') ability = this.battle.dex.getAbility(ability);
-    const oldAbility = this.ability;
-    if (!isFromFormeChange) {
-      const abilities = [
-        'battlebond', 'comatose', 'disguise', 'gulpmissile', 'hungerswitch', 'iceface',
-        'multitype', 'powerconstruct', 'rkssystem', 'schooling', 'shieldsdown', 'stancechange',
-      ];
-      if (ability.id === 'illusion' ||
-          abilities.includes(ability.id) ||
-          abilities.includes(oldAbility)) {
-        return false;
-      }
-      if (this.battle.gen >= 7 && (ability.id === 'zenmode' || oldAbility === 'zenmode')) {
-        return false;
-      }
-    }
+// function ignoringItem() {
+//   return !!((this.battle.gen >= 5 && !this.isActive) ||
+//     (this.hasAbility('klutz') && !this.getItem().ignoreKlutz) ||
+//     this.volatiles['embargo'] || this.battle.field.pseudoWeather['magicroom']);
+// }
 
-  ignoringItem() {
-    return !!((this.battle.gen >= 5 && !this.isActive) ||
-      (this.hasAbility('klutz') && !this.getItem().ignoreKlutz) ||
-      this.volatiles['embargo'] || this.battle.field.pseudoWeather['magicroom']);
-  }
+//  function isGrounded(negateImmunity = false) {
+//     if ('gravity' in this.battle.field.pseudoWeather) return true;
+//     if ('ingrain' in this.volatiles && this.battle.gen >= 4) return true;
+//     if ('smackdown' in this.volatiles) return true;
+//     const item = (this.ignoringItem() ? '' : this.item);
+//     if (item === 'ironball') return true;
+//     // If a Fire/Flying type uses Burn Up and Roost, it becomes ???/Flying-type,
+//     // but it's still grounded.
+//     if (!negateImmunity && this.hasType('Flying') && !('roost' in this.volatiles)) return false;
+//     if (this.hasAbility('levitate') && !this.battle.suppressingAttackEvents()) return null;
+//     if ('magnetrise' in this.volatiles) return false;
+//     if ('telekinesis' in this.volatiles) return false;
+//     return item !== 'airballoon';
+//   }
 
-  isGrounded(negateImmunity = false) {
-    if ('gravity' in this.battle.field.pseudoWeather) return true;
-    if ('ingrain' in this.volatiles && this.battle.gen >= 4) return true;
-    if ('smackdown' in this.volatiles) return true;
-    const item = (this.ignoringItem() ? '' : this.item);
-    if (item === 'ironball') return true;
-    // If a Fire/Flying type uses Burn Up and Roost, it becomes ???/Flying-type,
-    // but it's still grounded.
-    if (!negateImmunity && this.hasType('Flying') && !('roost' in this.volatiles)) return false;
-    if (this.hasAbility('levitate') && !this.battle.suppressingAttackEvents()) return null;
-    if ('magnetrise' in this.volatiles) return false;
-    if ('telekinesis' in this.volatiles) return false;
-    return item !== 'airballoon';
-  }
+//  function effectiveWeather() {
+//     const weather = this.battle.field.effectiveWeather();
+//     switch (weather) {
+//     case 'sunnyday':
+//     case 'raindance':
+//     case 'desolateland':
+//     case 'primordialsea':
+//       if (this.hasItem('utilityumbrella')) return '';
+//     }
+//     return weather;
+//   }
 
-  effectiveWeather() {
-    const weather = this.battle.field.effectiveWeather();
-    switch (weather) {
-    case 'sunnyday':
-    case 'raindance':
-    case 'desolateland':
-    case 'primordialsea':
-      if (this.hasItem('utilityumbrella')) return '';
-    }
-    return weather;
-  }
+//  function ignoringAbility() {
+//     const abilities = [
+//       'battlebond', 'comatose', 'disguise', 'gulpmissile', 'multitype', 'powerconstruct',
+//       'rkssystem', 'schooling', 'shieldsdown', 'stancechange',
+//     ];
+//     // Check if any active pokemon have the ability Neutralizing Gas
+//     let neutralizinggas = false;
+//     for (const pokemon of this.battle.getAllActive()) {
+//       // can't use hasAbility because it would lead to infinite recursion
+//       if (pokemon.ability === ('neutralizinggas' as ID) && !pokemon.volatiles['gastroacid'] &&
+//         !pokemon.abilityData.ending) {
+//         neutralizinggas = true;
+//         break;
+//       }
+//     }
 
-  ignoringAbility() {
-    const abilities = [
-      'battlebond', 'comatose', 'disguise', 'gulpmissile', 'multitype', 'powerconstruct',
-      'rkssystem', 'schooling', 'shieldsdown', 'stancechange',
-    ];
-    // Check if any active pokemon have the ability Neutralizing Gas
-    let neutralizinggas = false;
-    for (const pokemon of this.battle.getAllActive()) {
-      // can't use hasAbility because it would lead to infinite recursion
-      if (pokemon.ability === ('neutralizinggas' as ID) && !pokemon.volatiles['gastroacid'] &&
-        !pokemon.abilityData.ending) {
-        neutralizinggas = true;
-        break;
-      }
-    }
+//     return !!(
+//       (this.battle.gen >= 5 && !this.isActive) ||
+//       ((this.volatiles['gastroacid'] ||
+//         (neutralizinggas && this.ability !== ('neutralizinggas' as ID))) &&
+//       !abilities.includes(this.ability))
+//     );
+//   }
 
-    return !!(
-      (this.battle.gen >= 5 && !this.isActive) ||
-      ((this.volatiles['gastroacid'] ||
-        (neutralizinggas && this.ability !== ('neutralizinggas' as ID))) &&
-      !abilities.includes(this.ability))
-    );
-  }
-  */
-
-// TODO white verb, mist, WONDER ROOM
+// TODO white herb, mist, WONDER ROOM
 // function applyBoost(pokemon: State.Pokemon | Context.Pokemon, boost: BoostID, amount: number) {
 //   const ability = 'relevant' in pokemon ? pokemon.ability?.id : pokemon.ability;
 //   let mod = 1;
@@ -417,6 +413,8 @@ setAbility(ability: string | Ability, source?: Pokemon | null, isFromFormeChange
 
 // }
 
-// function is(x: string | string[] | undefined, ...xs: string[]) {
-//   return !!(x && (Array.isArray(x) ? x.some(y => xs.includes(y)) : xs.includes(x)));
-// }
+function is(x: string | string[] | undefined, ...xs: string[]) {
+  return !!(
+    x && (Array.isArray(x) ? x.some((y) => xs.includes(y)) : xs.includes(x))
+  );
+}

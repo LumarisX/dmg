@@ -1,7 +1,8 @@
-import {Applier, Handler} from '.';
-import {Context} from '../context';
+import { StatusName } from "@pkmn/data";
+import { Applier, Handler } from ".";
+import { Context } from "../context";
 
-export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
+export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
   adaptability: {
     //   onModifyMove(move) {
     //     move.stab = 2;
@@ -27,7 +28,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   airlock: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Air Lock');
     //   },
   },
@@ -57,7 +58,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   anticipation: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     for (const target of pokemon.side.foe.active) {
     //       if (!target || target.fainted) { continue; }
     //       for (const moveSlot of target.moveSlots) {
@@ -74,7 +75,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   arenatrap: {
-    //   onFoeTrapPokemon(pokemon) {
+    //   onFoeTrapPokemon(pokemon: Context.Pokemon) {
     //     if (!this.isAdjacent(pokemon, this.effectData.target)) { return; }
     //     if (pokemon.isGrounded()) {
     //       pokemon.tryTrap(true);
@@ -100,7 +101,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   aurabreak: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Aura Break');
     //   },
     //   onAnyTryPrimaryHit(target, source, move) {
@@ -109,7 +110,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   baddreams: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (!pokemon.hp) { return; }
     //     for (const target of pokemon.side.foe.active) {
     //       if (!target || !target.hp) { continue; }
@@ -182,18 +183,15 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   blaze: {
-    //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Fire' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Blaze boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
-    //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Fire' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Blaze boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (
+        context.move.type === "Fire" &&
+        context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
+      ) {
+        // this.debug("Blaze boost");
+        return 0x1800;
+      }
+    },
   },
   bulletproof: {
     //   onTryHit(pokemon, target, move) {
@@ -209,9 +207,11 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   chlorophyll: {
-    onModifySpe(context: Context) {
+    onModifySpe(pokemon: Context.Pokemon) {
       if (
-        ['Sun', 'Harsh Sunshine'].includes(context.field.weather?.name || '')
+        ["Sun", "Harsh Sunshine"].includes(
+          pokemon.context.field.weather?.name || ""
+        )
       ) {
         return 0x2000;
       }
@@ -234,7 +234,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   cloudnine: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Cloud Nine');
     //   },
   },
@@ -257,7 +257,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   comatose: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Comatose');
     //   },
     //   onSetStatus(status, target, source, effect) {
@@ -352,7 +352,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   darkaura: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Dark Aura');
     //   },
     //   onAnyBasePower(basePower, source, target, move) {
@@ -363,7 +363,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   dauntlessshield: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.boost({def: 1}, pokemon);
     //   },
   },
@@ -422,7 +422,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
     //     if (this.field.getWeather().id === 'deltastream' && !strongWeathers.includes(weather.id)) { return false; }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
     //       if (target === pokemon) { continue; }
@@ -442,7 +442,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
     //     if (this.field.getWeather().id === 'desolateland' && !strongWeathers.includes(weather.id)) { return false; }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
     //       if (target === pokemon) { continue; }
@@ -473,7 +473,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     if (!target.runImmunity(move.type)) { return; }
     //     return 0;
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (['mimikyu', 'mimikyutotem'].includes(pokemon.species.id) && this.effectData.busted) {
     //       const speciesid = pokemon.species.id === 'mimikyutotem' ? 'Mimikyu-Busted-Totem' : 'Mimikyu-Busted';
     //       pokemon.formeChange(speciesid, this.effect, true);
@@ -482,7 +482,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   download: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     let totaldef = 0;
     //     let totalspd = 0;
     //     for (const target of pokemon.side.foe.active) {
@@ -571,7 +571,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   fairyaura: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Fairy Aura');
     //   },
     //   onAnyBasePower(basePower, source, target, move) {
@@ -615,7 +615,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       return null;
     //     }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     pokemon.removeVolatile('flashfire');
     //   },
     //   effect: {
@@ -640,10 +640,10 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   flowergift: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     delete this.effectData.forme;
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (!pokemon.isActive || pokemon.baseSpecies.baseSpecies !== 'Cherrim' || pokemon.transformed) { return; }
     //     if (['sunnyday', 'desolateland'].includes(pokemon.effectiveWeather())) {
     //       if (pokemon.species.id !== 'cherrimsunshine') {
@@ -712,7 +712,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   forecast: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Castform' || pokemon.transformed) { return; }
     //     let forme = null;
     //     switch (pokemon.effectiveWeather()) {
@@ -737,7 +737,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   forewarn: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     let warnMoves = [];
     //     let warnBp = 1;
     //     for (const target of pokemon.side.foe.active) {
@@ -771,7 +771,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   frisk: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     for (const target of pokemon.side.foe.active) {
     //       if (!target || target.fainted) { continue; }
     //       if (target.item) {
@@ -827,7 +827,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   gorillatactics: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     pokemon.abilityData.choiceLock = "";
     //   },
     //   onBeforeMove(pokemon, target, move) {
@@ -851,7 +851,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     this.debug('Gorilla Tactics Atk Boost');
     //     return this.chainModify(1.5);
     //   },
-    //   onDisableMove(pokemon) {
+    //   onDisableMove(pokemon: Context.Pokemon) {
     //     if (!pokemon.abilityData.choiceLock) { return; }
     //     if (pokemon.volatiles['dynamax']) { return; }
     //     for (const moveSlot of pokemon.moveSlots) {
@@ -860,12 +860,12 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       }
     //     }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     pokemon.abilityData.choiceLock = "";
     //   },
   },
   grasspelt: {
-    //   onModifyDef(pokemon) {
+    //   onModifyDef(pokemon: Context.Pokemon) {
     //     if (this.field.isTerrain('grassyterrain')) { return this.chainModify(1.5); }
     //   },
   },
@@ -903,14 +903,14 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   guts: {
-    //   onModifyAtk(atk, pokemon) {
-    //     if (pokemon.status) {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (pokemon.status) {
+        return 0x1800;
+      }
+    },
   },
   harvest: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (this.field.isWeather(['sunnyday', 'desolateland']) || this.randomChance(1, 2)) {
     //       if (pokemon.hp && !pokemon.item && this.dex.getItem(pokemon.lastItem).isBerry) {
     //         pokemon.setItem(pokemon.lastItem);
@@ -921,7 +921,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   healer: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.side.active.length === 1) {
     //       return;
     //     }
@@ -952,29 +952,29 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   hugepower: {
-    //   onModifyAtk(atk) {
-    //     return this.chainModify(2);
-    //   },
+    onModifyAtk() {
+      return 0x2000;
+    },
   },
   hungerswitch: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.species.baseSpecies !== 'Morpeko' || pokemon.transformed) { return; }
     //     const targetForme = pokemon.species.name === 'Morpeko' ? 'Morpeko-Hangry' : 'Morpeko';
     //     pokemon.formeChange(targetForme);
     //   },
   },
   hustle: {
-    //   onModifyAtk(atk) {
-    //     return this.modify(atk, 1.5);
-    //   },
-    //   onModifyMove(move) {
-    //     if (move.category === 'Physical' && typeof move.accuracy === 'number') {
-    //       move.accuracy *= 0.8;
-    //     }
-    //   },
+    onModifyAtk() {
+      return 0x1800;
+    },
+    // onModifyMove(pokemon: Context.Pokemon) {
+    //   if (pokemon.context.move.category === 'Physical' && typeof pokemon.context.move.accuracy === 'number') {
+    //     return 0x0CCA
+    //   }
+    // },
   },
   hydration: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.status && ['raindance', 'primordialsea'].includes(pokemon.effectiveWeather())) {
     //       this.debug('hydration');
     //       this.add('-activate', pokemon, 'ability: Hydration');
@@ -1004,7 +1004,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   iceface: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     if (this.field.isWeather('hail') && pokemon.species.id === 'eiscuenoice' && !pokemon.transformed) {
     //       this.add('-activate', pokemon, 'ability: Ice Face');
     //       this.effectData.busted = false;
@@ -1026,7 +1026,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     if (!target.runImmunity(move.type)) { return; }
     //     return 0;
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.species.id === 'eiscue' && this.effectData.busted) {
     //       pokemon.formeChange('Eiscue-Noice', this.effect, true);
     //     }
@@ -1048,7 +1048,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   illusion: {
-    //   onBeforeSwitchIn(pokemon) {
+    //   onBeforeSwitchIn(pokemon: Context.Pokemon) {
     //     pokemon.illusion = null;
     //     let i;
     //     for (i = pokemon.side.pokemon.length - 1; i > pokemon.position; i--) {
@@ -1064,7 +1064,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       this.singleEvent('End', this.dex.getAbility('Illusion'), target.abilityData, target, source, move);
     //     }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     if (pokemon.illusion) {
     //       this.debug('illusion cleared');
     //       pokemon.illusion = null;
@@ -1074,12 +1074,12 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       this.add('-end', pokemon, 'Illusion');
     //     }
     //   },
-    //   onFaint(pokemon) {
+    //   onFaint(pokemon: Context.Pokemon) {
     //     pokemon.illusion = null;
     //   },
   },
   immunity: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'psn' || pokemon.status === 'tox') {
     //       this.add('-activate', pokemon, 'ability: Immunity');
     //       pokemon.cureStatus();
@@ -1095,10 +1095,10 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   imposter: {
-    //   onSwitchIn(pokemon) {
+    //   onSwitchIn(pokemon: Context.Pokemon) {
     //     this.effectData.switchingIn = true;
     //   },
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //         Imposter does not activate when Skill Swapped or when Neutralizing Gas leaves the field
     //     if (!this.effectData.switchingIn) { return; }
     //     const target = pokemon.side.foe.active[pokemon.side.foe.active.length - 1 - pokemon.position];
@@ -1126,7 +1126,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   insomnia: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'slp') {
     //       this.add('-activate', pokemon, 'ability: Insomnia');
     //       pokemon.cureStatus();
@@ -1165,7 +1165,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
   },
   */
   intrepidsword: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.boost({atk: 1}, pokemon);
     //   },
   },
@@ -1259,7 +1259,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   limber: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'par') {
     //       this.add('-activate', pokemon, 'ability: Limber');
     //       pokemon.cureStatus();
@@ -1342,7 +1342,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   magmaarmor: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'frz') {
     //       this.add('-activate', pokemon, 'ability: Magma Armor');
     //       pokemon.cureStatus();
@@ -1353,7 +1353,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   magnetpull: {
-    //   onFoeTrapPokemon(pokemon) {
+    //   onFoeTrapPokemon(pokemon: Context.Pokemon) {
     //     if (pokemon.hasType('Steel') && this.isAdjacent(pokemon, this.effectData.target)) {
     //       pokemon.tryTrap(true);
     //     }
@@ -1386,7 +1386,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   mimicry: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     if (this.field.terrain) {
     //       pokemon.addVolatile('mimicry');
     //     } else {
@@ -1401,11 +1401,11 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     delete pokemon.volatiles['mimicry'];
     //     pokemon.addVolatile('mimicry');
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     delete pokemon.volatiles['mimicry'];
     //   },
     //   effect: {
-    //     onStart(pokemon) {
+    //     onStart(pokemon: Context.Pokemon) {
     //       let newType;
     //       switch (this.field.terrain) {
     //       case 'electricterrain':
@@ -1424,7 +1424,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       if (!newType || pokemon.getTypes().join() === newType || !pokemon.setType(newType)) { return; }
     //       this.add('-start', pokemon, 'typechange', newType, '[from] ability: Mimicry');
     //     },
-    //     onUpdate(pokemon) {
+    //     onUpdate(pokemon: Context.Pokemon) {
     //       if (!this.field.terrain) {
     //         const types = pokemon.species.types;
     //         if (pokemon.getTypes().join() === types.join() || !pokemon.setType(types)) { return; }
@@ -1470,7 +1470,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   moldbreaker: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Mold Breaker');
     //   },
     //   onModifyMove(move) {
@@ -1478,7 +1478,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   moody: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     let stats = [];
     //     const boost = {};
     //     let statPlus;
@@ -1542,7 +1542,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   naturalcure: {
-    //   onCheckShow(pokemon) {
+    //   onCheckShow(pokemon: Context.Pokemon) {
     //         This is complicated
     //         For the most part, in-game, it's obvious whether or not Natural Cure activated,
     //         since you can see how many of your opponent's pokemon are statused.
@@ -1600,7 +1600,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       }
     //     }
     //   },
-    //   onSwitchOut(pokemon) {
+    //   onSwitchOut(pokemon: Context.Pokemon) {
     //     if (!pokemon.status) { return; }
     //         if pokemon.showCure is undefined, it was skipped because its ability
     //         is known
@@ -1620,7 +1620,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   neutralizinggas: {
-    //   onPreStart(pokemon) {
+    //   onPreStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Neutralizing Gas');
     //     pokemon.abilityData.ending = false;
     //   },
@@ -1665,7 +1665,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   oblivious: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.volatiles['attract']) {
     //       this.add('-activate', pokemon, 'ability: Oblivious');
     //       pokemon.removeVolatile('attract');
@@ -1699,21 +1699,18 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   overgrow: {
-    //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Grass' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Overgrow boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
-    //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Grass' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Overgrow boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (
+        context.move.type === "Grass" &&
+        context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
+      ) {
+        // this.debug("Overgrow boost");
+        return 0x1800;
+      }
+    },
   },
   owntempo: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.volatiles['confusion']) {
     //       this.add('-activate', pokemon, 'ability: Own Tempo');
     //       pokemon.removeVolatile('confusion');
@@ -1748,7 +1745,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   pastelveil: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     for (const ally of pokemon.allies()) {
     //       if (['psn', 'tox'].includes(ally.status)) {
     //         this.add('-activate', pokemon, 'ability: Pastel Veil');
@@ -1756,13 +1753,13 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       }
     //     }
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (['psn', 'tox'].includes(pokemon.status)) {
     //       this.add('-activate', pokemon, 'ability: Pastel Veil');
     //       pokemon.cureStatus();
     //     }
     //   },
-    //   onAllySwitchIn(pokemon) {
+    //   onAllySwitchIn(pokemon: Context.Pokemon) {
     //     if (['psn', 'tox'].includes(pokemon.status)) {
     //       this.add('-activate', this.effectData.target, 'ability: Pastel Veil');
     //       pokemon.cureStatus();
@@ -1820,7 +1817,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   pickup: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.item) { return; }
     //     const pickupTargets = [];
     //     for (const target of this.getAllActive()) {
@@ -1892,7 +1889,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   powerconstruct: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Zygarde' || pokemon.transformed || !pokemon.hp) { return; }
     //     if (pokemon.species.id === 'zygardecomplete' || pokemon.hp > pokemon.maxhp / 2) { return; }
     //     this.add('-activate', pokemon, 'ability: Power Construct');
@@ -1933,7 +1930,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   pressure: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Pressure');
     //   },
     //   onDeductPP(target, source) {
@@ -1949,7 +1946,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
     //     if (this.field.getWeather().id === 'primordialsea' && !strongWeathers.includes(weather.id)) { return false; }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
     //       if (target === pokemon) { continue; }
@@ -2006,9 +2003,9 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   purepower: {
-    //   onModifyAtk(atk) {
-    //     return this.chainModify(2);
-    //   },
+    onModifyAtk() {
+      return 0x2000;
+    },
   },
   queenlymajesty: {
     //   onFoeTryMove(target, source, move) {
@@ -2025,8 +2022,8 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   quickfeet: {
-    onModifySpe(context: Context) {
-      if (context.p1.pokemon.status?.name === 'par') {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (pokemon.context.p1.pokemon.status?.name === "par") {
         return 0x2000;
       }
     },
@@ -2084,7 +2081,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   regenerator: {
-    //   onSwitchOut(pokemon) {
+    //   onSwitchOut(pokemon: Context.Pokemon) {
     //     pokemon.heal(pokemon.baseMaxhp / 3);
     //   },
   },
@@ -2165,8 +2162,8 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   sandrush: {
-    onModifySpe(context: Context) {
-      if (context.field.weather?.name === 'Sand') {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (pokemon.context.field.weather?.name === "Sand") {
         return 0x2000;
       }
     },
@@ -2217,7 +2214,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   schooling: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Wishiwashi' || pokemon.level < 20 || pokemon.transformed) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 4) {
     //       if (pokemon.species.id === 'wishiwashi') {
@@ -2229,7 +2226,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       }
     //     }
     //   },
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Wishiwashi' || pokemon.level < 20 ||
     //               pokemon.transformed || !pokemon.hp) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 4) {
@@ -2253,7 +2250,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   screencleaner: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     let activated = false;
     //     for (const sideCondition of ['reflect', 'lightscreen', 'auroraveil']) {
     //       if (pokemon.side.getSideCondition(sideCondition)) {
@@ -2292,7 +2289,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   shadowtag: {
-    //   onFoeTrapPokemon(pokemon) {
+    //   onFoeTrapPokemon(pokemon: Context.Pokemon) {
     //     if (!pokemon.hasAbility('shadowtag') && this.isAdjacent(pokemon, this.effectData.target)) {
     //       pokemon.tryTrap(true);
     //     }
@@ -2306,7 +2303,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   shedskin: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.hp && pokemon.status && this.randomChance(1, 3)) {
     //       this.debug('shed skin');
     //       this.add('-activate', pokemon, 'ability: Shed Skin');
@@ -2335,7 +2332,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   shieldsdown: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Minior' || pokemon.transformed) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 2) {
     //       if (pokemon.species.forme !== 'Meteor') {
@@ -2347,7 +2344,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       }
     //     }
     //   },
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Minior' || pokemon.transformed || !pokemon.hp) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 2) {
     //       if (pokemon.species.forme !== 'Meteor') {
@@ -2394,31 +2391,33 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   slowstart: {
-    //   onStart(pokemon) {
-    //     pokemon.addVolatile("slowstart");
+    // onStart(pokemon: Context.Pokemon) {
+    //   pokemon.addVolatile("slowstart");
+    // },
+    // onEnd(pokemon: Context.Pokemon) {
+    //   delete pokemon.volatiles["slowstart"];
+    //   this.add("-end", pokemon, "Slow Start", "[silent]");
+    // },
+    // effect: {
+    //   onStart(target) {
+    //     this.add("-start", target, "ability: Slow Start");
     //   },
-    //   onEnd(pokemon) {
-    //     delete pokemon.volatiles["slowstart"];
-    //     this.add("-end", pokemon, "Slow Start", "[silent]");
+    //   onModifyAtk(atk, pokemon) {
+    //     return this.chainModify(0.5);
     //   },
-    //   effect: {
-    //     onStart(target) {
-    //       this.add("-start", target, "ability: Slow Start");
-    //     },
-    //     onModifyAtk(atk, pokemon) {
-    //       return this.chainModify(0.5);
-    //     },
-    //     onModifySpe(spe, pokemon) {
-    //       return this.chainModify(0.5);
-    //     },
-    //     onEnd(target) {
-    //       this.add("-end", target, "Slow Start");
-    //     },
+    //   onModifySpe(spe, pokemon) {
+    //     return this.chainModify(0.5);
     //   },
+    //   onEnd(target) {
+    //     this.add("-end", target, "Slow Start");
+    //   },
+    // },
   },
   slushrush: {
-    onModifySpe(context: Context) {
-      if (['Hail', 'Snow'].includes(context.field.weather?.name || '')) {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (
+        ["Hail", "Snow"].includes(pokemon.context.field.weather?.name || "")
+      ) {
         return 0x2000;
       }
     },
@@ -2488,7 +2487,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   speedboost: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.activeTurns) {
     //       this.boost({spe: 1});
     //     }
@@ -2543,7 +2542,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   steadfast: {
-    //   onFlinch(pokemon) {
+    //   onFlinch(pokemon: Context.Pokemon) {
     //     this.boost({spe: 1});
     //   },
   },
@@ -2593,7 +2592,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
   },
   stickyhold: {
     //   onTakeItem(item, pokemon, source) {
-    //     if (this.suppressingAttackEvents(pokemon) || !pokemon.hp || pokemon.item === 'stickybarb') { return; }
+    //     if (this.suppressingAttackEvents(pokemon: Context.Pokemon) || !pokemon.hp || pokemon.item === 'stickybarb') { return; }
     //     if (!this.activeMove) { throw new Error("Battle.activeMove is null"); }
     //     if ((source && source !== pokemon) || this.activeMove.id === 'knockoff') {
     //       this.add('-activate', pokemon, 'ability: Sticky Hold');
@@ -2644,7 +2643,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   suctioncups: {
-    //   onDragOut(pokemon) {
+    //   onDragOut(pokemon: Context.Pokemon) {
     //     this.add('-activate', pokemon, 'ability: Suction Cups');
     //     return null;
     //   },
@@ -2655,25 +2654,22 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   surgesurfer: {
-    onModifySpe(context: Context) {
-      if (context.field.terrain?.name === 'Electric') {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (pokemon.context.field.terrain?.name === "Electric") {
         return 0x2000;
       }
     },
   },
   swarm: {
-    //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Bug' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Swarm boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
-    //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Bug' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Swarm boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (
+        context.move.type === "Bug" &&
+        context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
+      ) {
+        // this.debug("Swarm boost");
+        return 0x1800;
+      }
+    },
   },
   sweetveil: {
     //   onAllySetStatus(status, target, source, effect) {
@@ -2694,8 +2690,12 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   swiftswim: {
-    onModifySpe(context: Context) {
-      if (['Rain', 'Heavy Rain'].includes(context.field.weather?.name || '')) {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (
+        ["Rain", "Heavy Rain"].includes(
+          pokemon.context.field.weather?.name || ""
+        )
+      ) {
         return 0x2000;
       }
     },
@@ -2761,7 +2761,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   teravolt: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Teravolt');
     //   },
     //   onModifyMove(move) {
@@ -2791,40 +2791,41 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   torrent: {
-    //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Water' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Torrent boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
-    //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Water' && attacker.hp <= attacker.maxhp / 3) {
-    //       this.debug('Torrent boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (
+        context.move.type === "Water" &&
+        context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
+      ) {
+        // this.debug("Torrent boost");
+        return 0x1800;
+      }
+    },
   },
   toughclaws: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (move.flags['contact']) {
-    //       return this.chainModify([0x14CD, 0x1000]);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (context.move.flags["contact"]) {
+        return 0x14cd;
+      }
+    },
   },
   toxicboost: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if ((attacker.status === 'psn' || attacker.status === 'tox') && move.category === 'Physical') {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyBasePower(context: Context) {
+      if (
+        (context.p1.pokemon.status?.name === "psn" ||
+          context.p1.pokemon.status?.name === "tox") &&
+        context.move.category === "Physical"
+      ) {
+        return 0x1800;
+      }
+    },
   },
   trace: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     if (pokemon.side.foe.active.some(foeActive => foeActive && this.isAdjacent(pokemon, foeActive) && foeActive.ability === 'noability')) {
     //       this.effectData.gaveUp = true;
     //     }
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (!pokemon.isStarted || this.effectData.gaveUp) { return; }
     //     const possibleTargets = pokemon.side.foe.active.filter(foeActive => foeActive && this.isAdjacent(pokemon, foeActive));
     //     while (possibleTargets.length) {
@@ -2851,13 +2852,13 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   truant: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     pokemon.removeVolatile('truant');
-    //     if (pokemon.activeTurns && (pokemon.moveThisTurnResult !== undefined || !this.queue.willMove(pokemon))) {
+    //     if (pokemon.activeTurns && (pokemon.moveThisTurnResult !== undefined || !this.queue.willMove(pokemon: Context.Pokemon))) {
     //       pokemon.addVolatile('truant');
     //     }
     //   },
-    //   onBeforeMove(pokemon) {
+    //   onBeforeMove(pokemon: Context.Pokemon) {
     //     if (pokemon.removeVolatile('truant')) {
     //       this.add('cant', pokemon, 'ability: Truant');
     //       return false;
@@ -2866,7 +2867,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   turboblaze: {
-    //   onStart(pokemon) {
+    //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Turboblaze');
     //   },
     //   onModifyMove(move) {
@@ -2900,7 +2901,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     // onTakeItem(item, pokemon) {
     //   pokemon.addVolatile("unburden");
     // },
-    // onEnd(pokemon) {
+    // onEnd(pokemon: Context.Pokemon) {
     //   pokemon.removeVolatile("unburden");
     // },
     // effect: {
@@ -2912,7 +2913,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     // },
   },
   unnerve: {
-    //   onPreStart(pokemon) {
+    //   onPreStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Unnerve', pokemon.side.foe);
     //   },
   },
@@ -2924,7 +2925,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   vitalspirit: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'slp') {
     //       this.add('-activate', pokemon, 'ability: Vital Spirit');
     //       pokemon.cureStatus();
@@ -2996,7 +2997,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       return this.chainModify(2);
     //     }
     //   },
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'brn') {
     //       this.add('-activate', pokemon, 'ability: Water Bubble');
     //       pokemon.cureStatus();
@@ -3019,7 +3020,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   waterveil: {
-    //   onUpdate(pokemon) {
+    //   onUpdate(pokemon: Context.Pokemon) {
     //     if (pokemon.status === 'brn') {
     //       this.add('-activate', pokemon, 'ability: Water Veil');
     //       pokemon.cureStatus();
@@ -3093,7 +3094,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   zenmode: {
-    //   onResidual(pokemon) {
+    //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Darmanitan' || pokemon.transformed) {
     //       return;
     //     }
@@ -3104,7 +3105,7 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //       pokemon.removeVolatile('zenmode');
     //     }
     //   },
-    //   onEnd(pokemon) {
+    //   onEnd(pokemon: Context.Pokemon) {
     //     if (!pokemon.volatiles['zenmode'] || !pokemon.hp) { return; }
     //     pokemon.transformed = false;
     //     delete pokemon.volatiles['zenmode'];
@@ -3113,14 +3114,14 @@ export const Abilities: {[id: string]: Partial<Applier & Handler>} = {
     //     }
     //   },
     //   effect: {
-    //     onStart(pokemon) {
+    //     onStart(pokemon: Context.Pokemon) {
     //       if (!pokemon.species.name.includes('Galar')) {
     //         if (pokemon.species.id !== 'darmanitanzen') { pokemon.formeChange('Darmanitan-Zen'); }
     //       } else {
     //         if (pokemon.species.id !== 'darmanitangalarzen') { pokemon.formeChange('Darmanitan-Galar-Zen'); }
     //       }
     //     },
-    //     onEnd(pokemon) {
+    //     onEnd(pokemon: Context.Pokemon) {
     //       if (['Zen', 'Galar-Zen'].includes(pokemon.species.forme)) {
     //         pokemon.formeChange(pokemon.species.battleOnly);
     //       }

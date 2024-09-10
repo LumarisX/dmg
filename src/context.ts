@@ -51,8 +51,8 @@ export class Context {
   ) {
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
-    this.p1 = new Context.Side(this.gen, state.p1, relevant.p1, handlers);
-    this.p2 = new Context.Side(this.gen, state.p2, relevant.p2, handlers);
+    this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
+    this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
     this.move = new Context.Move(state.move, relevant.move, handlers);
     this.field = new Context.Field(state.field, relevant.field, handlers);
     this.relevant = relevant;
@@ -159,19 +159,20 @@ export namespace Context {
       fainted?: boolean;
       position?: number;
     }>;
-
+    readonly context: Context;
     readonly relevant: Relevancy.Side;
 
     constructor(
-      gen: Generation,
+      context: Context,
       state: DeepReadonly<State.Side>,
       relevant: Relevancy.Side,
       handlers: Handlers
     ) {
       this.relevant = relevant;
-
+      this.context = context;
       this.pokemon = new Pokemon(
-        gen,
+        context,
+        this,
         state.pokemon,
         relevant.pokemon,
         handlers
@@ -233,25 +234,27 @@ export namespace Context {
     boosts: BoostsTable;
 
     position?: number;
-
+    transformed?: boolean;
     switching?: "in" | "out";
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
 
     readonly relevant: Relevancy.Pokemon;
+    readonly context: Context;
 
     private nature?: NatureName;
     private evs?: Partial<StatsTable>;
     private ivs?: Partial<StatsTable>;
 
     constructor(
-      gen: Generation,
+      context: Context,
+      side: Context.Side,
       state: DeepReadonly<State.Pokemon>,
       relevant: Relevancy.Pokemon,
       handlers: Handlers
     ) {
       this.relevant = relevant;
-
+      this.context = context;
       this.species = state.species as Specie;
       this.level = state.level;
       this.weighthg = state.weighthg;
@@ -316,13 +319,13 @@ export namespace Context {
         this.stats = extend({}, state.stats);
       } else {
         this.stats = {} as StatsTable;
-        const nature = state.nature && gen.natures.get(state.nature);
-        for (const stat of gen.stats) {
-          this.stats[stat] = gen.stats.calc(
+        const nature = state.nature && context.gen.natures.get(state.nature);
+        for (const stat of context.gen.stats) {
+          this.stats[stat] = context.gen.stats.calc(
             stat,
             this.species.baseStats[stat],
             state.ivs?.[stat] ?? 31,
-            state.evs?.[stat] ?? (gen.num <= 2 ? 252 : 0),
+            state.evs?.[stat] ?? (context.gen.num <= 2 ? 252 : 0),
             state.level,
             nature
           );
@@ -483,13 +486,13 @@ export namespace Context {
     basePowerCallback?(context: Context): number;
     damageCallback?(context: Context): number;
     onModifyBasePower?(context: Context): number | undefined;
-    onModifyAtk?(context: Context): number | undefined;
-    onModifySpA?(context: Context): number | undefined;
-    onModifyDef?(context: Context): number | undefined;
-    onModifySpD?(context: Context): number | undefined;
-    onModifySpe?(context: Context): number | undefined;
-    onModifyWeight?(context: Context): number | undefined;
-    onResidual?(context: Context): number | undefined;
+    onModifyAtk?(pokemon: Context.Pokemon): number | undefined;
+    onModifySpA?(pokemon: Context.Pokemon): number | undefined;
+    onModifyDef?(pokemon: Context.Pokemon): number | undefined;
+    onModifySpD?(pokemon: Context.Pokemon): number | undefined;
+    onModifySpe?(pokemon: Context.Pokemon): number | undefined;
+    onModifyWeight?(pokemon: Context.Pokemon): number | undefined;
+    onResidual?(pokemon: Context.Pokemon): number | undefined;
 
     readonly relevant: Relevancy.Move;
 
@@ -521,8 +524,8 @@ function reify<T>(
       const k = n as keyof Handler; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
       if (fn && HANDLER_FNS.has(k) && typeof fn === "function") {
-        obj[k] = (c: Context) => {
-          const r = (fn as any)(c);
+        obj[k] = (x: Context | Context.Pokemon) => {
+          const r = (fn as any)(x);
           if (typeof r !== "undefined" && cbfn) cbfn();
           return r;
         };

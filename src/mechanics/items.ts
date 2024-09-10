@@ -1,7 +1,7 @@
-import {Applier, Handler} from '.';
-import {Context} from '../context';
+import { Applier, Handler } from ".";
+import { Context } from "../context";
 
-export const Items: {[id: string]: Partial<Applier & Handler>} = {
+export const Items: { [id: string]: Partial<Applier & Handler> } = {
   absorbbulb: {
     //   onDamagingHit(damage, target, source, move) {
     //     if (move.type === 'Water') {
@@ -301,10 +301,8 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //   onModifyMove(move, pokemon) {
     //     pokemon.addVolatile('choicelock');
     //   },
-    onModifySpe(context: Context) {
-      if (context.p1.pokemon.volatiles['dynamax']) {
-        return;
-      }
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (pokemon.volatiles["dynamax"]) return;
       return 0x1800;
     },
   },
@@ -890,7 +888,7 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //     if (target.volatiles['ingrain'] || target.volatiles['smackdown'] || this.field.getPseudoWeather('gravity')) { return; }
     //     if (move.type === 'Ground' && target.hasType('Flying')) { return 0; }
     //   },
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
@@ -1093,7 +1091,7 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   machobrace: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
@@ -1437,22 +1435,22 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   poweranklet: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
   powerband: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
   powerbelt: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
   powerbracer: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
@@ -1467,12 +1465,12 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   powerlens: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
   powerweight: {
-    onModifySpe(context: Context) {
+    onModifySpe() {
       return 0x800;
     },
   },
@@ -1551,11 +1549,8 @@ export const Items: {[id: string]: Partial<Applier & Handler>} = {
     //   },
   },
   quickpowder: {
-    onModifySpe(context: Context) {
-      if (
-        context.p1.pokemon.species.name === 'Ditto'
-        // && !context.p1.pokemon.transformed
-      ) {
+    onModifySpe(pokemon: Context.Pokemon) {
+      if (pokemon.species.name === "Ditto" && !pokemon.transformed) {
         return 0x2000;
       }
     },
