@@ -33,6 +33,7 @@ import {
 import { Relevancy } from "./result";
 import { DeepReadonly, extend, toID } from "./utils";
 import { State } from "./state";
+import { apply, chain } from "./math";
 
 export class Context {
   gameType: GameType;
@@ -41,6 +42,7 @@ export class Context {
   p2: Context.Side;
   move: Context.Move;
   field: Context.Field;
+  effectiveness: number;
 
   readonly relevant: Relevancy;
 
@@ -53,8 +55,12 @@ export class Context {
     this.gen = state.gen as Generation;
     this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
     this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
-    this.move = new Context.Move(state.move, relevant.move, handlers);
+    this.move = new Context.Move(this, state.move, relevant.move, handlers);
     this.field = new Context.Field(state.field, relevant.field, handlers);
+    this.effectiveness = this.gen.types.totalEffectiveness(
+      this.move.type,
+      this.p2.pokemon
+    );
     this.relevant = relevant;
   }
 
@@ -483,6 +489,8 @@ export namespace Context {
     spread?: boolean;
     consecutive?: number; // Metronome
 
+    context: Context;
+
     basePowerCallback?(context: Context): number;
     damageCallback?(context: Context): number;
     onModifyBasePower?(context: Context): number | undefined;
@@ -497,13 +505,24 @@ export namespace Context {
     readonly relevant: Relevancy.Move;
 
     constructor(
+      context: Context,
       state: DeepReadonly<State.Move>,
       relevant: Relevancy.Move,
       handlers: Handlers
     ) {
       extend(this, state);
       this.relevant = relevant;
+      this.context = context;
       reify(this, this.id, handlers.Moves);
+
+      if (this.basePowerCallback)
+        this.basePower = this.basePowerCallback(context);
+
+      let basePowerMod = 0x1000;
+      if (this.onModifyBasePower)
+        basePowerMod = chain(basePowerMod, this.onModifyBasePower(context));
+
+      this.basePower = apply(this.basePower, basePowerMod);
     }
 
     toState(): State.Move {

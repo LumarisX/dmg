@@ -96,17 +96,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   babiriberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Steel' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Steel" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   berryjuice: {
@@ -218,17 +220,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   chartiberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Rock' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Rock" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   cheriberry: {
@@ -256,16 +260,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   chilanberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Normal' &&
-    //               (!target.volatiles['substitute'] || move.flags['authentic'] || (move.infiltrates && this.gen >= 6))) {
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Normal") {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   chilldrive: {
@@ -322,45 +329,51 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   chopleberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Fighting' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Fighting" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   cobaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Flying' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Flying" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   colburberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Dark' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Dark" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   custapberry: {
@@ -573,11 +586,12 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   expertbelt: {
-    //   onModifyDamage(damage, source, target, move) {
-    //     if (move && target.getMoveHitData(move).typeMod > 0) {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onModifyDamageAttacker(context: Context) {
+      //     if (move && target.getMoveHitData(move).typeMod > 0) {
+      //       return this.chainModify([0x1333, 0x1000]);
+      //     }
+      return undefined;
+    },
   },
   fairygem: {
     //   onSourceTryPrimaryHit(target, source, move) {
@@ -804,17 +818,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   habanberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Dragon' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Dragon" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   hardstone: {
@@ -916,31 +932,35 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   kasibberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Ghost' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Ghost" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   kebiaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Poison' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Poison" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   keeberry: {
@@ -1034,14 +1054,14 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   lifeorb: {
-    //   onModifyDamage(damage, source, target, move) {
-    //     return this.chainModify([0x14CC, 0x1000]);
-    //   },
-    //   onAfterMoveSecondarySelf(source, target, move) {
-    //     if (source && source !== target && move && move.category !== 'Status') {
-    //       this.damage(source.baseMaxhp / 10, source, source, this.dex.getItem('lifeorb'));
-    //     }
-    //   },
+    onModifyDamageAttacker(context: Context) {
+      return 0x14cc;
+    },
+    // onAfterMoveSecondarySelf(source, target, move) {
+    //   if (source && source !== target && move && move.category !== 'Status') {
+    //     this.damage(source.baseMaxhp / 10, source, source, this.dex.getItem('lifeorb'));
+    //   }
+    // },
   },
   lightball: {
     //   onModifyAtk(atk, pokemon) {
@@ -1215,11 +1235,12 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //       }
     //       this.effectData.lastMove = move.id;
     //     },
-    //     onModifyDamage(damage, source, target, move) {
-    //       const dmgMod = [0x1000, 0x1333, 0x1666, 0x1999, 0x1CCC, 0x2000];
-    //       const numConsecutive = this.effectData.numConsecutive > 5 ? 5 : this.effectData.numConsecutive;
-    //       return this.chainModify([dmgMod[numConsecutive], 0x1000]);
-    //     },
+    onModifyDamageAttacker(context: Context) {
+      const dmgMod = [0x1000, 0x1333, 0x1666, 0x1999, 0x1ccc];
+      return context.move.consecutive && context.move.consecutive < 5
+        ? dmgMod[context.move.consecutive]
+        : 0x2000;
+    },
     //   },
   },
   micleberry: {
@@ -1305,17 +1326,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   occaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Fire' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Fire" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   oddincense: {
@@ -1339,31 +1362,35 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   passhoberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Water' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Water" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   payapaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Psychic' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Psychic" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   pechaberry: {
@@ -1616,17 +1643,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   rindoberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Grass' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Grass" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   rockgem: {
@@ -1674,17 +1703,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   roseliberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Fairy' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Fairy" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   rowapberry: {
@@ -1774,17 +1805,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   shucaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Ground' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Ground" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   silkscarf: {
@@ -1954,17 +1987,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   tangaberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Bug' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Bug" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   thickclub: {
@@ -2007,17 +2042,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   wacanberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Electric' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Electric" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   watergem: {
@@ -2117,17 +2154,19 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   yacheberry: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.type === 'Ice' && target.getMoveHitData(move).typeMod > 0) {
-    //       const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //       if (hitSub) { return; }
-    //       if (target.eatItem()) {
-    //         this.debug('-50% reduction');
-    //         this.add('-enditem', target, this.effect, '[weaken]');
-    //         return this.chainModify(0.5);
-    //       }
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.type === "Ice" && context.effectiveness > 1) {
+        const hitSub =
+          context.p2.pokemon.volatiles["substitute"] &&
+          !(context.move.infiltrates && context.gen.num >= 6);
+        if (hitSub) {
+          return;
+        }
+        // if (target.eatItem()) {
+        return 0x800;
+        // }
+      }
+    },
     //   onEat() { },
   },
   zapplate: {

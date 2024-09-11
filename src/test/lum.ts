@@ -1,44 +1,45 @@
 import { Generations } from "@pkmn/data";
 import { Dex } from "@pkmn/sim";
-import { Field, Move, Pokemon } from "@smogon/calc";
+import { calculate, Field, Move, Pokemon } from "@smogon/calc";
 import { Context } from "../context";
 import { calculate2 } from "../mechanics";
-import { calculateBaseDamageSMSSSV } from "../mechanics/smogonMech";
-import { getFinalDamage } from "../mechanics/smogonUtil";
 import { State } from "../state";
 
 const gens = new Generations(Dex as any);
-const gen = gens.get(9);
+const gen = gens.get(7);
 
-let baseDamage = calculateBaseDamageSMSSSV(
+let attacker = "Incineroar";
+let attackerMod = { evs: { atk: 4 }, level: 50, happiness: 0 };
+
+let defender = "Amoonguss";
+let defenderMod = { evs: { def: 76 }, level: 50, item: "Black Sludge" };
+
+let move = "Frustration";
+
+let smogCalc = calculate(
   gen,
-  new Pokemon(gen, "Incineroar", { evs: { atk: 4 }, level: 50 }),
-  new Pokemon(gen, "Amoonguss", { evs: { def: 76 }, level: 50 }),
-  70,
-  136,
-  100,
-  new Move(gen, "U-Turn"),
-  new Field(),
-  {
-    attackerName: "Incineroar",
-    moveName: "U-Turn",
-    defenderName: "Amoongus",
-    isDefenderDynamaxed: false,
-    isWonderRoom: false,
-  }
+  new Pokemon(gen, attacker, attackerMod),
+  new Pokemon(gen, defender, defenderMod),
+  new Move(gen, move),
+  new Field()
 );
-console.log(baseDamage);
-let lowFinal = getFinalDamage(baseDamage, 0, 2, false, 0x1000, 0x1000, false);
-let highFinal = getFinalDamage(baseDamage, 15, 2, false, 0x1000, 0x1000, false);
-
-console.log(lowFinal, highFinal);
+console.log(smogCalc.damage);
 
 const state = new State(
   gen,
-  State.createPokemon(gen, "Incineroar", { evs: { atk: 4 }, level: 50 }),
-  State.createPokemon(gen, "Amoonguss", { evs: { def: 76 }, level: 50 }),
-  State.createMove(gen, "U-Turn"),
+  State.createPokemon(gen, attacker, attackerMod),
+  State.createPokemon(gen, defender, defenderMod),
+  State.createMove(gen, move),
   State.createField(gen)
 );
 
-console.log(calculate2(Context.fromState(state)));
+let newCalc = calculate2(Context.fromState(state));
+
+console.log(newCalc);
+let equals = () => {
+  for (let i = 0; i < newCalc.length; i++) {
+    if (newCalc[i] != (smogCalc.damage as number[])[i]) return false;
+  }
+  return true;
+};
+console.log(equals());

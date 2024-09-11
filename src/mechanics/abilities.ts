@@ -1,12 +1,13 @@
 import { StatusName } from "@pkmn/data";
 import { Applier, Handler } from ".";
 import { Context } from "../context";
+import { chain, chainMod } from "../math";
 
 export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
   adaptability: {
-    //   onModifyMove(move) {
-    //     move.stab = 2;
-    //   },
+    onModifySTAB(context: Context) {
+      if (context.p1.pokemon.types.includes(context.move.type)) return 0x2000;
+    },
   },
   aerilate: {
     //   onModifyType(move, pokemon) {
@@ -582,12 +583,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   filter: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.getMoveHitData(move).typeMod > 0) {
-    //       this.debug('Filter neutralize');
-    //       return this.chainModify(0.75);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      // if (context.efftarget.getMoveHitData(move).typeMod > 0) {
+      //   this.debug('Filter neutralize');
+      //   return this.chainModify(0.75);
+      // }
+      return undefined;
+    },
   },
   flamebody: {
     //   onDamagingHit(damage, target, source, move) {
@@ -704,12 +706,16 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   fluffy: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     let mod = 1;
-    //     if (move.type === 'Fire') { mod *= 2; }
-    //     if (move.flags['contact']) { mod /= 2; }
-    //     return this.chainModify(mod);
-    //   },
+    onModifyDamageDefender(context: Context) {
+      let mod = 0x1000;
+      if (context.move.type === "Fire") {
+        chainMod(mod, 0x2000);
+      }
+      if (context.move.flags["contact"]) {
+        chainMod(mod, 0x800);
+      }
+      if (mod != 0x1000) return mod;
+    },
   },
   forecast: {
     //   onUpdate(pokemon: Context.Pokemon) {
@@ -1041,11 +1047,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   icescales: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.category === 'Special') {
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.category === "Special") {
+        return 0x800;
+      }
+    },
   },
   illusion: {
     //   onBeforeSwitchIn(pokemon: Context.Pokemon) {
@@ -1521,12 +1527,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   multiscale: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.hp >= target.maxhp) {
-    //       this.debug('Multiscale weaken');
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.p2.pokemon.hp >= context.p2.pokemon.maxhp) {
+        return 0x800;
+      }
+    },
   },
   mummy: {
     //   onDamagingHit(damage, target, source, move) {
@@ -1613,11 +1618,12 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   neuroforce: {
-    //   onModifyDamage(damage, source, target, move) {
-    //     if (move && target.getMoveHitData(move).typeMod > 0) {
-    //       return this.chainModify([0x1400, 0x1000]);
-    //     }
-    //   },
+    onModifyDamageAttacker(context: Context) {
+      // if (move && target.getMoveHitData(move).typeMod > 0) {
+      //   return this.chainModify([0x1400, 0x1000]);
+      // }
+      return undefined;
+    },
   },
   neutralizinggas: {
     //   onPreStart(pokemon: Context.Pokemon) {
@@ -1959,12 +1965,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   prismarmor: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.getMoveHitData(move).typeMod > 0) {
-    //       this.debug('Prism Armor neutralize');
-    //       return this.chainModify(0.75);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      // if (target.getMoveHitData(move).typeMod > 0) {
+      //   this.debug('Prism Armor neutralize');
+      //   return this.chainModify(0.75);
+      // }
+      return undefined;
+    },
   },
   propellertail: {
     //   onModifyMove(move) {
@@ -1995,12 +2002,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //       return this.chainModify([0x14CD, 0x1000]);
     //     }
     //   },
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (move.flags['sound']) {
-    //       this.debug('Punk Rock weaken');
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.move.flags["sound"]) {
+        return 0x800;
+      }
+    },
   },
   purepower: {
     onModifyAtk() {
@@ -2101,24 +2107,25 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //       }
     //     }
     //   },
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.abilityData.berryWeaken) {
-    //           Pokemon ate a berry that weakened damage from this attack, ripen adds another 1/4 that.
-    //       this.debug(`Ripen increases damage reduction to 3/4`);
-    //       target.abilityData.berryWeaken = "";
-    //           Not sure if this is the correct multiplier to get 3/4 total, assuming its taking 1/2 of 1/2 (3/4)
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
-    //   onEatItem(item, pokemon) {
-    //     const weakenBerries = [
-    //       'Babiri Berry', 'Charti Berry', 'Chilan Berry', 'Chople Berry', 'Coba Berry', 'Colbur Berry', 'Haban Berry', 'Kasib Berry', 'Kebia Berry', 'Occa Berry', 'Passho Berry', 'Payapa Berry', 'Rindo Berry', 'Roseli Berry', 'Shuca Berry', 'Tanga Berry', 'Wacan Berry', 'Yache Berry',
-    //     ];
-    //     if (weakenBerries.includes(item.name)) {
-    //           Record that the pokemon ate a berry to resist an attack
-    //       pokemon.abilityData.berryWeaken = "true";
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      //   if (target.abilityData.berryWeaken) {
+      //         Pokemon ate a berry that weakened damage from this attack, ripen adds another 1/4 that.
+      //     this.debug(`Ripen increases damage reduction to 3/4`);
+      //     target.abilityData.berryWeaken = "";
+      //         Not sure if this is the correct multiplier to get 3/4 total, assuming its taking 1/2 of 1/2 (3/4)
+      //     return this.chainModify(0.5);
+      //   }
+      // },
+      // onEatItem(item, pokemon) {
+      //   const weakenBerries = [
+      //     'Babiri Berry', 'Charti Berry', 'Chilan Berry', 'Chople Berry', 'Coba Berry', 'Colbur Berry', 'Haban Berry', 'Kasib Berry', 'Kebia Berry', 'Occa Berry', 'Passho Berry', 'Payapa Berry', 'Rindo Berry', 'Roseli Berry', 'Shuca Berry', 'Tanga Berry', 'Wacan Berry', 'Yache Berry',
+      //   ];
+      //   if (weakenBerries.includes(item.name)) {
+      //         Record that the pokemon ate a berry to resist an attack
+      //     pokemon.abilityData.berryWeaken = "true";
+      //   }
+      return undefined;
+    },
   },
   rivalry: {
     //   onBasePower(basePower, attacker, defender, move) {
@@ -2281,12 +2288,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   shadowshield: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.hp >= target.maxhp) {
-    //       this.debug('Shadow Shield weaken');
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      if (context.p2.pokemon.hp >= context.p2.pokemon.maxhp) {
+        return 0x800;
+      }
+    },
   },
   shadowtag: {
     //   onFoeTrapPokemon(pokemon: Context.Pokemon) {
@@ -2423,12 +2429,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   sniper: {
-    //   onModifyDamage(damage, source, target, move) {
-    //     if (target.getMoveHitData(move).crit) {
-    //       this.debug('Sniper boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyDamageAttacker(context: Context) {
+      if (context.move.crit) {
+        return 0x1800;
+      }
+    },
   },
   snowcloak: {
     //   onImmunity(type, pokemon) {
@@ -2461,12 +2466,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   solidrock: {
-    //   onSourceModifyDamage(damage, source, target, move) {
-    //     if (target.getMoveHitData(move).typeMod > 0) {
-    //       this.debug('Solid Rock neutralize');
-    //       return this.chainModify(0.75);
-    //     }
-    //   },
+    onModifyDamageDefender(context: Context) {
+      //     if (target.getMoveHitData(move).typeMod > 0) {
+      //       this.debug('Solid Rock neutralize');
+      //       return this.chainModify(0.75);
+      //     }
+      return undefined;
+    },
   },
   soulheart: {
     //   onAnyFaint() {
@@ -2783,12 +2789,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   tintedlens: {
-    //   onModifyDamage(damage, source, target, move) {
-    //     if (target.getMoveHitData(move).typeMod < 0) {
-    //       this.debug('Tinted Lens boost');
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifyDamageAttacker(context: Context) {
+      //     if (target.getMoveHitData(move).typeMod < 0) {
+      //       this.debug('Tinted Lens boost');
+      //       return this.chainModify(2);
+      //     }
+      return undefined;
+    },
   },
   torrent: {
     onModifyBasePower(context: Context) {

@@ -24,7 +24,6 @@ import {
   apply,
   applyMod,
   chain,
-  chainMod,
   clamp,
   floor,
   max,
@@ -32,7 +31,6 @@ import {
   roundDown,
   trunc,
 } from "../math";
-import { stat } from "fs";
 
 export interface Applier {
   apply(side: "p1" | "p2", state: State, guaranteed?: boolean): void;
@@ -51,6 +49,11 @@ export interface Handler {
   onModifyWeight(pokemon: Context.Pokemon): number | undefined;
 
   onResidual(pokemon: Context.Pokemon): number | undefined;
+
+  onModifyDamageAttacker(context: Context): number | undefined;
+  onModifyDamageDefender(context: Context): number | undefined;
+
+  onModifySTAB(context: Context): number | undefined;
 }
 
 export type HandlerKind = "Abilities" | "Items" | "Moves" | "Conditions";
@@ -175,19 +178,16 @@ export function calculate(...args: any[]) {
 // A one-turn setup for maximum damage: How to get the maximum damage in Pokémon in a single turn.
 
 export function calculate2(context: Context) {
-  let attackStat =
-    (context.move.category === "Physical"
-      ? context.p1.pokemon.stats?.atk
-      : context.move.category === "Special"
-      ? context.p1.pokemon.stats?.spa
-      : 0) || 0;
+  let attackStat = 0;
+  let defenseStat = 0;
 
-  let defenseStat =
-    (context.move.category === "Physical"
-      ? context.p2.pokemon.stats?.def
-      : context.move.category === "Special"
-      ? context.p2.pokemon.stats?.spd
-      : 0) || 0;
+  if (context.move.category === "Physical") {
+    attackStat = context.p1.pokemon.stats?.atk;
+    defenseStat = context.p2.pokemon.stats?.def;
+  } else if (context.move.category === "Special") {
+    attackStat = context.p1.pokemon.stats?.spa;
+    defenseStat = context.p2.pokemon.stats?.spd;
+  }
 
   let baseDamage = getBaseDamage(
     context.p1.pokemon.level,
@@ -195,7 +195,6 @@ export function calculate2(context: Context) {
     attackStat,
     defenseStat
   );
-  console.log(baseDamage);
 
   const isSpread =
     context.gameType !== "singles" &&
@@ -204,9 +203,9 @@ export function calculate2(context: Context) {
     baseDamage = applyMod(baseDamage, 0xc00);
   }
 
-  if (context.p1.pokemon.ability?.id === "Parental Bond (Child)") {
-    baseDamage = applyMod(baseDamage, 0x400);
-  }
+  // if (context.p1.pokemon.ability?.id === "Parental Bond (Child)") {
+  //   baseDamage = applyMod(baseDamage, 0x400);
+  // }
 
   if (
     context.field.weather?.name === "Sun" &&
@@ -236,61 +235,9 @@ export function calculate2(context: Context) {
     baseDamage = applyMod(baseDamage, 0x1800);
   }
 
-  const stabMod = 0x1000;
+  const stabMod = getStabModifier(context);
 
-  const finalMod = 0x1000;
-  const effectiveness = 2;
-
-  if (
-    !context.move.crit &&
-    context.p1.pokemon.ability?.id !== "infiltrator" &&
-    ("Aurora Veil" in context.p2.sideConditions ||
-      (context.move.category === "Physical" &&
-        "Reflect" in context.p2.sideConditions) ||
-      (context.move.category === "Special" &&
-        "Light Screen" in context.p2.sideConditions))
-  ) {
-    chain(finalMod, context.gameType === "singles" ? 0x800 : 0xaac);
-  }
-
-  if (context.p1.pokemon.ability?.id === "neuroforce") chain(finalMod, 0x1400);
-  if (context.p1.pokemon.ability?.id === "sniper") chain(finalMod, 0x1800);
-  if (context.p1.pokemon.ability?.id === "tintedlens" && effectiveness < 1)
-    chain(finalMod, 0x2000);
-  if (
-    context.p2.pokemon.ability?.id === "multiscale" ||
-    (context.p2.pokemon.ability?.id === "shadowshield" &&
-      context.p2.pokemon.hp === context.p2.pokemon.maxhp)
-  )
-    chain(finalMod, 0x800);
-  if (context.p2.pokemon.ability?.id === "fluffy" && context.move.flags.contact)
-    chain(finalMod, 0x800);
-  if (context.p2.active?.some((active) => active?.ability === "friendguard"))
-    chain(finalMod, 0xc00);
-  if (
-    ["solidrock", "filter", "prismarmor"].includes(
-      context.p1.pokemon.ability?.id || ""
-    ) &&
-    effectiveness > 1
-  )
-    chain(finalMod, 0xc00);
-  if (context.p1.pokemon.item?.id === "metronome") {
-    const hits = context.move.consecutive || 0;
-    chain(
-      finalMod,
-      hits < 5 ? [0x1000, 0x1333, 0x1666, 0x1999, 0x1ccc][hits] : 0x2000
-    );
-  }
-  if (
-    context.p2.pokemon.ability?.id === "fluffy" &&
-    context.move.type === "Fire"
-  )
-    chain(finalMod, 0x2000);
-  if (context.p1.pokemon.item?.id === "expertbelt" && effectiveness > 1)
-    chain(finalMod, 0x4915);
-  if (context.p1.pokemon.item?.id === "lifeorb") chain(finalMod, 0x5324);
-  //resist berries
-  //double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
+  const finalMod = getFinalModifier(context);
 
   const protect = false;
   let damage = [];
@@ -302,7 +249,9 @@ export function calculate2(context: Context) {
       damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
 
     //Probably should be a bitshift instead
-    damageAmount = floor(trunc(roundDown(damageAmount) * effectiveness, 32));
+    damageAmount = floor(
+      trunc(roundDown(damageAmount) * context.effectiveness, 32)
+    );
 
     if (
       context.p1.pokemon.status?.name === "brn" &&
@@ -336,6 +285,73 @@ export function getBaseDamage(
       32
     )
   );
+}
+
+export function getStabModifier(context: Context) {
+  let mod = 0x1000;
+  if (context.p1.pokemon.ability?.onModifySTAB)
+    mod = chain(mod, context.p1.pokemon.ability.onModifySTAB(context));
+  else if (context.p1.pokemon.types.includes(context.move.type)) {
+    mod = chain(mod, 0x1800);
+  }
+  // else if (context.p1.pokemon.hasAbility('Protean', 'Libero') && !pokemon.teraType) {
+  //   mod += 0x800;
+  //   desc.attackerAbility = pokemon.ability;
+  // }
+  // const teraType = context.p1.pokemon.teraType;
+  // if (teraType === move.type && teraType !== 'Stellar') {
+  //   mod += 0x800;
+  //   desc.attackerTera = teraType;
+  // }
+  return mod;
+}
+
+function getFinalModifier(context: Context): number {
+  let mod = 0x1000;
+  if (
+    !context.move.crit &&
+    context.p1.pokemon.ability?.id !== "infiltrator" &&
+    ("Aurora Veil" in context.p2.sideConditions ||
+      (context.move.category === "Physical" &&
+        "Reflect" in context.p2.sideConditions) ||
+      (context.move.category === "Special" &&
+        "Light Screen" in context.p2.sideConditions))
+  ) {
+    mod = chain(mod, context.gameType === "singles" ? 0x800 : 0xaac);
+  }
+
+  if (context.p1.pokemon.ability?.onModifyDamageAttacker)
+    mod = chain(
+      mod,
+      context.p1.pokemon.ability.onModifyDamageAttacker(context)
+    );
+
+  if (
+    context.p2.pokemon.volatiles.dynamax &&
+    ["Dynamax Cannon", "Behemoth Blade", "Behemoth Bash"].includes(
+      context.move.name
+    )
+  ) {
+    mod = chain(mod, 0x2000);
+  }
+
+  if (context.p2.pokemon.ability?.onModifyDamageDefender)
+    mod = chain(
+      mod,
+      context.p2.pokemon.ability.onModifyDamageDefender(context)
+    );
+
+  if (context.p2.active?.some((active) => active?.ability === "friendguard"))
+    mod = chain(mod, 0xc00);
+
+  if (context.p1.pokemon.item?.onModifyDamageAttacker)
+    mod = chain(mod, context.p1.pokemon.item.onModifyDamageAttacker(context));
+
+  if (context.p2.pokemon.item?.onModifyDamageDefender)
+    mod = chain(mod, context.p2.pokemon.item.onModifyDamageDefender(context));
+
+  //double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
+  return mod;
 }
 
 // FIXME: other modifiers beyond just boosts

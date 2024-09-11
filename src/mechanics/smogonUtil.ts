@@ -111,7 +111,7 @@ export function getFinalSpeed(
   let speed = getModifiedStat(pokemon.rawStats.spe, pokemon.boosts.spe, gen);
   const speedMods = [];
 
-  if (side.isTailwind) speedMods.push(8192);
+  if (side.isTailwind) speedMods.push(0x2000);
   // Pledge swamp would get applied here when implemented
   // speedMods.push(1024);
 
@@ -123,27 +123,27 @@ export function getFinalSpeed(
     (pokemon.hasAbility("Slush Rush") && ["Hail", "Snow"].includes(weather)) ||
     (pokemon.hasAbility("Surge Surfer") && terrain === "Electric")
   ) {
-    speedMods.push(8192);
+    speedMods.push(0x2000);
   } else if (pokemon.hasAbility("Quick Feet") && pokemon.status) {
-    speedMods.push(6144);
+    speedMods.push(0x1800);
   } else if (pokemon.hasAbility("Slow Start") && pokemon.abilityOn) {
-    speedMods.push(2048);
+    speedMods.push(0x800);
   } else if (
     isQPActive(pokemon, field) &&
     getQPBoostedStat(pokemon, gen) === "spe"
   ) {
-    speedMods.push(6144);
+    speedMods.push(0x1800);
   }
 
   if (pokemon.hasItem("Choice Scarf")) {
-    speedMods.push(6144);
+    speedMods.push(0x1800);
   } else if (pokemon.hasItem("Iron Ball", ...EV_ITEMS)) {
-    speedMods.push(2048);
+    speedMods.push(0x800);
   } else if (pokemon.hasItem("Quick Powder") && pokemon.named("Ditto")) {
-    speedMods.push(8192);
+    speedMods.push(0x2000);
   }
 
-  speed = OF32(pokeRound((speed * chainMods(speedMods, 410, 131172)) / 4096));
+  speed = OF32(pokeRound((speed * chainMods(speedMods, 410, 131172)) / 0x1000));
   if (pokemon.hasStatus("par") && !pokemon.hasAbility("Quick Feet")) {
     speed = Math.floor(OF32(speed * (gen.num < 7 ? 25 : 50)) / 100);
   }
@@ -556,10 +556,10 @@ export function chainMods(
   lowerBound: number,
   upperBound: number
 ) {
-  let M = 4096;
+  let M = 0x1000;
   for (const mod of mods) {
-    if (mod !== 4096) {
-      M = (M * mod + 2048) >> 12;
+    if (mod !== 0x1000) {
+      M = (M * mod + 0x800) >> 12;
     }
   }
   return Math.max(Math.min(M, upperBound), lowerBound);
@@ -639,12 +639,12 @@ export function getFinalDamage(
   let damageAmount = Math.floor(OF32(baseAmount * (85 + i)) / 100);
   // If the stabMod would not accomplish anything we avoid applying it because it could cause
   // us to calculate damage overflow incorrectly (DaWoblefet)
-  if (stabMod !== 4096) damageAmount = OF32(damageAmount * stabMod) / 4096;
+  if (stabMod !== 0x1000) damageAmount = OF32(damageAmount * stabMod) / 0x1000;
   damageAmount = Math.floor(OF32(pokeRound(damageAmount) * effectiveness));
 
   if (isBurned) damageAmount = Math.floor(damageAmount / 2);
-  if (protect) damageAmount = pokeRound(OF32(damageAmount * 1024) / 4096);
-  return OF16(pokeRound(Math.max(1, OF32(damageAmount * finalMod) / 4096)));
+  if (protect) damageAmount = pokeRound(OF32(damageAmount * 1024) / 0x1000);
+  return OF16(pokeRound(Math.max(1, OF32(damageAmount * finalMod) / 0x1000)));
 }
 
 /**
@@ -697,20 +697,20 @@ export function getWeight(
 }
 
 export function getStabMod(pokemon: Pokemon, move: Move, desc: RawDesc) {
-  let stabMod = 4096;
+  let stabMod = 0x1000;
   if (pokemon.hasOriginalType(move.type)) {
-    stabMod += 2048;
+    stabMod += 0x800;
   } else if (pokemon.hasAbility("Protean", "Libero") && !pokemon.teraType) {
-    stabMod += 2048;
+    stabMod += 0x800;
     desc.attackerAbility = pokemon.ability;
   }
   const teraType = pokemon.teraType;
   if (teraType === move.type && teraType !== "Stellar") {
-    stabMod += 2048;
+    stabMod += 0x800;
     desc.attackerTera = teraType;
   }
   if (pokemon.hasAbility("Adaptability") && pokemon.hasType(move.type)) {
-    stabMod += teraType && pokemon.hasOriginalType(teraType) ? 1024 : 2048;
+    stabMod += teraType && pokemon.hasOriginalType(teraType) ? 1024 : 0x800;
     desc.attackerAbility = pokemon.ability;
   }
   return stabMod;
@@ -728,9 +728,9 @@ export function getStellarStabMod(
       pokemon.named("Terapagos-Stellar"));
   if (isStellarBoosted) {
     if (pokemon.hasOriginalType(move.type)) {
-      stabMod += 2048;
+      stabMod += 0x800;
     } else {
-      stabMod = 4915;
+      stabMod = 0x1333;
     }
   }
   return stabMod;
