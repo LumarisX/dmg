@@ -178,7 +178,6 @@ export namespace Context {
       this.context = context;
       this.pokemon = new Pokemon(
         context,
-        this,
         state.pokemon,
         relevant.pokemon,
         handlers
@@ -254,7 +253,6 @@ export namespace Context {
 
     constructor(
       context: Context,
-      side: Context.Side,
       state: DeepReadonly<State.Pokemon>,
       relevant: Relevancy.Pokemon,
       handlers: Handlers
@@ -335,6 +333,18 @@ export namespace Context {
             state.level,
             nature
           );
+          let statMod = 0x1000;
+          if (stat === "atk" && this.item?.onModifyAtk)
+            statMod = chain(statMod, this.item.onModifyAtk(this));
+          if (stat === "spa" && this.item?.onModifySpA)
+            statMod = chain(statMod, this.item.onModifySpA(this));
+          if (stat === "def" && this.item?.onModifyDef)
+            statMod = chain(statMod, this.item.onModifyDef(this));
+          if (stat === "spd" && this.item?.onModifySpD)
+            statMod = chain(statMod, this.item.onModifySpD(this));
+          if (stat === "spe" && this.item?.onModifySpe)
+            statMod = chain(statMod, this.item.onModifySpe(this));
+          this.stats[stat] = apply(this.stats[stat], statMod);
         }
       }
       this.boosts = extend({}, state.boosts);
@@ -493,7 +503,7 @@ export namespace Context {
 
     basePowerCallback?(context: Context): number;
     damageCallback?(context: Context): number;
-    onModifyBasePower?(context: Context): number | undefined;
+    onBasePower?(context: Context): number | undefined;
     onModifyAtk?(pokemon: Context.Pokemon): number | undefined;
     onModifySpA?(pokemon: Context.Pokemon): number | undefined;
     onModifyDef?(pokemon: Context.Pokemon): number | undefined;
@@ -515,12 +525,19 @@ export namespace Context {
       this.context = context;
       reify(this, this.id, handlers.Moves);
 
+      console.log(this.type);
       if (this.basePowerCallback)
         this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
-      if (this.onModifyBasePower)
-        basePowerMod = chain(basePowerMod, this.onModifyBasePower(context));
+      if (this.context.p1.pokemon.ability?.onBasePower)
+        basePowerMod = chain(
+          basePowerMod,
+          this.context.p1.pokemon.ability?.onBasePower(context)
+        );
+
+      if (this.onBasePower)
+        basePowerMod = chain(basePowerMod, this.onBasePower(context));
 
       this.basePower = apply(this.basePower, basePowerMod);
     }

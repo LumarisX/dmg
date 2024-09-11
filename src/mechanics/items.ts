@@ -10,11 +10,15 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   adamantorb: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && user.baseSpecies.name === 'Dialga' && (move.type === 'Steel' || move.type === 'Dragon')) {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (
+        context.move &&
+        context.p1.pokemon.species.name === "Dialga" &&
+        (context.move.type === "Steel" || context.move.type === "Dragon")
+      ) {
+        return 0x1333;
+      }
+    },
   },
   adrenalineorb: {
     //   onAfterBoost(boost, target, source, effect) {
@@ -84,9 +88,9 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   assaultvest: {
-    //   onModifySpD(spd) {
-    //     return this.chainModify(1.5);
-    //   },
+    onModifySpD() {
+      return 0x1800;
+    },
     //   onDisableMove(pokemon) {
     //     for (const moveSlot of pokemon.moveSlots) {
     //       if (this.dex.getMove(moveSlot.move).category === 'Status') {
@@ -129,11 +133,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   blackbelt: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Fighting') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fighting") {
+        return 0x1333;
+      }
+    },
   },
   blacksludge: {
     //   onResidual(pokemon) {
@@ -154,11 +158,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   blackglasses: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Dark') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Dark") {
+        return 0x1333;
+      }
+    },
   },
   blueorb: {
     //   onSwitchIn(pokemon) {
@@ -213,11 +217,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   charcoal: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Fire') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fire") {
+        return 0x1333;
+      }
+    },
   },
   chartiberry: {
     onModifyDamageDefender(context: Context) {
@@ -293,10 +297,12 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onModifyMove(move, pokemon) {
     //     pokemon.addVolatile('choicelock');
     //   },
-    //   onModifyAtk(atk, pokemon) {
-    //     if (pokemon.volatiles['dynamax']) { return; }
-    //     return this.chainModify(1.5);
-    //   },
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (pokemon.volatiles["dynamax"]) {
+        return;
+      }
+      return 0x1800;
+    },
   },
   choicescarf: {
     //   onStart(pokemon) {
@@ -323,10 +329,12 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onModifyMove(move, pokemon) {
     //     pokemon.addVolatile('choicelock');
     //   },
-    //   onModifySpA(spa, pokemon) {
-    //     if (pokemon.volatiles['dynamax']) { return; }
-    //     return this.chainModify(1.5);
-    //   },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (pokemon.volatiles["dynamax"]) {
+        return;
+      }
+      return 0x1800;
+    },
   },
   chopleberry: {
     onModifyDamageDefender(context: Context) {
@@ -404,18 +412,18 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   deepseascale: {
-    //   onModifySpD(spd, pokemon) {
-    //     if (pokemon.baseSpecies.name === 'Clamperl') {
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifySpD(pokemon: Context.Pokemon) {
+      if (pokemon.species.name === "Clamperl") {
+        return 0x2000;
+      }
+    },
   },
   deepseatooth: {
-    //   onModifySpA(spa, pokemon) {
-    //     if (pokemon.baseSpecies.name === 'Clamperl') {
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (pokemon.species.name === "Clamperl") {
+        return 0x2000;
+      }
+    },
   },
   destinyknot: {
     //   onAttract(target, source) {
@@ -433,11 +441,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   dracoplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Dragon') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Dragon") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -446,11 +454,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   dragonfang: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Dragon') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Dragon") {
+        return 0x1333;
+      }
+    },
   },
   dragongem: {
     //   onSourceTryPrimaryHit(target, source, move) {
@@ -469,11 +477,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   dreadplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Dark') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Dark") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -482,11 +490,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   earthplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Ground') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ground") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -572,18 +580,16 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   eviolite: {
-    //   onModifyDef(def, pokemon) {
-    //         Temporary hardcode for Slowpoke-Galar since it's a special case
-    //     if (pokemon.baseSpecies.nfe || pokemon.baseSpecies.name === 'Slowpoke-Galar') {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
-    //   onModifySpD(spd, pokemon) {
-    //         Temporary hardcode for Slowpoke-Galar since it's a special case
-    //     if (pokemon.baseSpecies.nfe || pokemon.baseSpecies.name === 'Slowpoke-Galar') {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onModifyDef(pokemon: Context.Pokemon) {
+      if (pokemon.species.nfe) {
+        return 0x1800;
+      }
+    },
+    onModifySpD(pokemon: Context.Pokemon) {
+      if (pokemon.species.nfe) {
+        return 0x1800;
+      }
+    },
   },
   expertbelt: {
     onModifyDamageAttacker(context: Context) {
@@ -659,11 +665,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   fistplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Fighting') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fighting") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -677,11 +683,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   flameplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Fire') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fire") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -789,11 +795,14 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   griseousorb: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (user.baseSpecies.num === 487 && (move.type === 'Ghost' || move.type === 'Dragon')) {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (
+        context.p1.pokemon.species.num === 487 &&
+        (context.move.type === "Ghost" || context.move.type === "Dragon")
+      ) {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 487) || pokemon.baseSpecies.num === 487) {
     //       return false;
@@ -834,11 +843,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   hardstone: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Rock') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Rock") {
+        return 0x1333;
+      }
+    },
   },
   iapapaberry: {
     //   onUpdate(pokemon) {
@@ -873,11 +882,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   icicleplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Ice') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ice") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -886,11 +895,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   insectplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Bug') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Bug") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -909,11 +918,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   ironplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Steel') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Steel") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1064,16 +1073,16 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     // },
   },
   lightball: {
-    //   onModifyAtk(atk, pokemon) {
-    //     if (pokemon.baseSpecies.baseSpecies === 'Pikachu') {
-    //       return this.chainModify(2);
-    //     }
-    //   },
-    //   onModifySpA(spa, pokemon) {
-    //     if (pokemon.baseSpecies.baseSpecies === 'Pikachu') {
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (pokemon.species.baseSpecies === "Pikachu") {
+        return 0x2000;
+      }
+    },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (pokemon.species.baseSpecies === "Pikachu") {
+        return 0x2000;
+      }
+    },
   },
   luckypunch: {
     //   onModifyCritRatio(critRatio, user) {
@@ -1104,11 +1113,14 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   lustrousorb: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && user.baseSpecies.name === 'Palkia' && (move.type === 'Water' || move.type === 'Dragon')) {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (
+        context.p1.pokemon.species.name === "Palkia" &&
+        (context.move.type === "Water" || context.move.type === "Dragon")
+      ) {
+        return 0x1333;
+      }
+    },
   },
   machobrace: {
     onModifySpe() {
@@ -1116,11 +1128,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   magnet: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Electric') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Electric") {
+        return 0x1333;
+      }
+    },
   },
   magoberry: {
     //   onUpdate(pokemon) {
@@ -1155,11 +1167,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   meadowplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Grass') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Grass") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1201,18 +1213,18 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   metalcoat: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Steel') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Steel") {
+        return 0x1333;
+      }
+    },
   },
   metalpowder: {
-    //   onModifyDef(def, pokemon) {
-    //     if (pokemon.species.name === 'Ditto' && !pokemon.transformed) {
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifyDef(pokemon: Context.Pokemon) {
+      if (pokemon.species.name === "Ditto" && !pokemon.transformed) {
+        return 0x2000;
+      }
+    },
   },
   metronome: {
     //   onStart(pokemon) {
@@ -1263,11 +1275,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   mindplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Psychic') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Psychic") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1276,11 +1288,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   miracleseed: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Grass') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Grass") {
+        return 0x1333;
+      }
+    },
   },
   mistyseed: {
     //   onStart(pokemon) {
@@ -1296,25 +1308,25 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   muscleband: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.category === 'Physical') {
-    //       return this.chainModify([0x1199, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.category === "Physical") {
+        return 0x1199;
+      }
+    },
   },
   mysticwater: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Water') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Water") {
+        return 0x1333;
+      }
+    },
   },
   nevermeltice: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Ice') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ice") {
+        return 0x1333;
+      }
+    },
   },
   normalgem: {
     //   onSourceTryPrimaryHit(target, source, move) {
@@ -1342,11 +1354,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   oddincense: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Psychic') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Psychic") {
+        return 0x1333;
+      }
+    },
   },
   oranberry: {
     //   onUpdate(pokemon) {
@@ -1426,11 +1438,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   pixieplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Fairy') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fairy") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1439,11 +1451,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   poisonbarb: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Poison') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Poison") {
+        return 0x1333;
+      }
+    },
   },
   poisongem: {
     //   onSourceTryPrimaryHit(target, source, move) {
@@ -1667,11 +1679,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   rockincense: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Rock') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Rock") {
+        return 0x1333;
+      }
+    },
   },
   rockmemory: {
     //   onTakeItem(item, pokemon, source) {
@@ -1696,11 +1708,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   roseincense: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Grass') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Grass") {
+        return 0x1333;
+      }
+    },
   },
   roseliberry: {
     onModifyDamageDefender(context: Context) {
@@ -1771,18 +1783,18 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   seaincense: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Water') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Water") {
+        return 0x1333;
+      }
+    },
   },
   sharpbeak: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && move.type === 'Flying') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Flying") {
+        return 0x1333;
+      }
+    },
   },
   shedshell: {
     //   onTrapPokemon(pokemon) {
@@ -1821,18 +1833,18 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   silkscarf: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Normal') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Normal") {
+        return 0x1333;
+      }
+    },
   },
   silverpowder: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Bug') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Bug") {
+        return 0x1333;
+      }
+    },
   },
   sitrusberry: {
     //   onUpdate(pokemon) {
@@ -1848,11 +1860,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   skyplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Flying') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Flying") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1868,33 +1880,36 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   softsand: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Ground') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ground") {
+        return 0x1333;
+      }
+    },
   },
   souldew: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move && (user.baseSpecies.num === 380 || user.baseSpecies.num === 381) &&
-    //               (move.type === 'Psychic' || move.type === 'Dragon')) {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (
+        (context.p1.pokemon.species.num === 380 ||
+          context.p1.pokemon.species.num === 381) &&
+        (context.move.type === "Psychic" || context.move.type === "Dragon")
+      ) {
+        return 0x1333;
+      }
+    },
   },
   spelltag: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Ghost') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ghost") {
+        return 0x1333;
+      }
+    },
   },
   splashplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Water') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Water") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1903,11 +1918,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   spookyplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Ghost') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Ghost") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -1974,11 +1989,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   stoneplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Rock') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Rock") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -2003,11 +2018,14 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   thickclub: {
-    //   onModifyAtk(atk, pokemon) {
-    //     if (pokemon.baseSpecies.baseSpecies === 'Cubone' || pokemon.baseSpecies.baseSpecies === 'Marowak') {
-    //       return this.chainModify(2);
-    //     }
-    //   },
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (
+        pokemon.species.baseSpecies === "Cubone" ||
+        pokemon.species.baseSpecies === "Marowak"
+      ) {
+        return 0x2000;
+      }
+    },
   },
   throatspray: {
     //   onAfterMoveSecondarySelf(target, source, move) {
@@ -2022,11 +2040,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   toxicplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Poison') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Poison") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;
@@ -2035,11 +2053,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   twistedspoon: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Psychic') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Psychic") {
+        return 0x1333;
+      }
+    },
   },
   wacanberry: {
     onModifyDamageDefender(context: Context) {
@@ -2075,11 +2093,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   waveincense: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Water') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Water") {
+        return 0x1333;
+      }
+    },
   },
   weaknesspolicy: {
     //   onHit(target, source, move) {
@@ -2147,11 +2165,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   wiseglasses: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.category === 'Special') {
-    //       return this.chainModify([0x1199, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.category === "Special") {
+        return 0x1199;
+      }
+    },
   },
   yacheberry: {
     onModifyDamageDefender(context: Context) {
@@ -2170,11 +2188,11 @@ export const Items: { [id: string]: Partial<Applier & Handler> } = {
     //   onEat() { },
   },
   zapplate: {
-    //   onBasePower(basePower, user, target, move) {
-    //     if (move.type === 'Electric') {
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Electric") {
+        return 0x1333;
+      }
+    },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
     //       return false;

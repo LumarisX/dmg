@@ -63,10 +63,10 @@ describe("Context", () => {
     expect(p1.status?.onModifyAtk?.(p1)).toBe(4);
     expect(p2.status?.onModifyAtk?.(p1)).toBeUndefined();
 
-    expect(p1.ability?.onModifyBasePower?.(context)).toBe(6);
+    expect(p1.ability?.onBasePower?.(context)).toBe(6);
     expect(p2.ability?.onModifySpA?.(p1)).toBeUndefined();
 
-    expect(p1.item?.onModifyBasePower?.(context)).toBeUndefined();
+    expect(p1.item?.onBasePower?.(context)).toBeUndefined();
     expect(p2.item?.onResidual?.(p1)).toBe(5);
 
     expect(p1.volatiles["electrify"]?.onModifyWeight?.(p1)).toBeUndefined();
@@ -149,7 +149,7 @@ function newContext() {
       },
       Abilities: {
         cursedbody: {
-          onModifyBasePower() {
+          onBasePower() {
             return 6;
           },
         },

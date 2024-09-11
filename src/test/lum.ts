@@ -6,16 +6,21 @@ import { calculate2 } from "../mechanics";
 import { State } from "../state";
 
 const gens = new Generations(Dex as any);
-const gen = gens.get(7);
+const gen = gens.get(9);
 
 let attacker = "Incineroar";
-let attackerMod = { evs: { atk: 4 }, level: 50, happiness: 0 };
+let attackerMod = {
+  evs: { atk: 4 },
+  level: 50,
+  item: "Life Orb",
+};
 
 let defender = "Amoonguss";
 let defenderMod = { evs: { def: 76 }, level: 50, item: "Black Sludge" };
 
-let move = "Frustration";
+let move = "Flare Blitz";
 
+let start = performance.now();
 let smogCalc = calculate(
   gen,
   new Pokemon(gen, attacker, attackerMod),
@@ -24,6 +29,9 @@ let smogCalc = calculate(
   new Field()
 );
 console.log(smogCalc.damage);
+console.log(performance.now() - start);
+
+start = performance.now();
 
 const state = new State(
   gen,
@@ -42,4 +50,6 @@ let equals = () => {
   }
   return true;
 };
+console.log(performance.now() - start);
+
 console.log(equals());

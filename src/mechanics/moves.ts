@@ -430,7 +430,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   brine: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (context.p2.pokemon.hp * 2 <= context.p2.pokemon.maxhp) {
         return 0x2000;
       }
@@ -1153,7 +1153,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   facade: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (context.p1.pokemon.status?.name !== "slp") {
         return 0x2000;
       }
@@ -2087,7 +2087,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   gravapple: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if ("gravity" in context.field.pseudoWeather) {
         return 0x1800;
       }
@@ -2626,7 +2626,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   knockoff: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (context.p2.pokemon.item) {
         return 0x1800;
       }
@@ -4236,7 +4236,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   retaliate: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       // if (context.p1.faintedLastTurn) {
       //   return 0x2000;
       // }
@@ -4815,7 +4815,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //     attacker.addVolatile('twoturnmove', defender);
     //     return null;
     //   },
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         ["raindance", "primordialsea", "sandstorm", "hail"].includes(
           context.field.weather?.name || ""
@@ -4842,7 +4842,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //     attacker.addVolatile('twoturnmove', defender);
     //     return null;
     //   },
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         ["raindance", "primordialsea", "sandstorm", "hail"].includes(
           context.field.weather?.name || ""
@@ -5661,7 +5661,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   venoshock: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         context.p2.pokemon.status?.name === "psn" ||
         context.p2.pokemon.status?.name === "tox"

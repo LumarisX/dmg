@@ -39,7 +39,8 @@ export interface Applier {
 export interface Handler {
   basePowerCallback(context: Context): number;
   damageCallback(context: Context): number;
-  onModifyBasePower(context: Context): number | undefined;
+  onAnyBasePower(context: Context): number | undefined;
+  onBasePower(context: Context): number | undefined;
 
   onModifyAtk(pokemon: Context.Pokemon): number | undefined;
   onModifySpA(pokemon: Context.Pokemon): number | undefined;
@@ -116,7 +117,7 @@ export const APPLIERS = new Appliers(HANDLERS);
 export const HANDLER_FNS: Set<keyof Handler> = new Set([
   "basePowerCallback",
   "damageCallback",
-  "onModifyBasePower",
+  "onBasePower",
   "onModifyAtk",
   "onModifySpA",
   "onModifyDef",

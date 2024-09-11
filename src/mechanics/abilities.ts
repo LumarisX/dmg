@@ -184,7 +184,7 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   blaze: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         context.move.type === "Fire" &&
         context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
@@ -356,12 +356,23 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Dark Aura');
     //   },
-    //   onAnyBasePower(basePower, source, target, move) {
-    //     if (target === source || move.category === 'Status' || move.type !== 'Dark') { return; }
-    //     if (!move.auraBooster) { move.auraBooster = this.effectData.target; }
-    //     if (move.auraBooster !== this.effectData.target) { return; }
-    //     return this.chainModify([move.hasAuraBreak ? 0x0C00 : 0x1547, 0x1000]);
-    //   },
+    onAnyBasePower(context: Context) {
+      // if (
+      //   context.p1.pokemon !== context.p2.pokemon ||
+      //   context.move.category === "Status" ||
+      //   context.move.type !== "Dark"
+      // ) {
+      //   return;
+      // }
+      // // if (!context.move.auraBooster) {
+      // //   move.auraBooster = this.effectData.target;
+      // // }
+      // // if (move.auraBooster !== this.effectData.target) {
+      // //   return;
+      // // }
+      // return this.chainModify([context.move.hasAuraBreak ? 0x0c00 : 0x1547, 0x1000]);
+      return 0x1000;
+    },
   },
   dauntlessshield: {
     //   onStart(pokemon: Context.Pokemon) {
@@ -525,12 +536,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //       return null;
     //     }
     //   },
-    //   onFoeBasePower(basePower, attacker, defender, move) {
-    //     if (this.effectData.target !== defender) { return; }
-    //     if (move.type === 'Fire') {
-    //       return this.chainModify(1.25);
-    //     }
-    //   },
+    onBasePower(context) {
+      if (context.move.type === "Fire") {
+        return 0x1400;
+      }
+    },
     //   onWeather(target, source, effect) {
     //     if (target.hasItem('utilityumbrella')) { return; }
     //     if (effect.id === 'raindance' || effect.id === 'primordialsea') {
@@ -601,11 +611,14 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   flareboost: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (attacker.status === 'brn' && move.category === 'Special') {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (
+        context.p1.pokemon.status?.name === "brn" &&
+        context.move.category === "Special"
+      ) {
+        return 0x1800;
+      }
+    },
   },
   flashfire: {
     //   onTryHit(target, source, move) {
@@ -941,11 +954,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   heatproof: {
-    //   onSourceBasePower(basePower, attacker, defender, move) {
-    //     if (move.type === 'Fire') {
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.type === "Fire") {
+        return 0x800;
+      }
+    },
     //   onDamage(damage, target, source, effect) {
     //     if (effect && effect.id === 'brn') {
     //       return damage / 2;
@@ -1183,12 +1196,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   ironfist: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (move.flags['punch']) {
-    //       this.debug('Iron Fist boost');
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.flags["punch"]) {
+        return 0x1333;
+      }
+    },
   },
   justified: {
     //   onDamagingHit(damage, target, source, move) {
@@ -1380,11 +1392,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   megalauncher: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (move.flags['pulse']) {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.flags["pulse"]) {
+        return 0x1800;
+      }
+    },
   },
   merciless: {
     //   onModifyCritRatio(critRatio, source, target) {
@@ -1666,9 +1678,10 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //       move.normalizeBoosted = true;
     //     }
     //   },
-    //   onBasePower(basePower, pokemon, target, move) {
-    //     if (move.normalizeBoosted) { return this.chainModify([0x1333, 0x1000]); }
-    //   },
+    onBasePower(context: Context) {
+      // if (move.normalizeBoosted) { return this.chainModify([0x1333, 0x1000]); }
+      return undefined;
+    },
   },
   oblivious: {
     //   onUpdate(pokemon: Context.Pokemon) {
@@ -1705,7 +1718,7 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   overgrow: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         context.move.type === "Grass" &&
         context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
@@ -2067,12 +2080,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   reckless: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (move.recoil || move.hasCrashDamage) {
-    //       this.debug('Reckless boost');
-    //       return this.chainModify([0x1333, 0x1000]);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.recoil || context.move.hasCrashDamage) {
+        return 0x1333;
+      }
+    },
   },
   refrigerate: {
     //   onModifyType(move, pokemon) {
@@ -2082,9 +2094,10 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //       move.refrigerateBoosted = true;
     //     }
     //   },
-    //   onBasePower(basePower, pokemon, target, move) {
-    //     if (move.refrigerateBoosted) { return this.chainModify([0x1333, 0x1000]); }
-    //   },
+    onBasePower(context: Context) {
+      // if (context.move.refrigerateBoosted) { return 0x1333
+      return undefined;
+    },
   },
   regenerator: {
     //   onSwitchOut(pokemon: Context.Pokemon) {
@@ -2128,17 +2141,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   rivalry: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (attacker.gender && defender.gender) {
-    //       if (attacker.gender === defender.gender) {
-    //         this.debug('Rivalry boost');
-    //         return this.chainModify(1.25);
-    //       } else {
-    //         this.debug('Rivalry weaken');
-    //         return this.chainModify(0.75);
-    //       }
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.p1.pokemon.gender && context.p2.pokemon.gender) {
+        return context.p1.pokemon.gender === context.p2.pokemon.gender
+          ? 1400
+          : 0xc00;
+      }
+    },
   },
   rockhead: {
     //   onDamage(damage, target, source, effect) {
@@ -2156,14 +2165,13 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   sandforce: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (this.field.isWeather('sandstorm')) {
-    //       if (move.type === 'Rock' || move.type === 'Ground' || move.type === 'Steel') {
-    //         this.debug('Sand Force boost');
-    //         return this.chainModify([0x14CD, 0x1000]);
-    //       }
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.field.weather?.name === "Sand") {
+        if (["Rock", "Ground", "Steel"].includes(context.move.type)) {
+          return 0x14cd;
+        }
+      }
+    },
     //   onImmunity(type, pokemon) {
     //     if (type === 'sandstorm') { return false; }
     //   },
@@ -2628,11 +2636,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   strongjaw: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     if (move.flags['bite']) {
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.flags["bite"]) {
+        return 0x1800;
+      }
+    },
   },
   sturdy: {
     //   onTryHit(pokemon, target, move) {
@@ -2667,7 +2675,7 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   swarm: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         context.move.type === "Bug" &&
         context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
@@ -2749,14 +2757,11 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     //   },
   },
   technician: {
-    //   onBasePower(basePower, attacker, defender, move) {
-    //     const basePowerAfterMultiplier = this.modify(basePower, this.event.modifier);
-    //     this.debug('Base Power: ' + basePowerAfterMultiplier);
-    //     if (basePowerAfterMultiplier <= 60) {
-    //       this.debug('Technician boost');
-    //       return this.chainModify(1.5);
-    //     }
-    //   },
+    onBasePower(context: Context) {
+      if (context.move.basePower <= 60) {
+        return 0x1800;
+      }
+    },
   },
   telepathy: {
     //   onTryHit(target, source, move) {
@@ -2798,7 +2803,7 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   torrent: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         context.move.type === "Water" &&
         context.p1.pokemon.hp <= context.p1.pokemon.maxhp / 3
@@ -2809,14 +2814,14 @@ export const Abilities: { [id: string]: Partial<Applier & Handler> } = {
     },
   },
   toughclaws: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (context.move.flags["contact"]) {
         return 0x14cd;
       }
     },
   },
   toxicboost: {
-    onModifyBasePower(context: Context) {
+    onBasePower(context: Context) {
       if (
         (context.p1.pokemon.status?.name === "psn" ||
           context.p1.pokemon.status?.name === "tox") &&
