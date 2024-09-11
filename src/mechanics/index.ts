@@ -22,7 +22,9 @@ import { Moves } from "./moves";
 import {
   abs,
   apply,
+  applyMod,
   chain,
+  chainMod,
   clamp,
   floor,
   max,
@@ -193,16 +195,17 @@ export function calculate2(context: Context) {
     attackStat,
     defenseStat
   );
+  console.log(baseDamage);
 
   const isSpread =
     context.gameType !== "singles" &&
     ["allAdjacent", "allAdjacentFoes"].includes(context.move.target);
   if (isSpread) {
-    baseDamage = roundDown(trunc(baseDamage * 0xc00, 32) / 0x1000);
+    baseDamage = applyMod(baseDamage, 0xc00);
   }
 
   if (context.p1.pokemon.ability?.id === "Parental Bond (Child)") {
-    baseDamage = roundDown(trunc(baseDamage * 0x400, 32) / 0x1000);
+    baseDamage = applyMod(baseDamage, 0x400);
   }
 
   if (
@@ -210,7 +213,7 @@ export function calculate2(context: Context) {
     context.move.name === "Hydro Steam" &&
     context.p1.pokemon.item?.id !== "Utility Umbrella"
   ) {
-    baseDamage = roundDown(trunc(baseDamage * 0x1800, 32) / 0x1000);
+    baseDamage = applyMod(baseDamage, 0x1800);
   } else if (context.p2.pokemon.item?.id !== "Utility Umbrella") {
     if (
       (["Sun", "Harsh Sunshine"].includes(context.field.weather?.name || "") &&
@@ -218,41 +221,99 @@ export function calculate2(context: Context) {
       (["Rain", "Heavy Rain"].includes(context.field.weather?.name || "") &&
         context.move.type === "Water")
     ) {
-      baseDamage = roundDown(trunc(baseDamage * 0x1800, 32) / 0x1000);
+      baseDamage = applyMod(baseDamage, 0x1800);
     } else if (
       (context.field.weather?.name === "Sun" &&
         context.move.type === "Water") ||
       (context.field.weather?.name === "Rain" && context.move.type === "Fire")
     ) {
-      baseDamage = roundDown(trunc(baseDamage * 0x800, 32) / 0x1000);
+      baseDamage = applyMod(baseDamage, 0x800);
     }
+    //add 0 multiplier for Harsh Sunshine and Heavy Rain
   }
 
   if (context.move.crit) {
-    baseDamage = Math.floor(trunc(baseDamage * 1.5, 32));
+    baseDamage = applyMod(baseDamage, 0x1800);
   }
 
   const stabMod = 0x1000;
+
   const finalMod = 0x1000;
   const effectiveness = 2;
-  const isBurned = false;
+
+  if (
+    !context.move.crit &&
+    context.p1.pokemon.ability?.id !== "infiltrator" &&
+    ("Aurora Veil" in context.p2.sideConditions ||
+      (context.move.category === "Physical" &&
+        "Reflect" in context.p2.sideConditions) ||
+      (context.move.category === "Special" &&
+        "Light Screen" in context.p2.sideConditions))
+  ) {
+    chain(finalMod, context.gameType === "singles" ? 0x800 : 0xaac);
+  }
+
+  if (context.p1.pokemon.ability?.id === "neuroforce") chain(finalMod, 0x1400);
+  if (context.p1.pokemon.ability?.id === "sniper") chain(finalMod, 0x1800);
+  if (context.p1.pokemon.ability?.id === "tintedlens" && effectiveness < 1)
+    chain(finalMod, 0x2000);
+  if (
+    context.p2.pokemon.ability?.id === "multiscale" ||
+    (context.p2.pokemon.ability?.id === "shadowshield" &&
+      context.p2.pokemon.hp === context.p2.pokemon.maxhp)
+  )
+    chain(finalMod, 0x800);
+  if (context.p2.pokemon.ability?.id === "fluffy" && context.move.flags.contact)
+    chain(finalMod, 0x800);
+  if (context.p2.active?.some((active) => active?.ability === "friendguard"))
+    chain(finalMod, 0xc00);
+  if (
+    ["solidrock", "filter", "prismarmor"].includes(
+      context.p1.pokemon.ability?.id || ""
+    ) &&
+    effectiveness > 1
+  )
+    chain(finalMod, 0xc00);
+  if (context.p1.pokemon.item?.id === "metronome") {
+    const hits = context.move.consecutive || 0;
+    chain(
+      finalMod,
+      hits < 5 ? [0x1000, 0x1333, 0x1666, 0x1999, 0x1ccc][hits] : 0x2000
+    );
+  }
+  if (
+    context.p2.pokemon.ability?.id === "fluffy" &&
+    context.move.type === "Fire"
+  )
+    chain(finalMod, 0x2000);
+  if (context.p1.pokemon.item?.id === "expertbelt" && effectiveness > 1)
+    chain(finalMod, 0x4915);
+  if (context.p1.pokemon.item?.id === "lifeorb") chain(finalMod, 0x5324);
+  //resist berries
+  //double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
+
   const protect = false;
   let damage = [];
   for (let i = 0; i < 16; i++) {
-    let damageAmount = Math.floor(trunc(baseDamage * (85 + i), 32) / 100);
+    let damageAmount = floor(trunc(baseDamage * (85 + i), 32) / 100);
     // If the stabMod would not accomplish anything we avoid applying it because it could cause
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000)
-      damageAmount = trunc(damageAmount * stabMod, 0x1000) / 0x1000;
+      damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
+
+    //Probably should be a bitshift instead
     damageAmount = floor(trunc(roundDown(damageAmount) * effectiveness, 32));
 
-    if (isBurned) damageAmount = floor(damageAmount / 2);
-    if (protect) damageAmount = floor(trunc(damageAmount * 0x400, 32) / 0x1000);
+    if (
+      context.p1.pokemon.status?.name === "brn" &&
+      context.move.id != "facade" &&
+      context.p1.pokemon.ability?.id !== "guts"
+    )
+      damageAmount = applyMod(damageAmount, 0x800);
+    if (protect && context.move.zMove)
+      damageAmount = applyMod(damageAmount, 0x400);
     damage.push(
-      trunc(
-        roundDown(Math.max(1, trunc(damageAmount * finalMod, 32) / 0x1000)),
-        16
-      )
+      trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16)
     );
   }
   return damage;
@@ -350,7 +411,7 @@ export function computeModifiedWeight(
   pokemon: Context.Pokemon | State.Pokemon
 ) {
   const autotomize = pokemon.volatiles.autotomize?.level || 0;
-  let weighthg = Math.max(1, pokemon.weighthg - 1000 * autotomize);
+  let weighthg = max(1, pokemon.weighthg - 1000 * autotomize);
   if (pokemon.ability === "heavymetal") {
     weighthg *= 2;
   } else if (pokemon.ability === "lightmetal") {
