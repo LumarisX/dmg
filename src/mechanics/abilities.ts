@@ -7,7 +7,8 @@ export const Abilities: {
 } = {
   adaptability: {
     onModifySTAB(pokemon: Context.Pokemon) {
-      if (pokemon.types.includes(pokemon.context.move.type)) return 0x2000;
+      if (pokemon.move?.type && pokemon.types.includes(pokemon.move.type))
+        return 0x2000;
     },
   },
   aerilate: {
@@ -186,10 +187,7 @@ export const Abilities: {
   },
   blaze: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        pokemon.context.move.type === "Fire" &&
-        pokemon.hp <= pokemon.maxhp / 3
-      ) {
+      if (pokemon.move?.hasType("Fire") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Blaze boost");
         return 0x1800;
       }
@@ -211,8 +209,9 @@ export const Abilities: {
   chlorophyll: {
     onModifySpe(pokemon: Context.Pokemon) {
       if (
+        pokemon.side?.field &&
         ["Sun", "Harsh Sunshine"].includes(
-          pokemon.context.field.weather?.name || ""
+          pokemon.side.field.weather?.name || ""
         )
       ) {
         return 0x2000;
@@ -538,7 +537,7 @@ export const Abilities: {
     //     }
     //   },
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.type === "Fire") {
+      if (pokemon.move?.hasType("Fire")) {
         return 0x1400;
       }
     },
@@ -615,7 +614,7 @@ export const Abilities: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         pokemon.status?.name === "brn" &&
-        pokemon.context.move.category === "Special"
+        pokemon.move?.category === "Special"
       ) {
         return 0x1800;
       }
@@ -722,10 +721,10 @@ export const Abilities: {
   fluffy: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
       let mod = 0x1000;
-      if (pokemon.context.move.type === "Fire") {
+      if (pokemon.move?.hasType("Fire")) {
         chainMod(mod, 0x2000);
       }
-      if (pokemon.context.move.flags["contact"]) {
+      if (pokemon.move?.flags["contact"]) {
         chainMod(mod, 0x800);
       }
       if (mod != 0x1000) return mod;
@@ -956,7 +955,7 @@ export const Abilities: {
   },
   heatproof: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.type === "Fire") {
+      if (pokemon.move?.hasType("Fire")) {
         return 0x800;
       }
     },
@@ -1062,7 +1061,7 @@ export const Abilities: {
   },
   icescales: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.category === "Special") {
+      if (pokemon.move?.category === "Special") {
         return 0x800;
       }
     },
@@ -1198,7 +1197,7 @@ export const Abilities: {
   },
   ironfist: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.flags["punch"]) {
+      if (pokemon.move?.flags["punch"]) {
         return 0x1333;
       }
     },
@@ -1394,7 +1393,7 @@ export const Abilities: {
   },
   megalauncher: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.flags["pulse"]) {
+      if (pokemon.move?.flags["pulse"]) {
         return 0x1800;
       }
     },
@@ -1720,10 +1719,7 @@ export const Abilities: {
   },
   overgrow: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        pokemon.context.move.type === "Grass" &&
-        pokemon.hp <= pokemon.maxhp / 3
-      ) {
+      if (pokemon.move?.hasType("Grass") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Overgrow boost");
         return 0x1800;
       }
@@ -2017,7 +2013,7 @@ export const Abilities: {
     //     }
     //   },
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.flags["sound"]) {
+      if (pokemon.move?.flags["sound"]) {
         return 0x800;
       }
     },
@@ -2082,7 +2078,7 @@ export const Abilities: {
   },
   reckless: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.recoil || pokemon.context.move.hasCrashDamage) {
+      if (pokemon.move?.recoil || pokemon.move?.hasCrashDamage) {
         return 0x1333;
       }
     },
@@ -2165,10 +2161,11 @@ export const Abilities: {
   },
   sandforce: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.field.weather?.name === "Sand") {
-        if (["Rock", "Ground", "Steel"].includes(pokemon.context.move.type)) {
-          return 0x14cd;
-        }
+      if (
+        pokemon.side?.field?.weather?.name === "Sand" &&
+        pokemon.move?.hasType("Rock", "Ground", "Steel")
+      ) {
+        return 0x14cd;
       }
     },
     //   onImmunity(type, pokemon) {
@@ -2177,7 +2174,7 @@ export const Abilities: {
   },
   sandrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (pokemon.context.field.weather?.name === "Sand") {
+      if (pokemon.side?.field?.weather?.name === "Sand") {
         return 0x2000;
       }
     },
@@ -2428,16 +2425,14 @@ export const Abilities: {
   },
   slushrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (
-        ["Hail", "Snow"].includes(pokemon.context.field.weather?.name || "")
-      ) {
+      if (["Hail", "Snow"].includes(pokemon.side?.field?.weather?.name || "")) {
         return 0x2000;
       }
     },
   },
   sniper: {
     onModifyDamageAttacker(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.crit) {
+      if (pokemon.move?.crit) {
         return 0x1800;
       }
     },
@@ -2636,7 +2631,7 @@ export const Abilities: {
   },
   strongjaw: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.flags["bite"]) {
+      if (pokemon.move?.flags["bite"]) {
         return 0x1800;
       }
     },
@@ -2668,17 +2663,14 @@ export const Abilities: {
   },
   surgesurfer: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (pokemon.context.field.terrain?.name === "Electric") {
+      if (pokemon.side?.field?.terrain?.name === "Electric") {
         return 0x2000;
       }
     },
   },
   swarm: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        pokemon.context.move.type === "Bug" &&
-        pokemon.hp <= pokemon.maxhp / 3
-      ) {
+      if (pokemon.move?.hasType("Bug") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Swarm boost");
         return 0x1800;
       }
@@ -2705,9 +2697,8 @@ export const Abilities: {
   swiftswim: {
     onModifySpe(pokemon: Context.Pokemon) {
       if (
-        ["Rain", "Heavy Rain"].includes(
-          pokemon.context.field.weather?.name || ""
-        )
+        pokemon.side?.field?.weather &&
+        ["Rain", "Heavy Rain"].includes(pokemon.side?.field?.weather?.name)
       ) {
         return 0x2000;
       }
@@ -2757,7 +2748,7 @@ export const Abilities: {
   },
   technician: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.basePower <= 60) {
+      if (pokemon.move && pokemon.move.basePower <= 60) {
         return 0x1800;
       }
     },
@@ -2803,10 +2794,7 @@ export const Abilities: {
   },
   torrent: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        pokemon.context.move.type === "Water" &&
-        pokemon.hp <= pokemon.maxhp / 3
-      ) {
+      if (pokemon.move?.hasType("Water") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Torrent boost");
         return 0x1800;
       }
@@ -2814,7 +2802,7 @@ export const Abilities: {
   },
   toughclaws: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.context.move.flags["contact"]) {
+      if (pokemon.move?.flags["contact"]) {
         return 0x14cd;
       }
     },
@@ -2823,7 +2811,7 @@ export const Abilities: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         (pokemon.status?.name === "psn" || pokemon.status?.name === "tox") &&
-        pokemon.context.move.category === "Physical"
+        pokemon.move?.category === "Physical"
       ) {
         return 0x1800;
       }

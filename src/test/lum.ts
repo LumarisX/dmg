@@ -12,7 +12,6 @@ let attacker = "Incineroar";
 let attackerMod = {
   evs: { atk: 4 },
   level: 50,
-  item: "Life Orb",
 };
 
 let defender = "Amoonguss";
@@ -20,13 +19,15 @@ let defenderMod = { evs: { def: 76 }, level: 50, item: "Black Sludge" };
 
 let move = "Flare Blitz";
 
+let fieldMod: Partial<Field> = { weather: "Sun" };
+
 let start = performance.now();
 let smogCalc = calculate(
   gen,
   new Pokemon(gen, attacker, attackerMod),
   new Pokemon(gen, defender, defenderMod),
   new Move(gen, move),
-  new Field()
+  new Field(fieldMod)
 );
 console.log(smogCalc.damage);
 console.log(performance.now() - start);
@@ -38,7 +39,7 @@ const state = new State(
   State.createPokemon(gen, attacker, attackerMod),
   State.createPokemon(gen, defender, defenderMod),
   State.createMove(gen, move),
-  State.createField(gen)
+  State.createField(gen, fieldMod)
 );
 
 let newCalc = calculate2(Context.fromState(state));

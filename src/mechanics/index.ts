@@ -251,7 +251,7 @@ export function calculate2(context: Context) {
 
     //Probably should be a bitshift instead
     damageAmount = floor(
-      trunc(roundDown(damageAmount) * context.effectiveness, 32)
+      trunc(roundDown(damageAmount) * context.move.effectiveness, 32)
     );
 
     if (

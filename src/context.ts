@@ -42,7 +42,6 @@ export class Context {
   p2: Context.Side;
   move: Context.Move;
   field: Context.Field;
-  effectiveness: number;
 
   readonly relevant: Relevancy;
 
@@ -55,13 +54,9 @@ export class Context {
     this.gen = state.gen as Generation;
     this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
     this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
-    this.move = new Context.Move(state.move, relevant.move, handlers);
+    this.move = new Context.Move(this, state.move, relevant.move, handlers);
     this.move.updateData(this);
     this.field = new Context.Field(state.field, relevant.field, handlers);
-    this.effectiveness = this.gen.types.totalEffectiveness(
-      this.move.type,
-      this.p2.pokemon
-    );
     this.relevant = relevant;
   }
 
@@ -170,8 +165,8 @@ export namespace Context {
       fainted?: boolean;
       position?: number;
     }>;
-    readonly context: Context;
     readonly relevant: Relevancy.Side;
+    readonly field?: Context.Field;
 
     constructor(
       context: Context,
@@ -180,9 +175,10 @@ export namespace Context {
       handlers: Handlers
     ) {
       this.relevant = relevant;
-      this.context = context;
+      this.field = context.field;
       this.pokemon = new Pokemon(
         context,
+        this,
         state.pokemon,
         relevant.pokemon,
         handlers
@@ -250,7 +246,9 @@ export namespace Context {
     hurtThisTurn?: unknown;
 
     readonly relevant: Relevancy.Pokemon;
-    readonly context: Context;
+    readonly side?: Context.Side;
+    readonly move?: Context.Move;
+    readonly gen: Generation
 
     private nature?: NatureName;
     private evs?: Partial<StatsTable>;
@@ -258,12 +256,15 @@ export namespace Context {
 
     constructor(
       context: Context,
+      side: Context.Side,
       state: DeepReadonly<State.Pokemon>,
       relevant: Relevancy.Pokemon,
       handlers: Handlers
     ) {
       this.relevant = relevant;
-      this.context = context;
+      this.side = side;
+      this.move = context.move;
+      this.gen = context.gen
       this.species = state.species as Specie;
       this.level = state.level;
       this.weighthg = state.weighthg;
@@ -517,7 +518,10 @@ export namespace Context {
 
     readonly relevant: Relevancy.Move;
 
+    effectiveness: number;
+
     constructor(
+      context: Context,
       state: DeepReadonly<State.Move>,
       relevant: Relevancy.Move,
       handlers: Handlers
@@ -525,6 +529,14 @@ export namespace Context {
       extend(this, state);
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
+      this.effectiveness = context.gen.types.totalEffectiveness(
+        this.type,
+        context.p2.pokemon
+      );
+    }
+
+    hasType(...types: TypeName[]): boolean {
+      return types.includes(this.type);
     }
 
     updateData(context: Context) {
