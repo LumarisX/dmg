@@ -55,7 +55,8 @@ export class Context {
     this.gen = state.gen as Generation;
     this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
     this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
-    this.move = new Context.Move(this, state.move, relevant.move, handlers);
+    this.move = new Context.Move(state.move, relevant.move, handlers);
+    this.move.updateData(this);
     this.field = new Context.Field(state.field, relevant.field, handlers);
     this.effectiveness = this.gen.types.totalEffectiveness(
       this.move.type,
@@ -86,9 +87,11 @@ export class Context {
 
 export namespace Context {
   export class Field {
-    weather?: { name: WeatherName } & Partial<Handler>;
-    terrain?: { name: TerrainName } & Partial<Handler>;
-    pseudoWeather: { [id: string]: { data: object } & Partial<Handler> };
+    weather?: { name: WeatherName } & Partial<Handler<Context>>;
+    terrain?: { name: TerrainName } & Partial<Handler<Context>>;
+    pseudoWeather: {
+      [id: string]: { data: object } & Partial<Handler<Context>>;
+    };
 
     readonly relevant: Relevancy.Field;
 
@@ -153,7 +156,9 @@ export namespace Context {
 
   export class Side {
     pokemon: Pokemon;
-    sideConditions: { [id: string]: { level?: number } & Partial<Handler> };
+    sideConditions: {
+      [id: string]: { level?: number } & Partial<Handler<Context>>;
+    };
     active?: Array<{
       ability?: ID;
       position?: number;
@@ -219,14 +224,14 @@ export namespace Context {
     level: number;
     weighthg: number;
 
-    item?: { id: ID } & Partial<Handler>;
-    ability?: { id: ID } & Partial<Handler>;
+    item?: { id: ID } & Partial<Handler<Context.Pokemon>>;
+    ability?: { id: ID } & Partial<Handler<Context.Pokemon>>;
     gender?: GenderName;
     happiness?: number;
 
-    status?: { name: StatusName } & Partial<Handler>;
+    status?: { name: StatusName } & Partial<Handler<Context>>;
     statusData?: { toxicTurns: number };
-    volatiles: { [id: string]: { level?: number } & Partial<Handler> };
+    volatiles: { [id: string]: { level?: number } & Partial<Handler<Context>> };
 
     types: [TypeName] | [TypeName, TypeName];
     addedType?: TypeName;
@@ -391,7 +396,7 @@ export namespace Context {
     }
   }
 
-  export class Move implements State.Move, Partial<Handler> {
+  export class Move implements State.Move, Partial<Handler<Context>> {
     id!: ID;
     name!: MoveName;
     fullname!: string;
@@ -499,41 +504,38 @@ export namespace Context {
     spread?: boolean;
     consecutive?: number; // Metronome
 
-    context: Context;
-
     basePowerCallback?(context: Context): number;
     damageCallback?(context: Context): number;
     onBasePower?(context: Context): number | undefined;
-    onModifyAtk?(pokemon: Context.Pokemon): number | undefined;
-    onModifySpA?(pokemon: Context.Pokemon): number | undefined;
-    onModifyDef?(pokemon: Context.Pokemon): number | undefined;
-    onModifySpD?(pokemon: Context.Pokemon): number | undefined;
-    onModifySpe?(pokemon: Context.Pokemon): number | undefined;
-    onModifyWeight?(pokemon: Context.Pokemon): number | undefined;
-    onResidual?(pokemon: Context.Pokemon): number | undefined;
+    onModifyAtk?(pokemon: Context): number | undefined;
+    onModifySpA?(pokemon: Context): number | undefined;
+    onModifyDef?(pokemon: Context): number | undefined;
+    onModifySpD?(pokemon: Context): number | undefined;
+    onModifySpe?(pokemon: Context): number | undefined;
+    onModifyWeight?(pokemon: Context): number | undefined;
+    onResidual?(pokemon: Context): number | undefined;
 
     readonly relevant: Relevancy.Move;
 
     constructor(
-      context: Context,
       state: DeepReadonly<State.Move>,
       relevant: Relevancy.Move,
       handlers: Handlers
     ) {
       extend(this, state);
       this.relevant = relevant;
-      this.context = context;
       reify(this, this.id, handlers.Moves);
+    }
 
-      console.log(this.type);
+    updateData(context: Context) {
       if (this.basePowerCallback)
         this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
-      if (this.context.p1.pokemon.ability?.onBasePower)
+      if (context.p1.pokemon.ability?.onBasePower)
         basePowerMod = chain(
           basePowerMod,
-          this.context.p1.pokemon.ability?.onBasePower(context)
+          context.p1.pokemon.ability?.onBasePower(context.p1.pokemon)
         );
 
       if (this.onBasePower)
@@ -549,7 +551,7 @@ export namespace Context {
 }
 
 function reify<T>(
-  obj: T & Partial<Handler>,
+  obj: T & Partial<Handler<Context | Context.Pokemon>>,
   id: ID,
   handlers: Handlers[HandlerKind],
   cbfn?: () => void
@@ -557,7 +559,7 @@ function reify<T>(
   const handler = handlers[id];
   if (handler) {
     for (const n in handler) {
-      const k = n as keyof Handler; // not really, but HANDLER_FNS is checked below
+      const k = n as keyof Handler<Context | Context.Pokemon>; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
       if (fn && HANDLER_FNS.has(k) && typeof fn === "function") {
         obj[k] = (x: Context | Context.Pokemon) => {

@@ -36,25 +36,25 @@ export interface Applier {
   apply(side: "p1" | "p2", state: State, guaranteed?: boolean): void;
 }
 
-export interface Handler {
-  basePowerCallback(context: Context): number;
-  damageCallback(context: Context): number;
-  onAnyBasePower(context: Context): number | undefined;
-  onBasePower(context: Context): number | undefined;
+export interface Handler<C> {
+  basePowerCallback(context: C): number;
+  damageCallback(context: C): number;
+  onAnyBasePower(context: C): number | undefined;
+  onBasePower(context: C): number | undefined;
 
-  onModifyAtk(pokemon: Context.Pokemon): number | undefined;
-  onModifySpA(pokemon: Context.Pokemon): number | undefined;
-  onModifyDef(pokemon: Context.Pokemon): number | undefined;
-  onModifySpD(pokemon: Context.Pokemon): number | undefined;
-  onModifySpe(pokemon: Context.Pokemon): number | undefined;
-  onModifyWeight(pokemon: Context.Pokemon): number | undefined;
+  onModifyAtk(pokemon: C): number | undefined;
+  onModifySpA(pokemon: C): number | undefined;
+  onModifyDef(pokemon: C): number | undefined;
+  onModifySpD(pokemon: C): number | undefined;
+  onModifySpe(pokemon: C): number | undefined;
+  onModifyWeight(pokemon: C): number | undefined;
 
-  onResidual(pokemon: Context.Pokemon): number | undefined;
+  onResidual(pokemon: C): number | undefined;
 
-  onModifyDamageAttacker(context: Context): number | undefined;
-  onModifyDamageDefender(context: Context): number | undefined;
+  onModifyDamageAttacker(context: C): number | undefined;
+  onModifyDamageDefender(context: C): number | undefined;
 
-  onModifySTAB(context: Context): number | undefined;
+  onModifySTAB(context: C): number | undefined;
 }
 
 export type HandlerKind = "Abilities" | "Items" | "Moves" | "Conditions";
@@ -114,7 +114,7 @@ export class Appliers {
 
 export const APPLIERS = new Appliers(HANDLERS);
 
-export const HANDLER_FNS: Set<keyof Handler> = new Set([
+export const HANDLER_FNS: Set<keyof Handler<Context>> = new Set([
   "basePowerCallback",
   "damageCallback",
   "onBasePower",
@@ -291,7 +291,10 @@ export function getBaseDamage(
 export function getStabModifier(context: Context) {
   let mod = 0x1000;
   if (context.p1.pokemon.ability?.onModifySTAB)
-    mod = chain(mod, context.p1.pokemon.ability.onModifySTAB(context));
+    mod = chain(
+      mod,
+      context.p1.pokemon.ability.onModifySTAB(context.p1.pokemon)
+    );
   else if (context.p1.pokemon.types.includes(context.move.type)) {
     mod = chain(mod, 0x1800);
   }
@@ -324,7 +327,7 @@ function getFinalModifier(context: Context): number {
   if (context.p1.pokemon.ability?.onModifyDamageAttacker)
     mod = chain(
       mod,
-      context.p1.pokemon.ability.onModifyDamageAttacker(context)
+      context.p1.pokemon.ability.onModifyDamageAttacker(context.p1.pokemon)
     );
 
   if (
@@ -339,17 +342,23 @@ function getFinalModifier(context: Context): number {
   if (context.p2.pokemon.ability?.onModifyDamageDefender)
     mod = chain(
       mod,
-      context.p2.pokemon.ability.onModifyDamageDefender(context)
+      context.p2.pokemon.ability.onModifyDamageDefender(context.p1.pokemon)
     );
 
   if (context.p2.active?.some((active) => active?.ability === "friendguard"))
     mod = chain(mod, 0xc00);
 
   if (context.p1.pokemon.item?.onModifyDamageAttacker)
-    mod = chain(mod, context.p1.pokemon.item.onModifyDamageAttacker(context));
+    mod = chain(
+      mod,
+      context.p1.pokemon.item.onModifyDamageAttacker(context.p1.pokemon)
+    );
 
   if (context.p2.pokemon.item?.onModifyDamageDefender)
-    mod = chain(mod, context.p2.pokemon.item.onModifyDamageDefender(context));
+    mod = chain(
+      mod,
+      context.p2.pokemon.item.onModifyDamageDefender(context.p1.pokemon)
+    );
 
   //double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
   return mod;

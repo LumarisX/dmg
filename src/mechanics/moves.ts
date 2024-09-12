@@ -2,7 +2,7 @@ import { Applier, Handler } from ".";
 import { Context } from "../context";
 import { floor } from "../math";
 
-export const Moves: { [id: string]: Partial<Applier & Handler> } = {
+export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   acrobatics: {
     basePowerCallback({ p1, move }) {
       return p1.pokemon.item ? move.basePower : move.basePower * 2;
