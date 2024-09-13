@@ -1,6 +1,7 @@
 import { Applier, Handler } from ".";
 import { Context } from "../context";
 import { floor } from "../math";
+import { has, is } from "../utils";
 
 export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   acrobatics: {
@@ -41,11 +42,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   allyswitch: {
     //   onTryHit(source) {
-    //     if (source.side.active.length === 1) { return false; }
-    //     if (source.side.active.length === 3 && source.position === 1) { return false; }
+    //     if (is(source.side.active.length,1)) { return false; }
+    //     if (is(source.side.active.length,3) && is(source.position,1)) { return false; }
     //   },
     //   onHit(pokemon) {
-    //     const newPosition = (pokemon.position === 0 ? pokemon.side.active.length - 1 : 0);
+    //     const newPosition = (is(pokemon.position,0) ? pokemon.side.active.length - 1 : 0);
     //     if (!pokemon.side.active[newPosition]) { return false; }
     //     if (pokemon.side.active[newPosition].fainted) { return false; }
     //     this.swapPosition(pokemon, newPosition, '[from] move: Ally Switch');
@@ -89,7 +90,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     ];
     //     const moves = [];
     //     for (const pokemon of target.side.pokemon) {
-    //       if (pokemon === target) { continue; }
+    //       if (is(pokemon,target)) { continue; }
     //       for (const moveSlot of pokemon.moveSlots) {
     //         const moveid = moveSlot.id;
     //         if (noAssist.includes(moveid)) { continue; }
@@ -119,7 +120,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   attract: {
     //   effect: {
     //     onStart(pokemon, source, effect) {
-    //       if (!(pokemon.gender === 'M' && source.gender === 'F') && !(pokemon.gender === 'F' && source.gender === 'M')) {
+    //       if (!(is(pokemon.gender,'M') && is(source.gender,'F')) && !(is(pokemon.gender,'F') && is(source.gender,'M'))) {
     //         this.debug('incompatible gender');
     //         return false;
     //       }
@@ -127,9 +128,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         this.debug('Attract event failed');
     //         return false;
     //       }
-    //       if (effect.id === 'cutecharm') {
+    //       if (is(effect.id,'cutecharm')) {
     //         this.add('-start', pokemon, 'Attract', '[from] ability: Cute Charm', '[of] ' + source);
-    //       } else if (effect.id === 'destinyknot') {
+    //       } else if (is(effect.id,'destinyknot')) {
     //         this.add('-start', pokemon, 'Attract', '[from] item: Destiny Knot', '[of] ' + source);
     //       } else {
     //         this.add('-start', pokemon, 'Attract');
@@ -155,7 +156,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   aurawheel: {
     //   onTryMove(pokemon, target, move) {
-    //     if (pokemon.species.baseSpecies === 'Morpeko') {
+    //     if (is(pokemon.species.baseSpecies,'Morpeko')) {
     //       return;
     //     }
     //     this.add('-fail', pokemon, 'move: Aura Wheel');
@@ -163,7 +164,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     return null;
     //   },
     //   onModifyType(move, pokemon) {
-    //     if (pokemon.species.name === 'Morpeko-Hangry') {
+    //     if (is(pokemon.species.name,'Morpeko)-Hangry') {
     //       move.type = 'Dark';
     //     } else {
     //       move.type = 'Electric';
@@ -176,13 +177,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('lightclay')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('lightclay')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onAnyModifyDamage(damage, source, target, move) {
-    //       if (target !== source && target.side === this.effectData.target) {
+    //       if (target !== source && is(target.side,this.effectData.target)) {
     //         if ((target.side.getSideCondition('reflect') && this.getCategory(move) === 'Physical') ||
     //                       (target.side.getSideCondition('lightscreen') && this.getCategory(move) === 'Special')) {
     //           return;
@@ -205,7 +206,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   autotomize: {
     //   onTryHit(pokemon) {
     //     const hasContrary = pokemon.hasAbility('contrary');
-    //     if ((!hasContrary && pokemon.boosts.spe === 6) || (hasContrary && pokemon.boosts.spe === -6)) {
+    //     if ((!hasContrary && is(pokemon.boosts.spe,6)) || (hasContrary && pokemon.boosts.spe === -6)) {
     //       return false;
     //     }
     //   },
@@ -218,7 +219,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   avalanche: {
     basePowerCallback(context: Context) {
-      // const damagedByTarget = context.p1.pokemon.attackedBy.some(p => p.source === target && p.damage > 0 && p.thisTurn);
+      // const damagedByTarget = context.p1.pokemon.attackedBy.some(p => is(p.source,target) && p.damage > 0 && p.thisTurn);
       // if (damagedByTarget) {
       //   return move.basePower * 2;
       // }
@@ -249,7 +250,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -291,13 +292,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
       return 5;
     },
     //   onModifyMove(move, pokemon) {
-    //     move.allies = pokemon.side.pokemon.filter(ally => ally === pokemon || !ally.fainted && !ally.status);
+    //     move.allies = pokemon.side.pokemon.filter(ally => is(ally,pokemon) || !ally.fainted && !ally.status);
     //     move.multihit = move.allies.length;
     //   },
   },
   bellydrum: {
     //   onHit(target) {
-    //     if (target.hp <= target.maxhp / 2 || target.boosts.atk >= 6 || target.maxhp === 1) { // Shedinja clause
+    //     if (target.hp <= target.maxhp / 2 || target.boosts.atk >= 6 || is(target.maxhp,1)) { // Shedinja clause
     //       return false;
     //     }
     //     this.directDamage(target.maxhp / 2);
@@ -333,7 +334,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.effectData.lastDamageSource = source;
     //     },
     //     onBeforeMove(pokemon, target, move) {
-    //       if (this.effectData.duration === 1) {
+    //       if (is(this.effectData.duration,1)) {
     //         this.add('-end', pokemon, 'move: Bide');
     //         target = this.effectData.lastDamageSource;
     //         if (!target || !this.effectData.totalDamage) {
@@ -407,13 +408,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onInvulnerability(target, source, move) {
-    //       if (['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'].includes(move.id)) {
+    //       if (has(['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'],move.id)) {
     //         return;
     //       }
     //       return false;
     //     },
     //     onSourceBasePower(basePower, target, source, move) {
-    //       if (move.id === 'gust' || move.id === 'twister') {
+    //       if (is(move.id,'gust') || is(move.id,'twister')) {
     //         return this.chainModify(2);
     //       }
     //     },
@@ -443,7 +444,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-enditem', target, item.name, '[from] stealeat', '[move] Bug Bite', '[of] ' + source);
     //       if (this.singleEvent('Eat', item, null, source, null, null)) {
     //         this.runEvent('EatItem', source, null, null, item);
-    //         if (item.id === 'leppaberry') { target.staleness = 'external'; }
+    //         if (is(item.id,'leppaberry')) { target.staleness = 'external'; }
     //       }
     //       if (item.onEat) { source.ateBerry = true; }
     //     }
@@ -458,7 +459,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   self: {
     //     onHit(pokemon) {
-    //       pokemon.setType(pokemon.getTypes(true).map(type => type === "Fire" ? "???" : type));
+    //       pokemon.setType(pokemon.getTypes(true).map(type => is(type,"Fire") ? "???" : type));
     //       this.add('-start', pokemon, 'typechange', pokemon.types.join('/'), '[from] move: Burn Up');
     //     },
     //   },
@@ -481,7 +482,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   captivate: {
     //   onTryImmunity(pokemon, source) {
-    //     return (pokemon.gender === 'M' && source.gender === 'F') || (pokemon.gender === 'F' && source.gender === 'M');
+    //     return (is(pokemon.gender,'M') && is(source.gender,'F')) || (is(pokemon.gender,'F') && is(source.gender,'M'));
     //   },
   },
   celebrate: {
@@ -498,7 +499,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.effectData.duration = 2;
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Electric') {
+    //       if (is(move.type,'Electric')) {
     //         this.debug('charge boost');
     //         return this.chainModify(2);
     //       }
@@ -507,7 +508,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   clangoroussoul: {
     //   onTryHit(pokemon, target, move) {
-    //     if (pokemon.hp <= (pokemon.maxhp * 33 / 100) || pokemon.maxhp === 1) {
+    //     if (pokemon.hp <= (pokemon.maxhp * 33 / 100) || is(pokemon.maxhp,1)) {
     //       return false;
     //     }
     //     if (!this.boost(move.boosts)) { return null; }
@@ -540,7 +541,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     for (const type in this.dex.data.TypeChart) {
     //       if (source.hasType(type)) { continue; }
     //       const typeCheck = this.dex.data.TypeChart[type].damageTaken[attackType];
-    //       if (typeCheck === 2 || typeCheck === 3) {
+    //       if (is(typeCheck,2) || is(typeCheck,3)) {
     //         possibleTypes.push(type);
     //       }
     //     }
@@ -594,7 +595,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   onTryHit(target, source, move) {
     //     if (!source.volatiles['counter']) { return false; }
-    //     if (source.volatiles['counter'].position === null) { return false; }
+    //     if (source.volatiles['counter']is(.position,null)) { return false; }
     //   },
     //   effect: {
     //     onStart(target, source, move) {
@@ -680,7 +681,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', source, 'Crafty Shield');
     //     },
     //     onTryHit(target, source, move) {
-    //       if (['self', 'all'].includes(move.target) || move.category !== 'Status') { return; }
+    //       if (has(['self', 'all'],move.target) || move.category !== 'Status') { return; }
     //       this.add('-activate', target, 'move: Crafty Shield');
     //       return this.NOT_FAIL;
     //     },
@@ -733,7 +734,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   darkvoid: {
     //   onTryMove(pokemon, target, move) {
-    //     if (pokemon.species.name === 'Darkrai' || move.hasBounced) {
+    //     if (is(pokemon.species.name,'Darkrai') || move.hasBounced) {
     //       return;
     //     }
     //     this.add('-fail', pokemon, 'move: Dark Void');
@@ -777,8 +778,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singlemove', pokemon, 'Destiny Bond');
     //     },
     //     onFaint(target, source, effect) {
-    //       if (!source || !effect || target.side === source.side) { return; }
-    //       if (effect.effectType === 'Move' && !effect.isFutureMove) {
+    //       if (!source || !effect || is(target.side,source.side)) { return; }
+    //       if (is(effect.effectType,'Move') && !effect.isFutureMove) {
     //         if (source.volatiles['dynamax']) {
     //           this.add('-hint', "Dynamaxed Pokémon are immune to Destiny Bond.");
     //           return;
@@ -788,7 +789,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       }
     //     },
     //     onBeforeMove(pokemon, target, move) {
-    //       if (move.id === 'destinybond') { return; }
+    //       if (is(move.id,'destinybond')) { return; }
     //       this.debug('removing Destiny Bond before attack');
     //       pokemon.removeVolatile('destinybond');
     //     },
@@ -819,16 +820,16 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onImmunity(type, pokemon) {
-    //       if (type === 'sandstorm' || type === 'hail') { return false; }
+    //       if (is(type,'sandstorm') || is(type,'hail')) { return false; }
     //     },
     //     onInvulnerability(target, source, move) {
-    //       if (['earthquake', 'magnitude'].includes(move.id)) {
+    //       if (has(['earthquake', 'magnitude'],move.id)) {
     //         return;
     //       }
     //       return false;
     //     },
     //     onSourceModifyDamage(damage, source, target, move) {
-    //       if (move.id === 'earthquake' || move.id === 'magnitude') {
+    //       if (is(move.id,'earthquake') || is(move.id,'magnitude')) {
     //         return this.chainModify(2);
     //       }
     //     },
@@ -844,7 +845,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     onStart(pokemon, source, effect) {
     //          The target hasn't taken its turn, or Cursed Body activated and the move was not used through Dancer or Instruct
     //       if (this.queue.willMove(pokemon) ||
-    //                   (pokemon === this.activePokemon && this.activeMove && !this.activeMove.isExternal)) {
+    //                   (is(pokemon,this.activePokemon) && this.activeMove && !this.activeMove.isExternal)) {
     //         this.effectData.duration--;
     //       }
     //       if (!pokemon.lastMove) {
@@ -852,12 +853,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         return false;
     //       }
     //       for (const moveSlot of pokemon.moveSlots) {
-    //         if (moveSlot.id === pokemon.lastMove.id) {
+    //         if (is(moveSlot.id,pokemon.lastMove.id)) {
     //           if (!moveSlot.pp) {
     //             this.debug('Move out of PP');
     //             return false;
     //           } else {
-    //             if (effect.id === 'cursedbody') {
+    //             if (is(effect.id,'cursedbody')) {
     //               this.add('-start', pokemon, 'Disable', moveSlot.move, '[from] ability: Cursed Body', '[of] ' + source);
     //             } else {
     //               this.add('-start', pokemon, 'Disable', moveSlot.move);
@@ -874,14 +875,14 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-end', pokemon, 'Disable');
     //     },
     //     onBeforeMove(attacker, defender, move) {
-    //       if (!move.isZ && move.id === this.effectData.move) {
+    //       if (!move.isZ && is(move.id,this.effectData.move)) {
     //         this.add('cant', attacker, 'Disable', move);
     //         return false;
     //       }
     //     },
     //     onDisableMove(pokemon) {
     //       for (const moveSlot of pokemon.moveSlots) {
-    //         if (moveSlot.id === this.effectData.move) {
+    //         if (is(moveSlot.id,this.effectData.move)) {
     //           pokemon.disableMove(moveSlot.id);
     //         }
     //       }
@@ -893,7 +894,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     if (attacker.removeVolatile(move.id)) {
     //       return;
     //     }
-    //     if (attacker.hasAbility('gulpmissile') && attacker.species.name === 'Cramorant' && !attacker.transformed) {
+    //     if (attacker.hasAbility('gulpmissile') && is(attacker.species.name,'Cramorant') && !attacker.transformed) {
     //       const forme = attacker.hp <= attacker.maxhp / 2 ? 'cramorantgorging' : 'cramorantgulping';
     //       attacker.formeChange(forme, move);
     //     }
@@ -906,16 +907,16 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onImmunity(type, pokemon) {
-    //       if (type === 'sandstorm' || type === 'hail') { return false; }
+    //       if (is(type,'sandstorm') || is(type,'hail')) { return false; }
     //     },
     //     onInvulnerability(target, source, move) {
-    //       if (['surf', 'whirlpool'].includes(move.id)) {
+    //       if (has(['surf', 'whirlpool'],move.id)) {
     //         return;
     //       }
     //       return false;
     //     },
     //     onSourceModifyDamage(damage, source, target, move) {
-    //       if (move.id === 'surf' || move.id === 'whirlpool') {
+    //       if (is(move.id,'surf') || is(move.id,'whirlpool')) {
     //         return this.chainModify(2);
     //       }
     //     },
@@ -946,7 +947,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   dreameater: {
     //   onTryImmunity(target) {
-    //     return target.status === 'slp' || target.hasAbility('comatose');
+    //     return is(target.status,'slp') || target.hasAbility('comatose');
     //   },
   },
   echoedvoice: {
@@ -976,14 +977,14 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   electricterrain: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('terrainextender')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('terrainextender')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onSetStatus(status, target, source, effect) {
-    //       if (status.id === 'slp' && target.isGrounded() && !target.isSemiInvulnerable()) {
-    //         if (effect.id === 'yawn' || (effect.effectType === 'Move' && !effect.secondaries)) {
+    //       if (is(status.id,'slp') && target.isGrounded() && !target.isSemiInvulnerable()) {
+    //         if (is(effect.id,'yawn') || (is(effect.effectType,'Move') && !effect.secondaries)) {
     //           this.add('-activate', target, 'move: Electric Terrain');
     //         }
     //         return false;
@@ -991,19 +992,19 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onTryAddVolatile(status, target) {
     //       if (!target.isGrounded() || target.isSemiInvulnerable()) { return; }
-    //       if (status.id === 'yawn') {
+    //       if (is(status.id,'yawn')) {
     //         this.add('-activate', target, 'move: Electric Terrain');
     //         return null;
     //       }
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Electric' && attacker.isGrounded() && !attacker.isSemiInvulnerable()) {
+    //       if (is(move.type,'Electric') && attacker.isGrounded() && !attacker.isSemiInvulnerable()) {
     //         this.debug('electric terrain boost');
     //         return this.chainModify([0x14CD, 0x1000]);
     //       }
     //     },
     //     onStart(battle, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Ability') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Ability') {
     //         this.add('-fieldstart', 'move: Electric Terrain', '[from] ability: ' + effect, '[of] ' + source);
     //       } else {
     //         this.add('-fieldstart', 'move: Electric Terrain');
@@ -1114,7 +1115,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', target, 'move: Endure');
     //     },
     //     onDamage(damage, target, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Move' && damage >= target.hp) {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Move' && damage >= target.hp) {
     //         this.add('-activate', target, 'move: Endure');
     //         return target.hp - 1;
     //       }
@@ -1123,7 +1124,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   entrainment: {
     //   onTryHit(target, source) {
-    //     if (target === source || target.volatiles['dynamax']) { return false; }
+    //     if (is(target,source) || target.volatiles['dynamax']) { return false; }
     //     const bannedTargetAbilities = [
     //       'battlebond', 'comatose', 'disguise', 'multitype', 'powerconstruct', 'rkssystem', 'schooling', 'shieldsdown', 'stancechange', 'truant',
     //     ];
@@ -1131,7 +1132,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       'battlebond', 'comatose', 'disguise', 'flowergift', 'forecast', 'illusion', 'imposter', 'multitype', 'neutralizinggas', 'powerconstruct', 'powerofalchemy', 'receiver', 'rkssystem', 'schooling', 'shieldsdown', 'stancechange', 'trace', 'zenmode',
     //     ];
     //     if (bannedTargetAbilities.includes(target.ability) || bannedSourceAbilities.includes(source.ability) ||
-    //               target.ability === source.ability) {
+    //               is(target.ability,source.ability)) {
     //       return false;
     //     }
     //   },
@@ -1193,7 +1194,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   firepledge: {
     //   basePowerCallback(target, source, move) {
-    //     if (['grasspledge', 'waterpledge'].includes(move.sourceEffect)) {
+    //     if (has(['grasspledge', 'waterpledge'],move.sourceEffect)) {
     //       this.add('-combine');
     //       return 150;
     //     }
@@ -1209,7 +1210,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         continue;
     //       }
     //          @ts-ignore
-    //       if (action.pokemon.side === source.side && ['grasspledge', 'waterpledge'].includes(action.move.id)) {
+    //       if (is(action.pokemon.side,source.side) && has(['grasspledge', 'waterpledge'],action.move.id)) {
     //            @ts-ignore
     //         this.queue.prioritizeAction(action, move);
     //         this.add('-waiting', source, action.pokemon);
@@ -1218,12 +1219,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onModifyMove(move) {
-    //     if (move.sourceEffect === 'waterpledge') {
+    //     if (is(move.sourceEffect,'waterpledge')) {
     //       move.type = 'Water';
     //       move.forceSTAB = true;
     //       move.self = {sideCondition: 'waterpledge'};
     //     }
-    //     if (move.sourceEffect === 'grasspledge') {
+    //     if (is(move.sourceEffect,'grasspledge')) {
     //       move.type = 'Fire';
     //       move.forceSTAB = true;
     //       move.sideCondition = 'firepledge';
@@ -1293,7 +1294,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   flameburst: {
     //   onHit(target, source, move) {
-    //     if (target.side.active.length === 1) {
+    //     if (is(target.side.active.length,1)) {
     //       return;
     //     }
     //     for (const ally of target.side.active) {
@@ -1303,7 +1304,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onAfterSubDamage(damage, target, source, move) {
-    //     if (target.side.active.length === 1) {
+    //     if (is(target.side.active.length,1)) {
     //       return;
     //     }
     //     for (const ally of target.side.active) {
@@ -1324,7 +1325,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       move.onHit = function (foe) {
     //         if (this.singleEvent('Eat', item, null, foe, null, null)) {
     //           this.runEvent('EatItem', foe, null, null, item);
-    //           if (item.id === 'leppaberry') { foe.staleness = 'external'; }
+    //           if (is(item.id,'leppaberry')) { foe.staleness = 'external'; }
     //         }
     //         if (item.onEat) { foe.ateBerry = true; }
     //       };
@@ -1389,13 +1390,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onInvulnerability(target, source, move) {
-    //       if (['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'].includes(move.id)) {
+    //       if (has(['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'],move.id)) {
     //         return;
     //       }
     //       return false;
     //     },
     //     onSourceModifyDamage(damage, source, target, move) {
-    //       if (move.id === 'gust' || move.id === 'twister') {
+    //       if (is(move.id,'gust') || is(move.id,'twister')) {
     //         return this.chainModify(2);
     //       }
     //     },
@@ -1409,9 +1410,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   focusenergy: {
     //   effect: {
     //     onStart(target, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.id) === 'zpower') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.id) === 'zpower') {
     //         this.add('-start', target, 'move: Focus Energy', '[zeffect]');
-    //       } else if (effect && (['imposter', 'psychup', 'transform'].includes(effect.id))) {
+    //       } else if (effect && (has(['imposter', 'psychup', 'transform'],effect.id))) {
     //         this.add('-start', target, 'move: Focus Energy', '[silent]');
     //       } else {
     //         this.add('-start', target, 'move: Focus Energy');
@@ -1449,7 +1450,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onStart(target, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.id) === 'zpower') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.id) === 'zpower') {
     //         this.add('-singleturn', target, 'move: Follow Me', '[zeffect]');
     //       } else {
     //         this.add('-singleturn', target, 'move: Follow Me');
@@ -1473,7 +1474,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-start', pokemon, 'Foresight');
     //     },
     //     onNegateImmunity(pokemon, type) {
-    //       if (pokemon.hasType('Ghost') && ['Normal', 'Fighting'].includes(type)) { return false; }
+    //       if (pokemon.hasType('Ghost') && has(['Normal', 'Fighting'],type)) { return false; }
     //     },
     //     onModifyBoost(boosts) {
     //       if (boosts.evasion && boosts.evasion > 0) {
@@ -1491,7 +1492,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   freezedry: {
     //   onEffectiveness(typeMod, target, type) {
-    //     if (type === 'Water') { return 1; }
+    //     if (is(type,'Water')) { return 1; }
     //   },
   },
   freezeshock: {
@@ -1524,7 +1525,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   furycutter: {
     basePowerCallback(context: Context) {
-      // if (!context.move.consecutive === 1) {
+      // if (!is(context.move.consecutive,1)) {
       //   pokemon.addVolatile('furycutter');
       // }
       // return this.dex.clampIntRange(
@@ -1548,7 +1549,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   fusionbolt: {
     //   onModifyBasePower(basePower, pokemon) {
-    //     if (this.lastMoveThisTurn && this.lastMoveThisTurn.id === 'fusionflare') {
+    //     if (this.lastMoveThisTurn && is(this.lastMoveThisTurn.id,'fusionflare')) {
     //       this.debug('double power');
     //       return this.chainModify(2);
     //     }
@@ -1556,7 +1557,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   fusionflare: {
     //   onModifyBasePower(basePower, pokemon) {
-    //     if (this.lastMoveThisTurn && this.lastMoveThisTurn.id === 'fusionbolt') {
+    //     if (this.lastMoveThisTurn && is(this.lastMoveThisTurn.id,'fusionbolt')) {
     //       this.debug('double power');
     //       return this.chainModify(2);
     //     }
@@ -1646,9 +1647,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     onHit(source) {
     //       for (const pokemon of source.side.foe.active) {
     //         const result = this.random(3);
-    //         if (result === 0) {
+    //         if (is(result,0)) {
     //           pokemon.trySetStatus('slp', source);
-    //         } else if (result === 1) {
+    //         } else if (is(result,1)) {
     //           pokemon.trySetStatus('par', source);
     //         } else {
     //           pokemon.trySetStatus('psn', source);
@@ -1677,14 +1678,14 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   effect: {
     //     onStart(target, source, effect) {
     //       this.effectData.layers = 1;
-    //       if (!['imposter', 'psychup', 'transform'].includes(effect === null || effect === void 0 ? void 0 : effect.id)) {
+    //       if (!['imposter', 'psychup', 'transform'].includes(is(effect,null) || is(effect,void) 0 ? void 0 : effect.id)) {
     //         this.add('-start', target, 'move: G-Max Chi Strike');
     //       }
     //     },
     //     onRestart(target, source, effect) {
     //       if (this.effectData.layers >= 3) { return false; }
     //       this.effectData.layers++;
-    //       if (!['imposter', 'psychup', 'transform'].includes(effect === null || effect === void 0 ? void 0 : effect.id)) {
+    //       if (!['imposter', 'psychup', 'transform'].includes(is(effect,null) || is(effect,void) 0 ? void 0 : effect.id)) {
     //         this.add('-start', target, 'move: G-Max Chi Strike');
     //       }
     //     },
@@ -1844,7 +1845,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     onHit(source) {
     //       for (const pokemon of source.side.foe.active) {
     //         const result = this.random(2);
-    //         if (result === 0) {
+    //         if (is(result,0)) {
     //           pokemon.trySetStatus('par', source);
     //         } else {
     //           pokemon.trySetStatus('psn', source);
@@ -1997,7 +1998,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   grasspledge: {
     //   basePowerCallback(target, source, move) {
-    //     if (['waterpledge', 'firepledge'].includes(move.sourceEffect)) {
+    //     if (has(['waterpledge', 'firepledge'],move.sourceEffect)) {
     //       this.add('-combine');
     //       return 150;
     //     }
@@ -2013,7 +2014,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         continue;
     //       }
     //          @ts-ignore
-    //       if (action.pokemon.side === source.side && ['waterpledge', 'firepledge'].includes(action.move.id)) {
+    //       if (is(action.pokemon.side,source.side) && has(['waterpledge', 'firepledge'],action.move.id)) {
     //            @ts-ignore
     //         this.queue.prioritizeAction(action, move);
     //         this.add('-waiting', source, action.pokemon);
@@ -2022,12 +2023,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onModifyMove(move) {
-    //     if (move.sourceEffect === 'waterpledge') {
+    //     if (is(move.sourceEffect,'waterpledge')) {
     //       move.type = 'Grass';
     //       move.forceSTAB = true;
     //       move.sideCondition = 'grasspledge';
     //     }
-    //     if (move.sourceEffect === 'firepledge') {
+    //     if (is(move.sourceEffect,'firepledge')) {
     //       move.type = 'Fire';
     //       move.forceSTAB = true;
     //       move.sideCondition = 'firepledge';
@@ -2048,7 +2049,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   grassyterrain: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('terrainextender')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('terrainextender')) {
     //         return 8;
     //       }
     //       return 5;
@@ -2059,13 +2060,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         this.debug('move weakened by grassy terrain');
     //         return this.chainModify(0.5);
     //       }
-    //       if (move.type === 'Grass' && attacker.isGrounded()) {
+    //       if (is(move.type,'Grass') && attacker.isGrounded()) {
     //         this.debug('grassy terrain boost');
     //         return this.chainModify([0x14CD, 0x1000]);
     //       }
     //     },
     //     onStart(battle, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Ability') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Ability') {
     //         this.add('-fieldstart', 'move: Grassy Terrain', '[from] ability: ' + effect, '[of] ' + source);
     //       } else {
     //         this.add('-fieldstart', 'move: Grassy Terrain');
@@ -2096,7 +2097,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   gravity: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -2165,9 +2166,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onFaint(target, source, effect) {
     //       if (!source || source.fainted || !effect) { return; }
-    //       if (effect.effectType === 'Move' && !effect.isFutureMove && source.lastMove) {
+    //       if (is(effect.effectType,'Move') && !effect.isFutureMove && source.lastMove) {
     //         for (const moveSlot of source.moveSlots) {
-    //           if (moveSlot.id === source.lastMove.id) {
+    //           if (is(moveSlot.id,source.lastMove.id)) {
     //             moveSlot.pp = 0;
     //             this.add('-activate', source, 'move: Grudge', this.dex.getMove(source.lastMove.id).name);
     //           }
@@ -2253,7 +2254,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   healblock: {
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -2279,7 +2280,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-end', pokemon, 'move: Heal Block');
     //     },
     //     onTryHeal(damage, target, source, effect) {
-    //       if (((effect === null || effect === void 0 ? void 0 : effect.id) === 'zpower') || this.effectData.isZ) { return damage; }
+    //       if (((is(effect,null) || is(effect,void) 0 ? void 0 : effect.id) === 'zpower') || this.effectData.isZ) { return damage; }
     //       return false;
     //     },
     //   },
@@ -2433,11 +2434,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   hyperspacefury: {
     //   onTry(pokemon) {
-    //     if (pokemon.species.name === 'Hoopa-Unbound') {
+    //     if (is(pokemon.species.name,'Hoopa)-Unbound') {
     //       return;
     //     }
     //     this.hint("Only a Pokemon whose form is Hoopa Unbound can use this move.");
-    //     if (pokemon.species.name === 'Hoopa') {
+    //     if (is(pokemon.species.name,'Hoopa')) {
     //       this.add('-fail', pokemon, 'move: Hyperspace Fury', '[forme]');
     //       return null;
     //     }
@@ -2469,7 +2470,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       }
     //     },
     //     onResidual(target) {
-    //       if (target.lastMove && target.lastMove.id === 'struggle') {
+    //       if (target.lastMove && is(target.lastMove.id,'struggle')) {
     //            don't lock
     //         delete target.volatiles['iceball'];
     //       }
@@ -2496,7 +2497,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onFoeDisableMove(pokemon) {
     //       for (const moveSlot of this.effectData.source.moveSlots) {
-    //         if (moveSlot.id === 'struggle') { continue; }
+    //         if (is(moveSlot.id,'struggle')) { continue; }
     //         pokemon.disableMove(moveSlot.id, 'hidden');
     //       }
     //       pokemon.maybeDisabled = true;
@@ -2558,7 +2559,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-fieldactivate', 'move: Ion Deluge');
     //     },
     //     onModifyType(move) {
-    //       if (move.type === 'Normal') {
+    //       if (is(move.type,'Normal')) {
     //         move.type = 'Electric';
     //         this.debug(move.name + "'s type changed to Electric");
     //       }
@@ -2597,7 +2598,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', target, 'Protect');
     //     },
     //     onTryHit(target, source, move) {
-    //       if (!move.flags['protect'] || move.category === 'Status') {
+    //       if (!move.flags['protect'] || is(move.category,'Status')) {
     //         if (move.isZ || move.isMax) { target.getMoveHitData(move).zBrokeProtect = true; }
     //         return;
     //       }
@@ -2609,7 +2610,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -2643,7 +2644,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   laserfocus: {
     //   effect: {
     //     onStart(pokemon, source, effect) {
-    //       if (effect && (['imposter', 'psychup', 'transform'].includes(effect.id))) {
+    //       if (effect && (has(['imposter', 'psychup', 'transform'],effect.id))) {
     //         this.add('-start', pokemon, 'move: Laser Focus', '[silent]');
     //       } else {
     //         this.add('-start', pokemon, 'move: Laser Focus');
@@ -2666,7 +2667,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     if (pokemon.moveSlots.length < 2) { return false; } // Last Resort fails unless the user knows at least 2 moves
     //     let hasLastResort = false; // User must actually have Last Resort for it to succeed
     //     for (const moveSlot of pokemon.moveSlots) {
-    //       if (moveSlot.id === 'lastresort') {
+    //       if (is(moveSlot.id,'lastresort')) {
     //         hasLastResort = true;
     //         continue;
     //       }
@@ -2699,13 +2700,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   lightscreen: {
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('lightclay')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('lightclay')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onAnyModifyDamage(damage, source, target, move) {
-    //       if (target !== source && target.side === this.effectData.target && this.getCategory(move) === 'Special') {
+    //       if (target !== source && is(target.side,this.effectData.target) && this.getCategory(move) === 'Special') {
     //         if (!target.getMoveHitData(move).crit && !move.infiltrates) {
     //           this.debug('Light Screen weaken');
     //           if (target.side.active.length > 1) { return this.chainModify([0xAAC, 0x1000]); }
@@ -2736,10 +2737,10 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onSourceInvulnerability(target, source, move) {
-    //       if (move && source === this.effectData.target && target === this.effectData.source) { return 0; }
+    //       if (move && is(source,this.effectData.target) && is(target,this.effectData.source)) { return 0; }
     //     },
     //     onSourceAccuracy(accuracy, target, source, move) {
-    //       if (move && source === this.effectData.target && target === this.effectData.source) { return true; }
+    //       if (move && is(source,this.effectData.target) && is(target,this.effectData.source)) { return true; }
     //     },
     //   },
   },
@@ -2814,7 +2815,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         this.add('-heal', target, target.getHealth, '[from] move: Lunar Dance');
     //         positions[target.position] = false;
     //       }
-    //       if (!positions.some(affected => affected === true)) {
+    //       if (!positions.some(affected => is(affected,true))) {
     //         target.side.removeSideCondition('lunardance');
     //       }
     //     },
@@ -2824,12 +2825,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   effect: {
     //     onStart(target, source, effect) {
     //       this.add('-singleturn', target, 'move: Magic Coat');
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Move') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Move') {
     //         this.effectData.pranksterBoosted = effect.pranksterBoosted;
     //       }
     //     },
     //     onTryHit(target, source, move) {
-    //       if (target === source || move.hasBounced || !move.flags['reflectable']) {
+    //       if (is(target,source) || move.hasBounced || !move.flags['reflectable']) {
     //         return;
     //       }
     //       const newMove = this.dex.getActiveMove(move.id);
@@ -2839,7 +2840,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       return null;
     //     },
     //     onAllyTryHitSide(target, source, move) {
-    //       if (target.side === source.side || move.hasBounced || !move.flags['reflectable']) {
+    //       if (is(target.side,source.side) || move.hasBounced || !move.flags['reflectable']) {
     //         return;
     //       }
     //       const newMove = this.dex.getActiveMove(move.id);
@@ -2859,7 +2860,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   magicroom: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -2914,7 +2915,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-start', target, 'Magnet Rise');
     //     },
     //     onImmunity(type) {
-    //       if (type === 'Ground') { return false; }
+    //       if (is(type,'Ground')) { return false; }
     //     },
     //     onEnd(target) {
     //       this.add('-end', target, 'Magnet Rise');
@@ -2967,12 +2968,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         if (move.isZ || move.isMax) { target.getMoveHitData(move).zBrokeProtect = true; }
     //         return;
     //       }
-    //       if (move && (move.target === 'self' || move.category === 'Status')) { return; }
+    //       if (move && (is(move.target,'self') || is(move.category,'Status'))) { return; }
     //       this.add('-activate', target, 'move: Mat Block', move.name);
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -3054,7 +3055,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -3194,7 +3195,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     ];
     //     const move = this.dex.getActiveMove(action.move.id);
     //     if (action.zmove || move.isZ || move.isMax) { return false; }
-    //     if (move.category === 'Status' || noMeFirst.includes(move.id)) { return false; }
+    //     if (is(move.category,'Status') || noMeFirst.includes(move.id)) { return false; }
     //     pokemon.addVolatile('mefirst');
     //     this.useMove(move, pokemon, target);
     //     return null;
@@ -3215,7 +3216,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   onTryHit(target, source, move) {
     //     if (!source.volatiles['metalburst']) { return false; }
-    //     if (source.volatiles['metalburst'].position === null) { return false; }
+    //     if (source.volatiles['metalburst']is(.position,null)) { return false; }
     //   },
     //   effect: {
     //     onStart(target, source, move) {
@@ -3325,7 +3326,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-start', pokemon, 'Miracle Eye');
     //     },
     //     onNegateImmunity(pokemon, type) {
-    //       if (pokemon.hasType('Dark') && type === 'Psychic') { return false; }
+    //       if (pokemon.hasType('Dark') && is(type,'Psychic')) { return false; }
     //     },
     //     onModifyBoost(boosts) {
     //       if (boosts.evasion && boosts.evasion > 0) {
@@ -3344,7 +3345,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   onTryHit(target, source, move) {
     //     if (!source.volatiles['mirrorcoat']) { return false; }
-    //     if (source.volatiles['mirrorcoat'].position === null) { return false; }
+    //     if (source.volatiles['mirrorcoat']is(.position,null)) { return false; }
     //   },
     //   effect: {
     //     onStart(target, source, move) {
@@ -3376,7 +3377,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   mist: {
     //   effect: {
     //     onBoost(boost, target, source, effect) {
-    //       if (effect.effectType === 'Move' && effect.infiltrates && target.side !== source.side) { return; }
+    //       if (is(effect.effectType,'Move') && effect.infiltrates && target.side !== source.side) { return; }
     //       if (source && target !== source) {
     //         let showMsg = false;
     //         let i;
@@ -3402,33 +3403,33 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   mistyterrain: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('terrainextender')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('terrainextender')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onSetStatus(status, target, source, effect) {
     //       if (!target.isGrounded() || target.isSemiInvulnerable()) { return; }
-    //       if (effect && (effect.status || effect.id === 'yawn')) {
+    //       if (effect && (effect.status || is(effect.id,'yawn'))) {
     //         this.add('-activate', target, 'move: Misty Terrain');
     //       }
     //       return false;
     //     },
     //     onTryAddVolatile(status, target, source, effect) {
     //       if (!target.isGrounded() || target.isSemiInvulnerable()) { return; }
-    //       if (status.id === 'confusion') {
-    //         if (effect.effectType === 'Move' && !effect.secondaries) { this.add('-activate', target, 'move: Misty Terrain'); }
+    //       if (is(status.id,'confusion')) {
+    //         if (is(effect.effectType,'Move') && !effect.secondaries) { this.add('-activate', target, 'move: Misty Terrain'); }
     //         return null;
     //       }
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Dragon' && defender.isGrounded() && !defender.isSemiInvulnerable()) {
+    //       if (is(move.type,'Dragon') && defender.isGrounded() && !defender.isSemiInvulnerable()) {
     //         this.debug('misty terrain weaken');
     //         return this.chainModify(0.5);
     //       }
     //     },
     //     onStart(battle, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Ability') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Ability') {
     //         this.add('-fieldstart', 'move: Misty Terrain', '[from] ability: ' + effect, '[of] ' + source);
     //       } else {
     //         this.add('-fieldstart', 'move: Misty Terrain');
@@ -3481,7 +3482,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-fieldstart', 'move: Mud Sport', '[of] ' + source);
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Electric') {
+    //       if (is(move.type,'Electric')) {
     //         this.debug('mud sport weaken');
     //         return this.chainModify([0x548, 0x1000]);
     //       }
@@ -3577,7 +3578,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', target, 'Protect');
     //     },
     //     onTryHit(target, source, move) {
-    //       if (!move.flags['protect'] || move.category === 'Status') {
+    //       if (!move.flags['protect'] || is(move.category,'Status')) {
     //         if (move.isZ || move.isMax) { target.getMoveHitData(move).zBrokeProtect = true; }
     //         return;
     //       }
@@ -3589,7 +3590,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -3634,7 +3635,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   outrage: {
     //   onAfterMove(pokemon) {
-    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove'].duration === 1) {
+    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove']is(.duration,1)) {
     //       pokemon.removeVolatile('lockedmove');
     //     }
     //   },
@@ -3661,7 +3662,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   payback: {
     basePowerCallback(context: Context) {
       // if (
-      //   context.p2.pokemon.switching === "in" ||
+      //   is(context.p2.pokemon.switching,"in") ||
       //   this.queue.willMove(target)
       // ) {
       //   return context.move.basePower;
@@ -3708,7 +3709,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   petaldance: {
     //   onAfterMove(pokemon) {
-    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove'].duration === 1) {
+    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove']is(.duration,1)) {
     //       pokemon.removeVolatile('lockedmove');
     //     }
     //   },
@@ -3743,7 +3744,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-enditem', target, item.name, '[from] stealeat', '[move] Pluck', '[of] ' + source);
     //       if (this.singleEvent('Eat', item, null, source, null, null)) {
     //         this.runEvent('EatItem', source, null, null, item);
-    //         if (item.id === 'leppaberry') { target.staleness = 'external'; }
+    //         if (is(item.id,'leppaberry')) { target.staleness = 'external'; }
     //       }
     //       if (item.onEat) { source.ateBerry = true; }
     //     }
@@ -3751,12 +3752,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   pollenpuff: {
     //   onTryHit(target, source, move) {
-    //     if (source.side === target.side) {
+    //     if (is(source.side,target.side)) {
     //       move.basePower = 0;
     //     }
     //   },
     //   onHit(target, source) {
-    //     if (source.side === target.side) {
+    //     if (is(source.side,target.side)) {
     //       this.heal(Math.floor(target.baseMaxhp * 0.5));
     //     }
     //   },
@@ -3767,7 +3768,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', target, 'Powder');
     //     },
     //     onTryMove(pokemon, target, move) {
-    //       if (move.type === 'Fire') {
+    //       if (is(move.type,'Fire')) {
     //         this.add('-activate', pokemon, 'move: Powder');
     //         this.damage(this.dex.clampIntRange(Math.round(pokemon.maxhp / 4), 1));
     //         return false;
@@ -3870,7 +3871,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -3888,7 +3889,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     for (const volatile of volatilesToCopy) {
     //       if (target.volatiles[volatile]) {
     //         source.addVolatile(volatile);
-    //         if (volatile === 'gmaxchistrike') { source.volatiles[volatile].layers = target.volatiles[volatile].layers; }
+    //         if (is(volatile,'gmaxchistrike')) { source.volatiles[volatile].layers = target.volatiles[volatile].layers; }
     //       } else {
     //         source.removeVolatile(volatile);
     //       }
@@ -3909,16 +3910,16 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   psychicterrain: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('terrainextender')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('terrainextender')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onTryHit(target, source, effect) {
-    //       if (effect && (effect.priority <= 0.1 || effect.target === 'self')) {
+    //       if (effect && (effect.priority <= 0.1 || is(effect.target,'self'))) {
     //         return;
     //       }
-    //       if (target.isSemiInvulnerable() || target.side === source.side) { return; }
+    //       if (target.isSemiInvulnerable() || is(target.side,source.side)) { return; }
     //       if (!target.isGrounded()) {
     //         const baseMove = this.dex.getMove(effect.id);
     //         if (baseMove.priority > 0) {
@@ -3930,13 +3931,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       return null;
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Psychic' && attacker.isGrounded() && !attacker.isSemiInvulnerable()) {
+    //       if (is(move.type,'Psychic') && attacker.isGrounded() && !attacker.isSemiInvulnerable()) {
     //         this.debug('psychic terrain boost');
     //         return this.chainModify([0x14CD, 0x1000]);
     //       }
     //     },
     //     onStart(battle, source, effect) {
-    //       if ((effect === null || effect === void 0 ? void 0 : effect.effectType) === 'Ability') {
+    //       if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) === 'Ability') {
     //         this.add('-fieldstart', 'move: Psychic Terrain', '[from] ability: ' + effect, '[of] ' + source);
     //       } else {
     //         this.add('-fieldstart', 'move: Psychic Terrain');
@@ -3987,7 +3988,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   beforeTurnCallback(pokemon) {
     //     for (const side of this.sides) {
-    //       if (side === pokemon.side) { continue; }
+    //       if (is(side,pokemon.side)) { continue; }
     //       side.addSideCondition('pursuit', pokemon);
     //       const data = side.getSideConditionData('pursuit');
     //       if (!data.sources) {
@@ -3997,7 +3998,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onModifyMove(move, source, target) {
-    //     if (target === null || target === void 0 ? void 0 : target.beingCalledBack) { move.accuracy = true; }
+    //     if (is(target,null) || is(target,void) 0 ? void 0 : target.beingCalledBack) { move.accuracy = true; }
     //   },
     //   onTryHit(target, pokemon) {
     //     target.side.removeSideCondition('pursuit');
@@ -4017,7 +4018,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //            If it is, then Mega Evolve before moving.
     //         if (source.canMegaEvo || source.canUltraBurst) {
     //           for (const [actionIndex, action] of this.queue.entries()) {
-    //             if (action.pokemon === source && action.choice === 'megaEvo') {
+    //             if (is(action.pokemon,source) && is(action.choice,'megaEvo')) {
     //               this.runMegaEvo(source);
     //               this.queue.splice(actionIndex, 1);
     //               break;
@@ -4061,7 +4062,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -4159,13 +4160,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   reflect: {
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasItem('lightclay')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasItem('lightclay')) {
     //         return 8;
     //       }
     //       return 5;
     //     },
     //     onAnyModifyDamage(damage, source, target, move) {
-    //       if (target !== source && target.side === this.effectData.target && this.getCategory(move) === 'Physical') {
+    //       if (target !== source && is(target.side,this.effectData.target) && this.getCategory(move) === 'Physical') {
     //         if (!target.getMoveHitData(move).crit && !move.infiltrates) {
     //           this.debug('Reflect weaken');
     //           if (target.side.active.length > 1) { return this.chainModify([0xAAC, 0x1000]); }
@@ -4183,7 +4184,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   reflecttype: {
     //   onHit(target, source) {
-    //     if (source.species && (source.species.num === 493 || source.species.num === 773)) { return false; }
+    //     if (source.species && (is(source.species.num,493) || is(source.species.num,773))) { return false; }
     //     let newBaseTypes = target.getTypes(true).filter(type => type !== '???');
     //     if (!newBaseTypes.length) {
     //       if (target.addedType) {
@@ -4195,35 +4196,35 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     this.add('-start', source, 'typechange', '[from] move: Reflect Type', '[of] ' + target);
     //     source.setType(newBaseTypes);
     //     source.addedType = target.addedType;
-    //     source.knownType = target.side === source.side && target.knownType;
+    //     source.knownType = is(target.side,source.side) && target.knownType;
     //   },
   },
   refresh: {
     //   onHit(pokemon) {
-    //     if (['', 'slp', 'frz'].includes(pokemon.status)) { return false; }
+    //     if (has(['', 'slp', 'frz'],pokemon.status)) { return false; }
     //     pokemon.cureStatus();
     //   },
   },
   relicsong: {
     //   onHit(target, pokemon, move) {
-    //     if (pokemon.baseSpecies.baseSpecies === 'Meloetta' && !pokemon.transformed) {
+    //     if (is(pokemon.baseSpecies.baseSpecies,'Meloetta') && !pokemon.transformed) {
     //       move.willChangeForme = true;
     //     }
     //   },
     //   onAfterMoveSecondarySelf(pokemon, target, move) {
     //     if (move.willChangeForme) {
-    //       const meloettaForme = pokemon.species.id === 'meloettapirouette' ? '' : '-Pirouette';
+    //       const meloettaForme = is(pokemon.species.id,'meloettapirouette') ? '' : '-Pirouette';
     //       pokemon.formeChange('Meloetta' + meloettaForme, this.effect, false, '[msg]');
     //     }
     //   },
   },
   rest: {
     //   onTryMove(pokemon) {
-    //     if (pokemon.hp === pokemon.maxhp) {
+    //     if (is(pokemon.hp,pokemon.maxhp)) {
     //       this.add('-fail', pokemon, 'heal');
     //       return null;
     //     }
-    //     if (pokemon.status === 'slp' || pokemon.hasAbility('comatose')) {
+    //     if (is(pokemon.status,'slp') || pokemon.hasAbility('comatose')) {
     //       this.add('-fail', pokemon);
     //       return null;
     //     }
@@ -4251,13 +4252,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   revelationdance: {
     //   onModifyType(move, pokemon) {
     //     let type = pokemon.types[0];
-    //     if (type === "Bird") { type = "???"; }
+    //     if (is(type,"Bird")) { type = "???"; }
     //     move.type = type;
     //   },
   },
   revenge: {
     //   basePowerCallback(pokemon, target, move) {
-    //     const damagedByTarget = pokemon.attackedBy.some(p => p.source === target && p.damage > 0 && p.thisTurn);
+    //     const damagedByTarget = pokemon.attackedBy.some(p => is(p.source,target) && p.damage > 0 && p.thisTurn);
     //     if (damagedByTarget) {
     //       this.debug('Boosted for getting hit by ' + target);
     //       return move.basePower * 2;
@@ -4288,7 +4289,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   roleplay: {
     //   onTryHit(target, source) {
-    //     if (target.ability === source.ability) { return false; }
+    //     if (is(target.ability,source.ability)) { return false; }
     //     const bannedTargetAbilities = [
     //       'battlebond', 'comatose', 'disguise', 'flowergift', 'forecast', 'illusion', 'imposter', 'multitype', 'neutralizinggas', 'powerconstruct', 'powerofalchemy', 'receiver', 'rkssystem', 'schooling', 'shieldsdown', 'stancechange', 'trace', 'wonderguard', 'zenmode',
     //     ];
@@ -4332,7 +4333,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       }
     //     },
     //     onResidual(target) {
-    //       if (target.lastMove && target.lastMove.id === 'struggle') {
+    //       if (target.lastMove && is(target.lastMove.id,'struggle')) {
     //            don't lock
     //         delete target.volatiles['rollout'];
     //       }
@@ -4373,7 +4374,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   round: {
     //   basePowerCallback(target, source, move) {
-    //     if (move.sourceEffect === 'round') {
+    //     if (is(move.sourceEffect,'round')) {
     //       return move.basePower * 2;
     //     }
     //     return move.basePower;
@@ -4384,7 +4385,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //          @ts-ignore
     //       if (!action.pokemon || !action.move || action.maxMove || action.zmove) { continue; }
     //          @ts-ignore
-    //       if (((_a = action.move) === null || _a === void 0 ? void 0 : _a.id) === 'round') {
+    //       if (((_a = action.move) === null || is(_a,void) 0 ? void 0 : _a.id) === 'round') {
     //            @ts-ignore
     //         this.queue.prioritizeAction(action, move);
     //         return;
@@ -4395,7 +4396,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   safeguard: {
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -4403,11 +4404,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onSetStatus(status, target, source, effect) {
     //       if (!effect || !source) { return; }
-    //       if (effect.id === 'yawn') { return; }
-    //       if (effect.effectType === 'Move' && effect.infiltrates && target.side !== source.side) { return; }
+    //       if (is(effect.id,'yawn')) { return; }
+    //       if (is(effect.effectType,'Move') && effect.infiltrates && target.side !== source.side) { return; }
     //       if (target !== source) {
     //         this.debug('interrupting setStatus');
-    //         if (effect.id === 'synchronize' || (effect.effectType === 'Move' && !effect.secondaries)) {
+    //         if (is(effect.id,'synchronize') || (is(effect.effectType,'Move') && !effect.secondaries)) {
     //           this.add('-activate', target, 'move: Safeguard');
     //         }
     //         return null;
@@ -4415,9 +4416,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onTryAddVolatile(status, target, source, effect) {
     //       if (!effect || !source) { return; }
-    //       if (effect.effectType === 'Move' && effect.infiltrates && target.side !== source.side) { return; }
-    //       if ((status.id === 'confusion' || status.id === 'yawn') && target !== source) {
-    //         if (effect.effectType === 'Move' && !effect.secondaries) { this.add('-activate', target, 'move: Safeguard'); }
+    //       if (is(effect.effectType,'Move') && effect.infiltrates && target.side !== source.side) { return; }
+    //       if ((is(status.id,'confusion') || is(status.id,'yawn')) && target !== source) {
+    //         if (is(effect.effectType,'Move') && !effect.secondaries) { this.add('-activate', target, 'move: Safeguard'); }
     //         return null;
     //       }
     //     },
@@ -4495,7 +4496,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-singleturn', pokemon, 'move: Shell Trap');
     //     },
     //     onHit(pokemon, source, move) {
-    //       if (pokemon.side !== source.side && move.category === 'Physical') {
+    //       if (pokemon.side !== source.side && is(move.category,'Physical')) {
     //         pokemon.volatiles['shelltrap'].gotHit = true;
     //         const action = this.queue.willMove(pokemon);
     //         if (action) {
@@ -4566,7 +4567,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   onHit(target, source, move) {
     //     const targetAbility = target.getAbility();
     //     const sourceAbility = source.getAbility();
-    //     if (target.side === source.side) {
+    //     if (is(target.side,source.side)) {
     //       this.add('-activate', source, 'move: Skill Swap', '', '', '[of] ' + target);
     //     } else {
     //       this.add('-activate', source, 'move: Skill Swap', targetAbility, sourceAbility, '[of] ' + target);
@@ -4618,7 +4619,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onMoveFail(target, source) {
-    //     if (source.volatiles['twoturnmove'] && source.volatiles['twoturnmove'].duration === 1) {
+    //     if (source.volatiles['twoturnmove'] && source.volatiles['twoturnmove']is(.duration,1)) {
     //       source.removeVolatile('skydrop');
     //       source.removeVolatile('twoturnmove');
     //       this.add('-end', target, 'Sky Drop', '[interrupt]');
@@ -4633,7 +4634,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //         return null;
     //       }
     //     } else {
-    //       if (target.volatiles['substitute'] || target.side === source.side) {
+    //       if (target.volatiles['substitute'] || is(target.side,source.side)) {
     //         return false;
     //       }
     //       if (target.getWeight() >= 2000) {
@@ -4650,14 +4651,14 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     //   effect: {
     //     onAnyDragOut(pokemon) {
-    //       if (pokemon === this.effectData.target || pokemon === this.effectData.source) { return false; }
+    //       if (is(pokemon,this.effectData.target) || is(pokemon,this.effectData.source)) { return false; }
     //     },
     //     onFoeTrapPokemon(defender) {
     //       if (defender !== this.effectData.source) { return; }
     //       defender.trapped = true;
     //     },
     //     onFoeBeforeMove(attacker, defender, move) {
-    //       if (attacker === this.effectData.source) {
+    //       if (is(attacker,this.effectData.source)) {
     //         attacker.activeMoveActions--;
     //         this.debug('Sky drop nullifying.');
     //         return null;
@@ -4672,10 +4673,10 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       if (target !== this.effectData.target && target !== this.effectData.source) {
     //         return;
     //       }
-    //       if (source === this.effectData.target && target === this.effectData.source) {
+    //       if (is(source,this.effectData.target) && is(target,this.effectData.source)) {
     //         return;
     //       }
-    //       if (['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'].includes(move.id)) {
+    //       if (has(['gust', 'twister', 'skyuppercut', 'thunder', 'hurricane', 'smackdown', 'thousandarrows'],move.id)) {
     //         return;
     //       }
     //       return false;
@@ -4684,10 +4685,10 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       if (target !== this.effectData.target && target !== this.effectData.source) {
     //         return;
     //       }
-    //       if (source === this.effectData.target && target === this.effectData.source) {
+    //       if (is(source,this.effectData.target) && is(target,this.effectData.source)) {
     //         return;
     //       }
-    //       if (move.id === 'gust' || move.id === 'twister') {
+    //       if (is(move.id,'gust') || is(move.id,'twister')) {
     //         return this.chainModify(2);
     //       }
     //     },
@@ -4757,11 +4758,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   smellingsalts: {
     //   basePowerCallback(pokemon, target, move) {
-    //     if (target.status === 'par') { return move.basePower * 2; }
+    //     if (is(target.status,'par')) { return move.basePower * 2; }
     //     return move.basePower;
     //   },
     //   onHit(target) {
-    //     if (target.status === 'par') { target.cureStatus(); }
+    //     if (is(target.status,'par')) { target.cureStatus(); }
     //   },
   },
   snatch: {
@@ -4772,7 +4773,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     onAnyTryMove(source, target, move) {
     //       const snatchUser = this.effectData.source;
     //       if (snatchUser.isSkyDropped()) { return; }
-    //       if (!move || move.isZ || move.isMax || !move.flags['snatch'] || move.sourceEffect === 'snatch') {
+    //       if (!move || move.isZ || move.isMax || !move.flags['snatch'] || is(move.sourceEffect,'snatch')) {
     //         return;
     //       }
     //       snatchUser.removeVolatile('snatch');
@@ -4817,8 +4818,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     onBasePower(context: Context) {
       if (
-        ["raindance", "primordialsea", "sandstorm", "hail"].includes(
-          context.field.weather?.name || ""
+        has(
+          ["raindance", "primordialsea", "sandstorm", "hail"],
+          context.field.weather?.name
         )
       ) {
         return 0x800;
@@ -4844,8 +4846,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
     onBasePower(context: Context) {
       if (
-        ["raindance", "primordialsea", "sandstorm", "hail"].includes(
-          context.field.weather?.name || ""
+        has(
+          ["raindance", "primordialsea", "sandstorm", "hail"],
+          context.field.weather?.name
         )
       ) {
         return 0x800;
@@ -4855,7 +4858,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   sparklingaria: {
     //   secondary: {
     //     onHit(target) {
-    //       if (target.status === 'brn') { target.cureStatus(); }
+    //       if (is(target.status,'brn')) { target.cureStatus(); }
     //     },
     //   },
   },
@@ -4928,7 +4931,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -5073,7 +5076,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   stompingtantrum: {
     //   basePowerCallback(pokemon, target, move) {
-    //     if (pokemon.moveLastTurnResult === false) { return move.basePower * 2; }
+    //     if (is(pokemon.moveLastTurnResult,false)) { return move.basePower * 2; }
     //     return move.basePower;
     //   },
   },
@@ -5112,7 +5115,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-fail', target, 'move: Substitute');
     //       return null;
     //     }
-    //     if (target.hp <= target.maxhp / 4 || target.maxhp === 1) { // Shedinja clause
+    //     if (target.hp <= target.maxhp / 4 || is(target.maxhp,1)) { // Shedinja clause
     //       this.add('-fail', target, 'move: Substitute', '[weak]');
     //       return null;
     //     }
@@ -5130,7 +5133,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       }
     //     },
     //     onTryPrimaryHit(target, source, move) {
-    //       if (target === source || move.flags['authentic'] || move.infiltrates) {
+    //       if (is(target,source) || move.flags['authentic'] || move.infiltrates) {
     //         return;
     //       }
     //       let damage = this.getDamage(source, target, move);
@@ -5171,8 +5174,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   suckerpunch: {
     //   onTry(source, target) {
     //     const action = this.queue.willMove(target);
-    //     const move = (action === null || action === void 0 ? void 0 : action.choice) === 'move' ? action.move : null;
-    //     if (!move || (move.category === 'Status' && move.id !== 'mefirst') || target.volatiles.mustrecharge) {
+    //     const move = (is(action,null) || is(action,void) 0 ? void 0 : action.choice) === 'move' ? action.move : null;
+    //     if (!move || (is(move.category,'Status') && move.id !== 'mefirst') || target.volatiles.mustrecharge) {
     //       this.add('-fail', source);
     //       this.attrLastMove('[still]');
     //       return null;
@@ -5254,7 +5257,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   tailwind: {
     //   effect: {
     //     durationCallback(target, source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 6;
     //       }
@@ -5278,7 +5281,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onEffectiveness(typeMod, target, type, move) {
     //       if (!target) { return; }
-    //       if (move.type === 'Fire') {
+    //       if (is(move.type,'Fire')) {
     //         return this.dex.getEffectiveness('Fire', target) + 1;
     //       }
     //     },
@@ -5297,13 +5300,13 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onDisableMove(pokemon) {
     //       for (const moveSlot of pokemon.moveSlots) {
-    //         if (this.dex.getMove(moveSlot.id).category === 'Status') {
+    //         if (this.dex.getMove(moveSlot.id)is(.category,'Status')) {
     //           pokemon.disableMove(moveSlot.id);
     //         }
     //       }
     //     },
     //     onBeforeMove(attacker, defender, move) {
-    //       if (!move.isZ && !move.isMax && move.category === 'Status') {
+    //       if (!move.isZ && !move.isMax && is(move.category,'Status')) {
     //         this.add('cant', attacker, 'move: Taunt', move);
     //         return false;
     //       }
@@ -5338,8 +5341,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   telekinesis: {
     //   effect: {
     //     onStart(target) {
-    //       if (['Diglett', 'Dugtrio', 'Palossand', 'Sandygast'].includes(target.baseSpecies.baseSpecies) ||
-    //                   target.baseSpecies.name === 'Gengar-Mega') {
+    //       if (has(['Diglett', 'Dugtrio', 'Palossand', 'Sandygast'],target.baseSpecies.baseSpecies) ||
+    //                   is(target.baseSpecies.name,'Gengar)-Mega') {
     //         this.add('-immune', target);
     //         return null;
     //       }
@@ -5350,10 +5353,10 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       if (move && !move.ohko) { return true; }
     //     },
     //     onImmunity(type) {
-    //       if (type === 'Ground') { return false; }
+    //       if (is(type,'Ground')) { return false; }
     //     },
     //     onUpdate(pokemon) {
-    //       if (pokemon.baseSpecies.name === 'Gengar-Mega') {
+    //       if (is(pokemon.baseSpecies.name,'Gengar)-Mega') {
     //         delete pokemon.volatiles['telekinesis'];
     //         this.add('-end', pokemon, 'Telekinesis', '[silent]');
     //       }
@@ -5398,7 +5401,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   thrash: {
     //   onAfterMove(pokemon) {
-    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove'].duration === 1) {
+    //     if (pokemon.volatiles['lockedmove'] && pokemon.volatiles['lockedmove']is(.duration,1)) {
     //       pokemon.removeVolatile('lockedmove');
     //     }
     //   },
@@ -5512,9 +5515,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   secondary: {
     //     onHit(target, source) {
     //       const result = this.random(3);
-    //       if (result === 0) {
+    //       if (is(result,0)) {
     //         target.trySetStatus('brn', source);
-    //       } else if (result === 1) {
+    //       } else if (is(result,1)) {
     //         target.trySetStatus('par', source);
     //       } else {
     //         target.trySetStatus('frz', source);
@@ -5560,10 +5563,10 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     if (target.hasType('Ghost')) { return false; }
     //     if (!target.addType('Ghost')) { return false; }
     //     this.add('-start', target, 'typeadd', 'Ghost', '[from] move: Trick-or-Treat');
-    //     if (target.side.active.length === 2 && target.position === 1) {
+    //     if (is(target.side.active.length,2) && is(target.position,1)) {
     //          Curse Glitch
     //       const action = this.queue.willMove(target);
-    //       if (action && action.move.id === 'curse') {
+    //       if (action && is(action.move.id,'curse')) {
     //         action.targetLoc = -1;
     //       }
     //     }
@@ -5572,7 +5575,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   trickroom: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -5597,7 +5600,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   trumpcard: {
     //   basePowerCallback(source, target, move) {
     //     const callerMoveId = move.sourceEffect || move.id;
-    //     const moveSlot = callerMoveId === 'instruct' ? source.getMoveData(move.id) : source.getMoveData(callerMoveId);
+    //     const moveSlot = is(callerMoveId,'instruct') ? source.getMoveData(move.id) : source.getMoveData(callerMoveId);
     //     if (!moveSlot) { return 40; }
     //     switch (moveSlot.pp) {
     //     case 0:
@@ -5616,9 +5619,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   uproar: {
     //   onTryHit(target) {
     //     for (const [i, allyActive] of target.side.active.entries()) {
-    //       if (allyActive && allyActive.status === 'slp') { allyActive.cureStatus(); }
+    //       if (allyActive && is(allyActive.status,'slp')) { allyActive.cureStatus(); }
     //       const foeActive = target.side.foe.active[i];
-    //       if (foeActive && foeActive.status === 'slp') { foeActive.cureStatus(); }
+    //       if (foeActive && is(foeActive.status,'slp')) { foeActive.cureStatus(); }
     //     }
     //   },
     //   effect: {
@@ -5626,7 +5629,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-start', target, 'Uproar');
     //     },
     //     onResidual(target) {
-    //       if (target.lastMove && target.lastMove.id === 'struggle') {
+    //       if (target.lastMove && is(target.lastMove.id,'struggle')) {
     //            don't lock
     //         delete target.volatiles['uproar'];
     //       }
@@ -5636,8 +5639,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-end', target, 'Uproar');
     //     },
     //     onAnySetStatus(status, pokemon) {
-    //       if (status.id === 'slp') {
-    //         if (pokemon === this.effectData.target) {
+    //       if (is(status.id,'slp')) {
+    //         if (is(pokemon,this.effectData.target)) {
     //           this.add('-fail', pokemon, 'slp', '[from] Uproar', '[msg]');
     //         } else {
     //           this.add('-fail', pokemon, 'slp', '[from] Uproar');
@@ -5654,7 +5657,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   venomdrench: {
     //   onHit(target, source, move) {
-    //     if (target.status === 'psn' || target.status === 'tox') {
+    //     if (is(target.status,'psn') || is(target.status,'tox')) {
     //       return !!this.boost({atk: -1, spa: -1, spe: -1}, target, source, move);
     //     }
     //     return false;
@@ -5663,8 +5666,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   venoshock: {
     onBasePower(context: Context) {
       if (
-        context.p2.pokemon.status?.name === "psn" ||
-        context.p2.pokemon.status?.name === "tox"
+        is(context.p2.pokemon.status?.name, "psn") ||
+        is(context.p2.pokemon.status?.name, "tox")
       ) {
         return 0x2000;
       }
@@ -5672,16 +5675,16 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   wakeupslap: {
     //   basePowerCallback(pokemon, target, move) {
-    //     if (target.status === 'slp' || target.hasAbility('comatose')) { return move.basePower * 2; }
+    //     if (is(target.status,'slp') || target.hasAbility('comatose')) { return move.basePower * 2; }
     //     return move.basePower;
     //   },
     //   onHit(target) {
-    //     if (target.status === 'slp') { target.cureStatus(); }
+    //     if (is(target.status,'slp')) { target.cureStatus(); }
     //   },
   },
   waterpledge: {
     //   basePowerCallback(target, source, move) {
-    //     if (['firepledge', 'grasspledge'].includes(move.sourceEffect)) {
+    //     if (has(['firepledge', 'grasspledge'],move.sourceEffect)) {
     //       this.add('-combine');
     //       return 150;
     //     }
@@ -5696,7 +5699,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //                   otherMoveUser.fainted || action.maxMove || action.zmove) {
     //         continue;
     //       }
-    //       if (otherMoveUser.side === source.side && ['firepledge', 'grasspledge'].includes(otherMove.id)) {
+    //       if (is(otherMoveUser.side,source.side) && has(['firepledge', 'grasspledge'],otherMove.id)) {
     //         this.queue.prioritizeAction(action, move);
     //         this.add('-waiting', source, otherMoveUser);
     //         return null;
@@ -5704,12 +5707,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
     //   onModifyMove(move) {
-    //     if (move.sourceEffect === 'grasspledge') {
+    //     if (is(move.sourceEffect,'grasspledge')) {
     //       move.type = 'Grass';
     //       move.forceSTAB = true;
     //       move.sideCondition = 'grasspledge';
     //     }
-    //     if (move.sourceEffect === 'firepledge') {
+    //     if (is(move.sourceEffect,'firepledge')) {
     //       move.type = 'Water';
     //       move.forceSTAB = true;
     //       move.self = {sideCondition: 'waterpledge'};
@@ -5734,7 +5737,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   watershuriken: {
     //   basePowerCallback(pokemon, target, move) {
-    //     if (pokemon.species.name === 'Greninja-Ash' && pokemon.hasAbility('battlebond')) {
+    //     if (is(pokemon.species.name,'Greninja)-Ash' && pokemon.hasAbility('battlebond')) {
     //       return move.basePower + 5;
     //     }
     //     return move.basePower;
@@ -5746,7 +5749,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.add('-fieldstart', 'move: Water Sport', '[of] ' + source);
     //     },
     //     onModifyBasePower(basePower, attacker, defender, move) {
-    //       if (move.type === 'Fire') {
+    //       if (is(move.type,'Fire')) {
     //         this.debug('water sport weaken');
     //         return this.chainModify([0x548, 0x1000]);
     //       }
@@ -5812,7 +5815,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     },
     //     onTryHit(target, source, move) {
     //          Wide Guard blocks all spread moves
-    //       if ((move === null || move === void 0 ? void 0 : move.target) !== 'allAdjacent' && move.target !== 'allAdjacentFoes') {
+    //       if ((is(move,null) || is(move,void) 0 ? void 0 : move.target) !== 'allAdjacent' && move.target !== 'allAdjacentFoes') {
     //         return;
     //       }
     //       if (move.isZ || move.isMax) {
@@ -5823,7 +5826,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       const lockedmove = source.getVolatile('lockedmove');
     //       if (lockedmove) {
     //            Outrage counter is reset
-    //         if (source.volatiles['lockedmove'].duration === 2) {
+    //         if (source.volatiles['lockedmove']is(.duration,2)) {
     //           delete source.volatiles['lockedmove'];
     //         }
     //       }
@@ -5847,7 +5850,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   wonderroom: {
     //   effect: {
     //     durationCallback(source, effect) {
-    //       if (source === null || source === void 0 ? void 0 : source.hasAbility('persistent')) {
+    //       if (is(source,null) || is(source,void) 0 ? void 0 : source.hasAbility('persistent')) {
     //         this.add('-activate', source, 'ability: Persistent', effect);
     //         return 7;
     //       }
@@ -5877,7 +5880,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     const oldAbility = pokemon.setAbility('insomnia');
     //     if (oldAbility) {
     //       this.add('-ability', pokemon, 'Insomnia', '[from] move: Worry Seed');
-    //       if (pokemon.status === 'slp') {
+    //       if (is(pokemon.status,'slp')) {
     //         pokemon.cureStatus();
     //       }
     //       return;

@@ -1,5 +1,6 @@
 import { Applier, Handler } from ".";
 import { Context } from "../context";
+import { has, is } from "../utils";
 
 export const Items: {
   [id: string]: Partial<Applier & Handler<Context.Pokemon>>;
@@ -15,7 +16,7 @@ export const Items: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         pokemon.species.name === "Dialga" &&
-        (pokemon.move?.hasType("Steel") || pokemon.move?.hasType("Dragon"))
+        (is(pokemon.move?.type, "Steel") || is(pokemon.move?.type, "Dragon"))
       ) {
         return 0x1333;
       }
@@ -102,7 +103,11 @@ export const Items: {
   },
   babiriberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Steel") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Steel") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -135,7 +140,7 @@ export const Items: {
   },
   blackbelt: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fighting")) {
+      if (is(pokemon.move?.type, "Fighting")) {
         return 0x1333;
       }
     },
@@ -160,7 +165,7 @@ export const Items: {
   },
   blackglasses: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dark")) {
+      if (is(pokemon.move?.type, "Dark")) {
         return 0x1333;
       }
     },
@@ -219,14 +224,18 @@ export const Items: {
   },
   charcoal: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire")) {
+      if (is(pokemon.move?.type, "Fire")) {
         return 0x1333;
       }
     },
   },
   chartiberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Rock") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Rock") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -266,10 +275,10 @@ export const Items: {
   },
   chilanberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Normal")) {
+      if (is(pokemon.move?.type, "Normal")) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
-          !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
+          !(pokemon.move?.infiltrates && pokemon.gen.num >= 6);
         if (hitSub) {
           return;
         }
@@ -340,7 +349,8 @@ export const Items: {
   chopleberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
       if (
-        pokemon.move?.hasType("Fighting") &&
+        pokemon.move &&
+        is(pokemon.move?.type, "Fighting") &&
         pokemon.move?.effectiveness > 1
       ) {
         const hitSub =
@@ -358,7 +368,11 @@ export const Items: {
   },
   cobaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Flying") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Flying") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -374,7 +388,11 @@ export const Items: {
   },
   colburberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dark") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Dark") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -446,7 +464,7 @@ export const Items: {
   },
   dracoplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dragon")) {
+      if (is(pokemon.move?.type, "Dragon")) {
         return 0x1333;
       }
     },
@@ -459,7 +477,7 @@ export const Items: {
   },
   dragonfang: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dragon")) {
+      if (is(pokemon.move?.type, "Dragon")) {
         return 0x1333;
       }
     },
@@ -482,7 +500,7 @@ export const Items: {
   },
   dreadplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dark")) {
+      if (is(pokemon.move?.type, "Dark")) {
         return 0x1333;
       }
     },
@@ -495,7 +513,7 @@ export const Items: {
   },
   earthplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ground")) {
+      if (is(pokemon.move?.type, "Ground")) {
         return 0x1333;
       }
     },
@@ -670,7 +688,7 @@ export const Items: {
   },
   fistplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fighting")) {
+      if (is(pokemon.move?.type, "Fighting")) {
         return 0x1333;
       }
     },
@@ -688,9 +706,12 @@ export const Items: {
   },
   flameplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire")) {
+      if (is(pokemon.move?.type, "Fire")) {
         return 0x1333;
       }
+      // if (is(pokemon.move?.type, "Fire")) {
+      //   return 0x1333;
+      // }
     },
     //   onTakeItem(item, pokemon, source) {
     //     if ((source && source.baseSpecies.num === 493) || pokemon.baseSpecies.num === 493) {
@@ -802,7 +823,7 @@ export const Items: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         pokemon.species.num === 487 &&
-        (pokemon.move?.hasType("Ghost") || pokemon.move?.hasType("Dragon"))
+        (is(pokemon.move?.type, "Ghost") || is(pokemon.move?.type, "Dragon"))
       ) {
         return 0x1333;
       }
@@ -832,7 +853,11 @@ export const Items: {
   },
   habanberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Dragon") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Dragon") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -848,7 +873,7 @@ export const Items: {
   },
   hardstone: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Rock")) {
+      if (is(pokemon.move?.type, "Rock")) {
         return 0x1333;
       }
     },
@@ -887,7 +912,7 @@ export const Items: {
   },
   icicleplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ice")) {
+      if (is(pokemon.move?.type, "Ice")) {
         return 0x1333;
       }
     },
@@ -900,7 +925,7 @@ export const Items: {
   },
   insectplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Bug")) {
+      if (is(pokemon.move?.type, "Bug")) {
         return 0x1333;
       }
     },
@@ -923,7 +948,7 @@ export const Items: {
   },
   ironplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Steel")) {
+      if (is(pokemon.move?.type, "Steel")) {
         return 0x1333;
       }
     },
@@ -946,7 +971,11 @@ export const Items: {
   },
   kasibberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ghost") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Ghost") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -962,7 +991,11 @@ export const Items: {
   },
   kebiaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Poison") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Poison") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1120,7 +1153,7 @@ export const Items: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         pokemon.species.name === "Palkia" &&
-        (pokemon.move?.hasType("Water") || pokemon.move?.hasType("Dragon"))
+        (is(pokemon.move?.type, "Water") || is(pokemon.move?.type, "Dragon"))
       ) {
         return 0x1333;
       }
@@ -1133,7 +1166,7 @@ export const Items: {
   },
   magnet: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Electric")) {
+      if (is(pokemon.move?.type, "Electric")) {
         return 0x1333;
       }
     },
@@ -1172,7 +1205,7 @@ export const Items: {
   },
   meadowplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Grass")) {
+      if (is(pokemon.move?.type, "Grass")) {
         return 0x1333;
       }
     },
@@ -1218,7 +1251,7 @@ export const Items: {
   },
   metalcoat: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Steel")) {
+      if (is(pokemon.move?.type, "Steel")) {
         return 0x1333;
       }
     },
@@ -1280,7 +1313,7 @@ export const Items: {
   },
   mindplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Psychic")) {
+      if (is(pokemon.move?.type, "Psychic")) {
         return 0x1333;
       }
     },
@@ -1293,7 +1326,7 @@ export const Items: {
   },
   miracleseed: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Grass")) {
+      if (is(pokemon.move?.type, "Grass")) {
         return 0x1333;
       }
     },
@@ -1320,14 +1353,14 @@ export const Items: {
   },
   mysticwater: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x1333;
       }
     },
   },
   nevermeltice: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ice")) {
+      if (is(pokemon.move?.type, "Ice")) {
         return 0x1333;
       }
     },
@@ -1343,7 +1376,11 @@ export const Items: {
   },
   occaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Fire") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1359,7 +1396,7 @@ export const Items: {
   },
   oddincense: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Psychic")) {
+      if (is(pokemon.move?.type, "Psychic")) {
         return 0x1333;
       }
     },
@@ -1379,7 +1416,11 @@ export const Items: {
   },
   passhoberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Water") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1395,7 +1436,11 @@ export const Items: {
   },
   payapaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Psychic") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Psychic") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1443,7 +1488,7 @@ export const Items: {
   },
   pixieplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fairy")) {
+      if (is(pokemon.move?.type, "Fairy")) {
         return 0x1333;
       }
     },
@@ -1456,7 +1501,7 @@ export const Items: {
   },
   poisonbarb: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Poison")) {
+      if (is(pokemon.move?.type, "Poison")) {
         return 0x1333;
       }
     },
@@ -1660,7 +1705,11 @@ export const Items: {
   },
   rindoberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Grass") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Grass") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1684,7 +1733,7 @@ export const Items: {
   },
   rockincense: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Rock")) {
+      if (is(pokemon.move?.type, "Rock")) {
         return 0x1333;
       }
     },
@@ -1713,14 +1762,18 @@ export const Items: {
   },
   roseincense: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Grass")) {
+      if (is(pokemon.move?.type, "Grass")) {
         return 0x1333;
       }
     },
   },
   roseliberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fairy") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Fairy") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1788,14 +1841,14 @@ export const Items: {
   },
   seaincense: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x1333;
       }
     },
   },
   sharpbeak: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Flying")) {
+      if (is(pokemon.move?.type, "Flying")) {
         return 0x1333;
       }
     },
@@ -1822,7 +1875,11 @@ export const Items: {
   },
   shucaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ground") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Ground") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -1838,14 +1895,14 @@ export const Items: {
   },
   silkscarf: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Normal")) {
+      if (is(pokemon.move?.type, "Normal")) {
         return 0x1333;
       }
     },
   },
   silverpowder: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Bug")) {
+      if (is(pokemon.move?.type, "Bug")) {
         return 0x1333;
       }
     },
@@ -1865,7 +1922,7 @@ export const Items: {
   },
   skyplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Flying")) {
+      if (is(pokemon.move?.type, "Flying")) {
         return 0x1333;
       }
     },
@@ -1885,7 +1942,7 @@ export const Items: {
   },
   softsand: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ground")) {
+      if (is(pokemon.move?.type, "Ground")) {
         return 0x1333;
       }
     },
@@ -1894,7 +1951,7 @@ export const Items: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
         (pokemon.species.num === 380 || pokemon.species.num === 381) &&
-        (pokemon.move?.hasType("Psychic") || pokemon.move?.hasType("Dragon"))
+        (is(pokemon.move?.type, "Psychic") || is(pokemon.move?.type, "Dragon"))
       ) {
         return 0x1333;
       }
@@ -1902,14 +1959,14 @@ export const Items: {
   },
   spelltag: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ghost")) {
+      if (is(pokemon.move?.type, "Ghost")) {
         return 0x1333;
       }
     },
   },
   splashplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x1333;
       }
     },
@@ -1922,7 +1979,7 @@ export const Items: {
   },
   spookyplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ghost")) {
+      if (is(pokemon.move?.type, "Ghost")) {
         return 0x1333;
       }
     },
@@ -1993,7 +2050,7 @@ export const Items: {
   },
   stoneplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Rock")) {
+      if (is(pokemon.move?.type, "Rock")) {
         return 0x1333;
       }
     },
@@ -2006,7 +2063,11 @@ export const Items: {
   },
   tangaberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Bug") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Bug") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -2044,7 +2105,7 @@ export const Items: {
   },
   toxicplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Poison")) {
+      if (is(pokemon.move?.type, "Poison")) {
         return 0x1333;
       }
     },
@@ -2057,7 +2118,7 @@ export const Items: {
   },
   twistedspoon: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Psychic")) {
+      if (is(pokemon.move?.type, "Psychic")) {
         return 0x1333;
       }
     },
@@ -2065,7 +2126,8 @@ export const Items: {
   wacanberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
       if (
-        pokemon.move?.hasType("Electric") &&
+        pokemon.move &&
+        is(pokemon.move?.type, "Electric") &&
         pokemon.move?.effectiveness > 1
       ) {
         const hitSub =
@@ -2100,7 +2162,7 @@ export const Items: {
   },
   waveincense: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x1333;
       }
     },
@@ -2179,7 +2241,11 @@ export const Items: {
   },
   yacheberry: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Ice") && pokemon.move?.effectiveness > 1) {
+      if (
+        pokemon.move &&
+        is(pokemon.move.type, "Ice") &&
+        pokemon.move.effectiveness > 1
+      ) {
         const hitSub =
           pokemon.volatiles["substitute"] &&
           !(pokemon.move.infiltrates && pokemon.gen.num >= 6);
@@ -2195,7 +2261,7 @@ export const Items: {
   },
   zapplate: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Electric")) {
+      if (is(pokemon.move?.type, "Electric")) {
         return 0x1333;
       }
     },

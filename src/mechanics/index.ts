@@ -114,18 +114,20 @@ export class Appliers {
 
 export const APPLIERS = new Appliers(HANDLERS);
 
-export const HANDLER_FNS: Set<keyof Handler<Context>> = new Set([
-  "basePowerCallback",
-  "damageCallback",
-  "onBasePower",
-  "onModifyAtk",
-  "onModifySpA",
-  "onModifyDef",
-  "onModifySpD",
-  "onModifySpe",
-  "onModifyWeight",
-  "onResidual",
-]);
+// Unnecessary?
+// export const HANDLER_FNS: Set<keyof Handler<Context>> = new Set([
+//   "basePowerCallback",
+//   "damageCallback",
+//   "onBasePower",
+//   "onModifyAtk",
+//   "onModifySpA",
+//   "onModifyDef",
+//   "onModifySpD",
+//   "onModifySpe",
+//   "onModifyWeight",
+//   "onModifyDamageAttacker",
+//   "onResidual",
+// ]);
 
 // Convenience overload for most programs
 export function calculate(
@@ -161,24 +163,9 @@ export function calculate(...args: any[]) {
   return result;
 }
 
-// Custom BP: Determining the base power of moves that don’t have a fixed base power, like Heavy Slam or Eruption.
-// BP modifiers: Applying modifiers like Terrains, Auras, Helping Hand, etc.
-// Attack modifiers: Applying modifiers like boosts/drops, Choice Band, Water Bubble, etc.
-// Defense modifiers: Applying modifiers like boosts/drops, Fur Coat, Eviolite, etc.
-// Base Damage: The initial “big calculation”, combining base power, attack, and defense.
-// General damage modifiers: Applying modifiers like weather, type effectiveness, STAB, etc.
-// Final damage modifiers: Applying modifiers like Life Orb, screens, Friend Guard, etc.
-// When reading, these sections can mostly be tackled in any order, and you can click on the links above to jump around to whatever interests you the most. If you’re new to damage calculation, I recommend you start with the base damage and go through general damage modifiers, then final damage modifiers (basically, do 5-7 first, then come back to 1-4).
+export function calculateDamage(context: Context | State): number | number[] {
+  if (!("relevant" in context)) context = Context.fromState(context);
 
-// In addition to the above, the following topics will also be covered:
-
-// Speed modifiers: Applying modifiers like boosts/drops, Tailwind, Choice Scarf, etc.
-// Weight modifiers: Applying modifiers like Heavy Metal, Float Stone, etc.
-// Special cases: Moves like Psywave or Guardian of Alola that calculate their damage in other ways.
-// Damage overflow: How limitations of 3DS hardware affects damage calculation.
-// A one-turn setup for maximum damage: How to get the maximum damage in Pokémon in a single turn.
-
-export function calculate2(context: Context) {
   let attackStat = 0;
   let defenseStat = 0;
 
@@ -266,10 +253,11 @@ export function calculate2(context: Context) {
       trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16)
     );
   }
+
   return damage;
 }
 
-export function getBaseDamage(
+function getBaseDamage(
   level: number,
   basePower: number,
   attack: number,
@@ -288,7 +276,7 @@ export function getBaseDamage(
   );
 }
 
-export function getStabModifier(context: Context) {
+function getStabModifier(context: Context) {
   let mod = 0x1000;
   if (context.p1.pokemon.ability?.onModifySTAB)
     mod = chain(

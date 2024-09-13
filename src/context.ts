@@ -23,13 +23,7 @@ import type {
 } from "@pkmn/data";
 
 import { TerrainName, WeatherName } from "./conditions";
-import {
-  HANDLERS,
-  HANDLER_FNS,
-  Handler,
-  HandlerKind,
-  Handlers,
-} from "./mechanics";
+import { HANDLERS, Handler, HandlerKind, Handlers } from "./mechanics";
 import { Relevancy } from "./result";
 import { DeepReadonly, extend, toID } from "./utils";
 import { State } from "./state";
@@ -52,11 +46,11 @@ export class Context {
   ) {
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
+    this.move = new Context.Move(state.move, relevant.move, handlers);
     this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
     this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
-    this.move = new Context.Move(this, state.move, relevant.move, handlers);
-    this.move.updateData(this);
     this.field = new Context.Field(state.field, relevant.field, handlers);
+    this.move.updateData(this);
     this.relevant = relevant;
   }
 
@@ -248,7 +242,7 @@ export namespace Context {
     readonly relevant: Relevancy.Pokemon;
     readonly side?: Context.Side;
     readonly move?: Context.Move;
-    readonly gen: Generation
+    readonly gen: Generation;
 
     private nature?: NatureName;
     private evs?: Partial<StatsTable>;
@@ -264,7 +258,7 @@ export namespace Context {
       this.relevant = relevant;
       this.side = side;
       this.move = context.move;
-      this.gen = context.gen
+      this.gen = context.gen;
       this.species = state.species as Specie;
       this.level = state.level;
       this.weighthg = state.weighthg;
@@ -518,10 +512,9 @@ export namespace Context {
 
     readonly relevant: Relevancy.Move;
 
-    effectiveness: number;
+    effectiveness: number = 1;
 
     constructor(
-      context: Context,
       state: DeepReadonly<State.Move>,
       relevant: Relevancy.Move,
       handlers: Handlers
@@ -529,14 +522,6 @@ export namespace Context {
       extend(this, state);
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
-      this.effectiveness = context.gen.types.totalEffectiveness(
-        this.type,
-        context.p2.pokemon
-      );
-    }
-
-    hasType(...types: TypeName[]): boolean {
-      return types.includes(this.type);
     }
 
     updateData(context: Context) {
@@ -547,13 +532,24 @@ export namespace Context {
       if (context.p1.pokemon.ability?.onBasePower)
         basePowerMod = chain(
           basePowerMod,
-          context.p1.pokemon.ability?.onBasePower(context.p1.pokemon)
+          context.p1.pokemon.ability.onBasePower(context.p1.pokemon)
         );
+
+      if (context.p1.pokemon.item?.onBasePower) {
+        basePowerMod = chain(
+          basePowerMod,
+          context.p1.pokemon.item.onBasePower(context.p1.pokemon)
+        );
+      }
 
       if (this.onBasePower)
         basePowerMod = chain(basePowerMod, this.onBasePower(context));
 
       this.basePower = apply(this.basePower, basePowerMod);
+      this.effectiveness = context.gen.types.totalEffectiveness(
+        this.type,
+        context.p2.pokemon
+      );
     }
 
     toState(): State.Move {
@@ -573,7 +569,7 @@ function reify<T>(
     for (const n in handler) {
       const k = n as keyof Handler<Context | Context.Pokemon>; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
-      if (fn && HANDLER_FNS.has(k) && typeof fn === "function") {
+      if (fn && typeof fn === "function") {
         obj[k] = (x: Context | Context.Pokemon) => {
           const r = (fn as any)(x);
           if (typeof r !== "undefined" && cbfn) cbfn();

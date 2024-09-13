@@ -1,6 +1,6 @@
 import { Generations } from "@pkmn/data";
 import { Dex } from "@pkmn/sim";
-import { calculate2, computeModifiedSpeed } from "../../mechanics";
+import { calculateDamage, computeModifiedSpeed } from "../../mechanics";
 import { State } from "../../state";
 import { Context } from "../../context";
 
@@ -47,7 +47,7 @@ describe("Mechanics", () => {
   });
   test("Calculations", () => {
     expect(
-      calculate2(
+      calculateDamage(
         Context.fromState(
           new State(
             gens.get(9),

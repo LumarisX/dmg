@@ -1,6 +1,7 @@
 import { Applier, Handler } from ".";
 import { Context } from "../context";
 import { chainMod } from "../math";
+import { has, is } from "../utils";
 
 export const Abilities: {
   [id: string]: Partial<Applier & Handler<Context.Pokemon>>;
@@ -14,7 +15,7 @@ export const Abilities: {
   aerilate: {
     //   onModifyType(move, pokemon) {
     //     const noModifyType = ['judgment', 'multiattack', 'naturalgift', 'revelationdance', 'technoblast', 'weatherball'];
-    //     if (move.type === 'Normal' && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
+    //     if (is(move.type,'Normal') && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
     //       move.type = 'Flying';
     //       move.aerilateBoosted = true;
     //     }
@@ -39,7 +40,7 @@ export const Abilities: {
     //   onBasePower(basePower, pokemon) {
     //     let boosted = true;
     //     for (const target of this.getAllActive()) {
-    //       if (target === pokemon) { continue; }
+    //       if (is(target,pokemon)) { continue; }
     //       if (this.queue.willMove(target)) {
     //         boosted = false;
     //         break;
@@ -54,7 +55,7 @@ export const Abilities: {
   angerpoint: {
     //   onHit(target, source, move) {
     //     if (!target.hp) { return; }
-    //     if ((move === null || move === void 0 ? void 0 : move.effectType) === 'Move' && target.getMoveHitData(move).crit) {
+    //     if ((is(move,null) || is(move,void) 0 ? void 0 : move.effectType) === 'Move' && target.getMoveHitData(move).crit) {
     //       target.setBoost({atk: 6});
     //       this.add('-setboost', target, 'atk', 12, '[from] ability: Anger Point');
     //     }
@@ -66,8 +67,8 @@ export const Abilities: {
     //       if (!target || target.fainted) { continue; }
     //       for (const moveSlot of target.moveSlots) {
     //         const move = this.dex.getMove(moveSlot.move);
-    //         if (move.category === 'Status') { continue; }
-    //         const moveType = move.id === 'hiddenpower' ? target.hpType : move.type;
+    //         if (is(move.category,'Status')) { continue; }
+    //         const moveType = is(move.id,'hiddenpower') ? target.hpType : move.type;
     //         if (this.dex.getImmunity(moveType, pokemon) && this.dex.getEffectiveness(moveType, pokemon) > 0 ||
     //                       move.ohko) {
     //           this.add('-ability', pokemon, 'Anticipation');
@@ -94,8 +95,8 @@ export const Abilities: {
   },
   aromaveil: {
     //   onAllyTryAddVolatile(status, target, source, effect) {
-    //     if (['attract', 'disable', 'encore', 'healblock', 'taunt', 'torment'].includes(status.id)) {
-    //       if (effect.effectType === 'Move') {
+    //     if (has(['attract', 'disable', 'encore', 'healblock', 'taunt', 'torment'],status.id)) {
+    //       if (is(effect.effectType,'Move')) {
     //         const effectHolder = this.effectData.target;
     //         this.add('-block', target, 'ability: Aroma Veil', '[of] ' + effectHolder);
     //       }
@@ -108,7 +109,7 @@ export const Abilities: {
     //     this.add('-ability', pokemon, 'Aura Break');
     //   },
     //   onAnyTryPrimaryHit(target, source, move) {
-    //     if (target === source || move.category === 'Status') { return; }
+    //     if (is(target,source) || is(move.category,'Status')) { return; }
     //     move.hasAuraBreak = true;
     //   },
   },
@@ -117,7 +118,7 @@ export const Abilities: {
     //     if (!pokemon.hp) { return; }
     //     for (const target of pokemon.side.foe.active) {
     //       if (!target || !target.hp) { continue; }
-    //       if (target.status === 'slp' || target.hasAbility('comatose')) {
+    //       if (is(target.status,'slp') || target.hasAbility('comatose')) {
     //         this.damage(target.baseMaxhp / 8, target, pokemon);
     //       }
     //     }
@@ -125,7 +126,7 @@ export const Abilities: {
   },
   battery: {
     //   onAllyBasePower(basePower, attacker, defender, move) {
-    //     if (attacker !== this.effectData.target && move.category === 'Special') {
+    //     if (attacker !== this.effectData.target && is(move.category,'Special')) {
     //       this.debug('Battery boost');
     //       return this.chainModify([0x14CD, 0x1000]);
     //     }
@@ -133,23 +134,23 @@ export const Abilities: {
   },
   battlebond: {
     //   onSourceAfterFaint(length, target, source, effect) {
-    //     if ((effect === null || effect === void 0 ? void 0 : effect.effectType) !== 'Move') {
+    //     if ((is(effect,null) || is(effect,void) 0 ? void 0 : effect.effectType) !== 'Move') {
     //       return;
     //     }
-    //     if (source.species.id === 'greninja' && source.hp && !source.transformed && source.side.foe.pokemonLeft) {
+    //     if (is(source.species.id,'greninja') && source.hp && !source.transformed && source.side.foe.pokemonLeft) {
     //       this.add('-activate', source, 'ability: Battle Bond');
     //       source.formeChange('Greninja-Ash', this.effect, true);
     //     }
     //   },
     //   onModifyMove(move, attacker) {
-    //     if (move.id === 'watershuriken' && attacker.species.name === 'Greninja-Ash') {
+    //     if (is(move.id,'watershuriken') && is(attacker.species.name,'Greninja)-Ash') {
     //       move.multihit = 3;
     //     }
     //   },
   },
   beastboost: {
     //   onSourceAfterFaint(length, target, source, effect) {
-    //     if (effect && effect.effectType === 'Move') {
+    //     if (effect && is(effect.effectType,'Move')) {
     //       let statName = 'atk';
     //       let bestStat = 0;
     //       let s;
@@ -165,7 +166,7 @@ export const Abilities: {
   },
   berserk: {
     //   onAfterMoveSecondary(target, source, move) {
-    //     if (!source || source === target || !target.hp || !move.totalDamage) { return; }
+    //     if (!source || is(source,target) || !target.hp || !move.totalDamage) { return; }
     //     const lastAttackedBy = target.getLastAttackedBy();
     //     if (!lastAttackedBy) { return; }
     //     const damage = move.multihit ? move.totalDamage : lastAttackedBy.damage;
@@ -176,7 +177,7 @@ export const Abilities: {
   },
   bigpecks: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     if (boost.def && boost.def < 0) {
     //       delete boost.def;
     //       if (!effect.secondaries && effect.id !== 'octolock') {
@@ -187,7 +188,7 @@ export const Abilities: {
   },
   blaze: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Blaze boost");
         return 0x1800;
       }
@@ -210,9 +211,7 @@ export const Abilities: {
     onModifySpe(pokemon: Context.Pokemon) {
       if (
         pokemon.side?.field &&
-        ["Sun", "Harsh Sunshine"].includes(
-          pokemon.side.field.weather?.name || ""
-        )
+        has(["Sun", "Harsh Sunshine"], pokemon.side.field.weather?.name || "")
       ) {
         return 0x2000;
       }
@@ -220,7 +219,7 @@ export const Abilities: {
   },
   clearbody: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     let showMsg = false;
     //     let i;
     //     for (i in boost) {
@@ -243,14 +242,14 @@ export const Abilities: {
     //   onAfterMoveSecondary(target, source, move) {
     //     if (!target.hp) { return; }
     //     const type = move.type;
-    //     if (target.isActive && move.effectType === 'Move' && move.category !== 'Status' &&
+    //     if (target.isActive && is(move.effectType,'Move') && move.category !== 'Status' &&
     //               type !== '???' && !target.hasType(type)) {
     //       if (!target.setType(type)) { return false; }
     //       this.add('-start', target, 'typechange', type, '[from] ability: Color Change');
-    //       if (target.side.active.length === 2 && target.position === 1) {
+    //       if (is(target.side.active.length,2) && is(target.position,1)) {
     //             Curse Glitch
     //         const action = this.queue.willMove(target);
-    //         if (action && action.move.id === 'curse') {
+    //         if (action && is(action.move.id,'curse')) {
     //           action.targetLoc = -1;
     //         }
     //       }
@@ -263,7 +262,7 @@ export const Abilities: {
     //   },
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Comatose');
     //     }
     //     return false;
@@ -271,8 +270,8 @@ export const Abilities: {
   },
   competitive: {
     //   onAfterEachBoost(boost, target, source, effect) {
-    //     if (!source || target.side === source.side) {
-    //       if (effect.id === 'stickyweb') {
+    //     if (!source || is(target.side,source.side)) {
+    //       if (is(effect.id,'stickyweb')) {
     //         this.hint("Court Change Sticky Web counts as lowering your own Speed, and Competitive only affects stats lowered by foes.", true, source.side);
     //       }
     //       return;
@@ -299,7 +298,7 @@ export const Abilities: {
   },
   contrary: {
     //   onBoost(boost, target, source, effect) {
-    //     if (effect && effect.id === 'zpower') { return; }
+    //     if (effect && is(effect.id,'zpower')) { return; }
     //     let i;
     //     for (i in boost) {
     //       boost[i] *= -1;
@@ -310,7 +309,7 @@ export const Abilities: {
     //   onDamagingHit(damage, target, source, move) {
     //     let activated = false;
     //     for (const pokemon of this.getAllActive()) {
-    //       if (pokemon === target || pokemon.fainted) { continue; }
+    //       if (is(pokemon,target) || pokemon.fainted) { continue; }
     //       if (!activated) {
     //         this.add('-ability', target, 'Cotton Down');
     //         activated = true;
@@ -340,14 +339,14 @@ export const Abilities: {
   },
   damp: {
     //   onAnyTryMove(target, source, effect) {
-    //     if (['explosion', 'mindblown', 'selfdestruct'].includes(effect.id)) {
+    //     if (has(['explosion', 'mindblown', 'selfdestruct'],effect.id)) {
     //       this.attrLastMove('[still]');
     //       this.add('cant', this.effectData.target, 'ability: Damp', effect, '[of] ' + target);
     //       return false;
     //     }
     //   },
     //   onAnyDamage(damage, target, source, effect) {
-    //     if (effect && effect.id === 'aftermath') {
+    //     if (effect && is(effect.id,'aftermath')) {
     //       return false;
     //     }
     //   },
@@ -359,7 +358,7 @@ export const Abilities: {
     onAnyBasePower(pokemon: Context.Pokemon) {
       // if (
       //   pokemon !== pokemon ||
-      //   pokemon.context.move.category === "Status" ||
+      //   is(pokemon.move?.category,"Status") ||
       //   pokemon.context.move.type !== "Dark"
       // ) {
       //   return;
@@ -382,11 +381,11 @@ export const Abilities: {
   dazzling: {
     //   onFoeTryMove(target, source, move) {
     //     const targetAllExceptions = ['perishsong', 'flowershield', 'rototiller'];
-    //     if (move.target === 'foeSide' || (move.target === 'all' && !targetAllExceptions.includes(move.id))) {
+    //     if (is(move.target,'foeSide') || (is(move.target,'all') && !targetAllExceptions.includes(move.id))) {
     //       return;
     //     }
     //     const dazzlingHolder = this.effectData.target;
-    //     if ((source.side === dazzlingHolder.side || move.target === 'all') && move.priority > 0.1) {
+    //     if ((is(source.side,dazzlingHolder.side) || is(move.target,'all')) && move.priority > 0.1) {
     //       this.attrLastMove('[still]');
     //       this.add('cant', dazzlingHolder, 'ability: Dazzling', move, '[of] ' + target);
     //       return false;
@@ -407,8 +406,8 @@ export const Abilities: {
   },
   defiant: {
     //   onAfterEachBoost(boost, target, source, effect) {
-    //     if (!source || target.side === source.side) {
-    //       if (effect.id === 'stickyweb') {
+    //     if (!source || is(target.side,source.side)) {
+    //       if (is(effect.id,'stickyweb')) {
     //         this.hint("Court Change Sticky Web counts as lowering your own Speed, and Defiant only affects stats lowered by foes.", true, source.side);
     //       }
     //       return;
@@ -432,12 +431,12 @@ export const Abilities: {
     //   },
     //   onAnySetWeather(target, source, weather) {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
-    //     if (this.field.getWeather().id === 'deltastream' && !strongWeathers.includes(weather.id)) { return false; }
+    //     if (this.field.getWeather()is(.id,'deltastream') && !strongWeathers.includes(weather.id)) { return false; }
     //   },
     //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
-    //       if (target === pokemon) { continue; }
+    //       if (is(target,pokemon)) { continue; }
     //       if (target.hasAbility('deltastream')) {
     //         this.field.weatherData.source = target;
     //         return;
@@ -452,12 +451,12 @@ export const Abilities: {
     //   },
     //   onAnySetWeather(target, source, weather) {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
-    //     if (this.field.getWeather().id === 'desolateland' && !strongWeathers.includes(weather.id)) { return false; }
+    //     if (this.field.getWeather()is(.id,'desolateland') && !strongWeathers.includes(weather.id)) { return false; }
     //   },
     //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
-    //       if (target === pokemon) { continue; }
+    //       if (is(target,pokemon)) { continue; }
     //       if (target.hasAbility('desolateland')) {
     //         this.field.weatherData.source = target;
     //         return;
@@ -468,8 +467,8 @@ export const Abilities: {
   },
   disguise: {
     //   onDamage(damage, target, source, effect) {
-    //     if (effect && effect.effectType === 'Move' &&
-    //               ['mimikyu', 'mimikyutotem'].includes(target.species.id) && !target.transformed) {
+    //     if (effect && is(effect.effectType,'Move') &&
+    //               has(['mimikyu', 'mimikyutotem'],target.species.id) && !target.transformed) {
     //       this.add('-activate', target, 'ability: Disguise');
     //       this.effectData.busted = true;
     //       return 0;
@@ -477,7 +476,7 @@ export const Abilities: {
     //   },
     //   onEffectiveness(typeMod, target, type, move) {
     //     if (!target) { return; }
-    //     if (!['mimikyu', 'mimikyutotem'].includes(target.species.id) || target.transformed) {
+    //     if (!has(['mimikyu', 'mimikyutotem'],target.species.id) || target.transformed) {
     //       return;
     //     }
     //     const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
@@ -486,8 +485,8 @@ export const Abilities: {
     //     return 0;
     //   },
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (['mimikyu', 'mimikyutotem'].includes(pokemon.species.id) && this.effectData.busted) {
-    //       const speciesid = pokemon.species.id === 'mimikyutotem' ? 'Mimikyu-Busted-Totem' : 'Mimikyu-Busted';
+    //     if (has(['mimikyu', 'mimikyutotem'],pokemon.species.id) && this.effectData.busted) {
+    //       const speciesid = is(pokemon.species.id,'mimikyutotem') ? 'Mimikyu-Busted-Totem' : 'Mimikyu-Busted';
     //       pokemon.formeChange(speciesid, this.effect, true);
     //       this.damage(pokemon.baseMaxhp / 8, pokemon, pokemon, this.dex.getSpecies(speciesid));
     //     }
@@ -512,7 +511,7 @@ export const Abilities: {
   drizzle: {
     //   onStart(source) {
     //     for (const action of this.queue) {
-    //       if (action.choice === 'runPrimal' && action.pokemon === source && source.species.id === 'kyogre') { return; }
+    //       if (is(action.choice,'runPrimal') && is(action.pokemon,source) && is(source.species.id,'kyogre')) { return; }
     //       if (action.choice !== 'runSwitch' && action.choice !== 'runPrimal') { break; }
     //     }
     //     this.field.setWeather('raindance');
@@ -521,7 +520,7 @@ export const Abilities: {
   drought: {
     //   onStart(source) {
     //     for (const action of this.queue) {
-    //       if (action.choice === 'runPrimal' && action.pokemon === source && source.species.id === 'groudon') { return; }
+    //       if (is(action.choice,'runPrimal') && is(action.pokemon,source) && is(source.species.id,'groudon')) { return; }
     //       if (action.choice !== 'runSwitch' && action.choice !== 'runPrimal') { break; }
     //     }
     //     this.field.setWeather('sunnyday');
@@ -529,7 +528,7 @@ export const Abilities: {
   },
   dryskin: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Water') {
+    //     if (target !== source && is(move.type,'Water')) {
     //       if (!this.heal(target.baseMaxhp / 4)) {
     //         this.add('-immune', target, '[from] ability: Dry Skin');
     //       }
@@ -537,15 +536,15 @@ export const Abilities: {
     //     }
     //   },
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x1400;
       }
     },
     //   onWeather(target, source, effect) {
     //     if (target.hasItem('utilityumbrella')) { return; }
-    //     if (effect.id === 'raindance' || effect.id === 'primordialsea') {
+    //     if (is(effect.id,'raindance') || is(effect.id,'primordialsea')) {
     //       this.heal(target.baseMaxhp / 8);
-    //     } else if (effect.id === 'sunnyday' || effect.id === 'desolateland') {
+    //     } else if (is(effect.id,'sunnyday') || is(effect.id,'desolateland')) {
     //       this.damage(target.baseMaxhp / 8, target, target);
     //     }
     //   },
@@ -586,7 +585,7 @@ export const Abilities: {
     //     this.add('-ability', pokemon, 'Fairy Aura');
     //   },
     //   onAnyBasePower(basePower, source, target, move) {
-    //     if (target === source || move.category === 'Status' || move.type !== 'Fairy') { return; }
+    //     if (is(target,source) || is(move.category,'Status') || move.type !== 'Fairy') { return; }
     //     if (!move.auraBooster) { move.auraBooster = this.effectData.target; }
     //     if (move.auraBooster !== this.effectData.target) { return; }
     //     return this.chainModify([move.hasAuraBreak ? 0x0C00 : 0x1547, 0x1000]);
@@ -613,8 +612,8 @@ export const Abilities: {
   flareboost: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
-        pokemon.status?.name === "brn" &&
-        pokemon.move?.category === "Special"
+        is(pokemon.status?.name, "brn") &&
+        is(pokemon.move?.category, "Special")
       ) {
         return 0x1800;
       }
@@ -622,7 +621,7 @@ export const Abilities: {
   },
   flashfire: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Fire') {
+    //     if (target !== source && is(move.type,'Fire')) {
     //       move.accuracy = true;
     //       if (!target.addVolatile('flashfire')) {
     //         this.add('-immune', target, '[from] ability: Flash Fire');
@@ -638,13 +637,13 @@ export const Abilities: {
     //       this.add('-start', target, 'ability: Flash Fire');
     //     },
     //     onModifyAtk(atk, attacker, defender, move) {
-    //       if (move.type === 'Fire') {
+    //       if (is(move.type,'Fire')) {
     //         this.debug('Flash Fire boost');
     //         return this.chainModify(1.5);
     //       }
     //     },
     //     onModifySpA(atk, attacker, defender, move) {
-    //       if (move.type === 'Fire') {
+    //       if (is(move.type,'Fire')) {
     //         this.debug('Flash Fire boost');
     //         return this.chainModify(1.5);
     //       }
@@ -665,7 +664,7 @@ export const Abilities: {
     //         pokemon.formeChange('Cherrim-Sunshine', this.effect, false, '[msg]');
     //       }
     //     } else {
-    //       if (pokemon.species.id === 'cherrimsunshine') {
+    //       if (is(pokemon.species.id,'cherrimsunshine')) {
     //         pokemon.formeChange('Cherrim', this.effect, false, '[msg]');
     //       }
     //     }
@@ -685,7 +684,7 @@ export const Abilities: {
   },
   flowerveil: {
     //   onAllyBoost(boost, target, source, effect) {
-    //     if ((source && target === source) || !target.hasType('Grass')) { return; }
+    //     if ((source && is(target,source)) || !target.hasType('Grass')) { return; }
     //     let showMsg = false;
     //     let i;
     //     for (i in boost) {
@@ -702,7 +701,7 @@ export const Abilities: {
     //   onAllySetStatus(status, target, source, effect) {
     //     if (target.hasType('Grass') && source && target !== source && effect && effect.id !== 'yawn') {
     //       this.debug('interrupting setStatus with Flower Veil');
-    //       if (effect.id === 'synchronize' || (effect.effectType === 'Move' && !effect.secondaries)) {
+    //       if (is(effect.id,'synchronize') || (is(effect.effectType,'Move') && !effect.secondaries)) {
     //         const effectHolder = this.effectData.target;
     //         this.add('-block', target, 'ability: Flower Veil', '[of] ' + effectHolder);
     //       }
@@ -710,7 +709,7 @@ export const Abilities: {
     //     }
     //   },
     //   onAllyTryAddVolatile(status, target) {
-    //     if (target.hasType('Grass') && status.id === 'yawn') {
+    //     if (target.hasType('Grass') && is(status.id,'yawn')) {
     //       this.debug('Flower Veil blocking yawn');
     //       const effectHolder = this.effectData.target;
     //       this.add('-block', target, 'ability: Flower Veil', '[of] ' + effectHolder);
@@ -721,7 +720,7 @@ export const Abilities: {
   fluffy: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
       let mod = 0x1000;
-      if (pokemon.move?.hasType("Fire")) {
+      if (is(pokemon.move?.type, "Water")) {
         chainMod(mod, 0x2000);
       }
       if (pokemon.move?.flags["contact"]) {
@@ -765,13 +764,13 @@ export const Abilities: {
     //         const move = this.dex.getMove(moveSlot.move);
     //         let bp = move.basePower;
     //         if (move.ohko) { bp = 150; }
-    //         if (move.id === 'counter' || move.id === 'metalburst' || move.id === 'mirrorcoat') { bp = 120; }
-    //         if (bp === 1) { bp = 80; }
+    //         if (is(move.id,'counter') || is(move.id,'metalburst') || is(move.id,'mirrorcoat')) { bp = 120; }
+    //         if (is(bp,1)) { bp = 80; }
     //         if (!bp && move.category !== 'Status') { bp = 80; }
     //         if (bp > warnBp) {
     //           warnMoves = [[move, target]];
     //           warnBp = bp;
-    //         } else if (bp === warnBp) {
+    //         } else if (is(bp,warnBp)) {
     //           warnMoves.push([move, target]);
     //         }
     //       }
@@ -783,7 +782,7 @@ export const Abilities: {
   },
   friendguard: {
     //   onAnyModifyDamage(damage, source, target, move) {
-    //     if (target !== this.effectData.target && target.side === this.effectData.target.side) {
+    //     if (target !== this.effectData.target && is(target.side,this.effectData.target.side)) {
     //       this.debug('Friend Guard weaken');
     //       return this.chainModify(0.75);
     //     }
@@ -801,7 +800,7 @@ export const Abilities: {
   },
   fullmetalbody: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     let showMsg = false;
     //     let i;
     //     for (i in boost) {
@@ -822,13 +821,13 @@ export const Abilities: {
   },
   galewings: {
     //   onModifyPriority(priority, pokemon, target, move) {
-    //     if ((move === null || move === void 0 ? void 0 : move.type) === 'Flying' && pokemon.hp === pokemon.maxhp) { return priority + 1; }
+    //     if ((is(move,null) || is(move,void) 0 ? void 0 : move.type) === 'Flying' && is(pokemon.hp,pokemon.maxhp)) { return priority + 1; }
     //   },
   },
   galvanize: {
     //   onModifyType(move, pokemon) {
     //     const noModifyType = ['judgment', 'multiattack', 'naturalgift', 'revelationdance', 'technoblast', 'weatherball'];
-    //     if (move.type === 'Normal' && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
+    //     if (is(move.type,'Normal') && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
     //       move.type = 'Electric';
     //       move.galvanizeBoosted = true;
     //     }
@@ -850,7 +849,7 @@ export const Abilities: {
     //     pokemon.abilityData.choiceLock = "";
     //   },
     //   onBeforeMove(pokemon, target, move) {
-    //     if (move.isZOrMaxPowered || move.id === 'struggle') { return; }
+    //     if (move.isZOrMaxPowered || is(move.id,'struggle')) { return; }
     //     if (pokemon.abilityData.choiceLock && pokemon.abilityData.choiceLock !== move.id) {
     //           Fails unless ability is being ignored (these events will not run), no PP lost.
     //       this.addMove('move', pokemon, move.name);
@@ -861,7 +860,7 @@ export const Abilities: {
     //     }
     //   },
     //   onModifyMove(move, pokemon) {
-    //     if (pokemon.abilityData.choiceLock || move.isZOrMaxPowered || move.id === 'struggle') { return; }
+    //     if (pokemon.abilityData.choiceLock || move.isZOrMaxPowered || is(move.id,'struggle')) { return; }
     //     pokemon.abilityData.choiceLock = move.id;
     //   },
     //   onModifyAtk(atk, pokemon) {
@@ -896,9 +895,9 @@ export const Abilities: {
   gulpmissile: {
     //   onDamagingHit(damage, target, source, move) {
     //     if (target.transformed || target.isSemiInvulnerable()) { return; }
-    //     if (['cramorantgulping', 'cramorantgorging'].includes(target.species.id)) {
+    //     if (has(['cramorantgulping', 'cramorantgorging'],target.species.id)) {
     //       this.damage(source.baseMaxhp / 4, source, target);
-    //       if (target.species.id === 'cramorantgulping') {
+    //       if (is(target.species.id,'cramorantgulping')) {
     //         this.boost({def: -1}, source, target, null, true);
     //       } else {
     //         source.trySetStatus('par', target, move);
@@ -907,15 +906,15 @@ export const Abilities: {
     //     }
     //   },
     //   onAnyDamage(damage, target, source, effect) {
-    //     if (effect && effect.id === 'surf' && source.hasAbility('gulpmissile') &&
-    //               source.species.name === 'Cramorant' && !source.transformed) {
+    //     if (effect && is(effect.id,'surf') && source.hasAbility('gulpmissile') &&
+    //               is(source.species.name,'Cramorant') && !source.transformed) {
     //       const forme = source.hp <= source.maxhp / 2 ? 'cramorantgorging' : 'cramorantgulping';
     //       source.formeChange(forme, effect);
     //     }
     //   },
     //   onAnyAfterSubDamage(damage, target, source, effect) {
-    //     if (effect && effect.id === 'surf' && source.hasAbility('gulpmissile') &&
-    //               source.species.name === 'Cramorant' && !source.transformed) {
+    //     if (effect && is(effect.id,'surf') && source.hasAbility('gulpmissile') &&
+    //               is(source.species.name,'Cramorant') && !source.transformed) {
     //       const forme = source.hp <= source.maxhp / 2 ? 'cramorantgorging' : 'cramorantgulping';
     //       source.formeChange(forme, effect);
     //     }
@@ -941,7 +940,7 @@ export const Abilities: {
   },
   healer: {
     //   onResidual(pokemon: Context.Pokemon) {
-    //     if (pokemon.side.active.length === 1) {
+    //     if (is(pokemon.side.active.length,1)) {
     //       return;
     //     }
     //     for (const allyActive of pokemon.side.active) {
@@ -955,12 +954,12 @@ export const Abilities: {
   },
   heatproof: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Fire")) {
+      if (is(pokemon.move?.type, "Water")) {
         return 0x800;
       }
     },
     //   onDamage(damage, target, source, effect) {
-    //     if (effect && effect.id === 'brn') {
+    //     if (effect && is(effect.id,'brn')) {
     //       return damage / 2;
     //     }
     //   },
@@ -978,7 +977,7 @@ export const Abilities: {
   hungerswitch: {
     //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.species.baseSpecies !== 'Morpeko' || pokemon.transformed) { return; }
-    //     const targetForme = pokemon.species.name === 'Morpeko' ? 'Morpeko-Hangry' : 'Morpeko';
+    //     const targetForme = is(pokemon.species.name,'Morpeko') ? 'Morpeko-Hangry' : 'Morpeko';
     //     pokemon.formeChange(targetForme);
     //   },
   },
@@ -987,7 +986,7 @@ export const Abilities: {
       return 0x1800;
     },
     // onModifyMove(pokemon: Context.Pokemon) {
-    //   if (pokemon.context.move.category === 'Physical' && typeof pokemon.context.move.accuracy === 'number') {
+    //   if (is(pokemon.context.move.category,'Physical') && typeof is(pokemon.context.move.accuracy,'number')) {
     //     return 0x0CCA
     //   }
     // },
@@ -1003,7 +1002,7 @@ export const Abilities: {
   },
   hypercutter: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     if (boost.atk && boost.atk < 0) {
     //       delete boost.atk;
     //       if (!effect.secondaries) {
@@ -1014,25 +1013,25 @@ export const Abilities: {
   },
   icebody: {
     //   onWeather(target, source, effect) {
-    //     if (effect.id === 'hail') {
+    //     if (is(effect.id,'hail')) {
     //       this.heal(target.baseMaxhp / 16);
     //     }
     //   },
     //   onImmunity(type, pokemon) {
-    //     if (type === 'hail') { return false; }
+    //     if (is(type,'hail')) { return false; }
     //   },
   },
   iceface: {
     //   onStart(pokemon: Context.Pokemon) {
-    //     if (this.field.isWeather('hail') && pokemon.species.id === 'eiscuenoice' && !pokemon.transformed) {
+    //     if (this.field.isWeather('hail') && is(pokemon.species.id,'eiscuenoice') && !pokemon.transformed) {
     //       this.add('-activate', pokemon, 'ability: Ice Face');
     //       this.effectData.busted = false;
     //       pokemon.formeChange('Eiscue', this.effect, true);
     //     }
     //   },
     //   onDamage(damage, target, source, effect) {
-    //     if (effect && effect.effectType === 'Move' && effect.category === 'Physical' &&
-    //               target.species.id === 'eiscue' && !target.transformed) {
+    //     if (effect && is(effect.effectType,'Move') && is(effect.category,'Physical') &&
+    //               is(target.species.id,'eiscue') && !target.transformed) {
     //       this.add('-activate', target, 'ability: Ice Face');
     //       this.effectData.busted = true;
     //       return 0;
@@ -1046,13 +1045,13 @@ export const Abilities: {
     //     return 0;
     //   },
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.species.id === 'eiscue' && this.effectData.busted) {
+    //     if (is(pokemon.species.id,'eiscue') && this.effectData.busted) {
     //       pokemon.formeChange('Eiscue-Noice', this.effect, true);
     //     }
     //   },
     //   onAnyWeatherStart() {
     //     const pokemon = this.effectData.target;
-    //     if (this.field.isWeather('hail') && pokemon.species.id === 'eiscuenoice' && !pokemon.transformed) {
+    //     if (this.field.isWeather('hail') && is(pokemon.species.id,'eiscuenoice') && !pokemon.transformed) {
     //       this.add('-activate', pokemon, 'ability: Ice Face');
     //       this.effectData.busted = false;
     //       pokemon.formeChange('Eiscue', this.effect, true);
@@ -1061,7 +1060,7 @@ export const Abilities: {
   },
   icescales: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.category === "Special") {
+      if (is(pokemon.move?.category, "Special")) {
         return 0x800;
       }
     },
@@ -1075,7 +1074,7 @@ export const Abilities: {
     //       if (!pokemon.side.pokemon[i].fainted) { break; }
     //     }
     //     if (!pokemon.side.pokemon[i]) { return; }
-    //     if (pokemon === pokemon.side.pokemon[i]) { return; }
+    //     if (is(pokemon,pokemon.side.pokemon)[i]) { return; }
     //     pokemon.illusion = pokemon.side.pokemon[i];
     //   },
     //   onDamagingHit(damage, target, source, move) {
@@ -1087,8 +1086,8 @@ export const Abilities: {
     //     if (pokemon.illusion) {
     //       this.debug('illusion cleared');
     //       pokemon.illusion = null;
-    //       const details = pokemon.species.name + (pokemon.level === 100 ? '' : ', L' + pokemon.level) +
-    //                   (pokemon.gender === '' ? '' : ', ' + pokemon.gender) + (pokemon.set.shiny ? ', shiny' : '');
+    //       const details = pokemon.species.name + (is(pokemon.level,100) ? '' : ', L' + pokemon.level) +
+    //                   (is(pokemon.gender,'') ? '' : ', ' + pokemon.gender) + (pokemon.set.shiny ? ', shiny' : '');
     //       this.add('replace', pokemon, details);
     //       this.add('-end', pokemon, 'Illusion');
     //     }
@@ -1099,7 +1098,7 @@ export const Abilities: {
   },
   immunity: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'psn' || pokemon.status === 'tox') {
+    //     if (is(pokemon.status,'psn') || is(pokemon.status,'tox')) {
     //       this.add('-activate', pokemon, 'ability: Immunity');
     //       pokemon.cureStatus();
     //     }
@@ -1107,7 +1106,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'psn' && status.id !== 'tox') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Immunity');
     //     }
     //     return false;
@@ -1141,12 +1140,12 @@ export const Abilities: {
   },
   innerfocus: {
     //   onTryAddVolatile(status, pokemon) {
-    //     if (status.id === 'flinch') { return null; }
+    //     if (is(status.id,'flinch')) { return null; }
     //   },
   },
   insomnia: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'slp') {
+    //     if (is(pokemon.status,'slp')) {
     //       this.add('-activate', pokemon, 'ability: Insomnia');
     //       pokemon.cureStatus();
     //     }
@@ -1154,7 +1153,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'slp') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Insomnia');
     //     }
     //     return false;
@@ -1167,14 +1166,14 @@ export const Abilities: {
       const blocked =
         p2.pokemon.volatiles['substitute'] ||
         ['clearbody', 'whitesmoke', 'hypercutter', 'fullmetalbody'].includes(ability!) ||
-        (gen.num === 8 && ['innerfocus', 'owntempo', 'oblivious', 'scrappy'].includes(ability!));
+        (is(gen.num,8) && ['innerfocus', 'owntempo', 'oblivious', 'scrappy'].includes(ability!));
       if (blocked) return;
 
       applyBoost(p2.pokemon, 'atk', -1);
 
-      const simple = ability === 'simple';
+      const simple = is(ability,'simple');
 
-      if (p2.pokemon.item === 'adrenalineorb') {
+      if (is(p2.pokemon.item,'adrenalineorb')) {
         p2.pokemon.item = undefined;
         p2.pokemon
       }
@@ -1204,14 +1203,14 @@ export const Abilities: {
   },
   justified: {
     //   onDamagingHit(damage, target, source, move) {
-    //     if (move.type === 'Dark') {
+    //     if (is(move.type,'Dark')) {
     //       this.boost({atk: 1});
     //     }
     //   },
   },
   keeneye: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     if (boost.accuracy && boost.accuracy < 0) {
     //       delete boost.accuracy;
     //       if (!effect.secondaries) {
@@ -1227,14 +1226,14 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (['sunnyday', 'desolateland'].includes(target.effectiveWeather())) {
-    //       if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //       if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //         this.add('-immune', target, '[from] ability: Leaf Guard');
     //       }
     //       return false;
     //     }
     //   },
     //   onTryAddVolatile(status, target) {
-    //     if (status.id === 'yawn' && ['sunnyday', 'desolateland'].includes(target.effectiveWeather())) {
+    //     if (is(status.id,'yawn') && ['sunnyday', 'desolateland'].includes(target.effectiveWeather())) {
     //       this.add('-immune', target, '[from] ability: Leaf Guard');
     //       return null;
     //     }
@@ -1257,7 +1256,7 @@ export const Abilities: {
   },
   lightningrod: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Electric') {
+    //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.boost({spa: 1})) {
     //         this.add('-immune', target, '[from] ability: Lightning Rod');
     //       }
@@ -1265,8 +1264,8 @@ export const Abilities: {
     //     }
     //   },
     //   onAnyRedirectTarget(target, source, source2, move) {
-    //     if (move.type !== 'Electric' || ['firepledge', 'grasspledge', 'waterpledge'].includes(move.id)) { return; }
-    //     const redirectTarget = ['randomNormal', 'adjacentFoe'].includes(move.target) ? 'normal' : move.target;
+    //     if (move.type !== 'Electric' || has(['firepledge', 'grasspledge', 'waterpledge'],move.id)) { return; }
+    //     const redirectTarget = has(['randomNormal', 'adjacentFoe'],move.target) ? 'normal' : move.target;
     //     if (this.validTarget(this.effectData.target, source, redirectTarget)) {
     //       if (move.smartTarget) { move.smartTarget = false; }
     //       if (this.effectData.target !== target) {
@@ -1278,7 +1277,7 @@ export const Abilities: {
   },
   limber: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'par') {
+    //     if (is(pokemon.status,'par')) {
     //       this.add('-activate', pokemon, 'ability: Limber');
     //       pokemon.cureStatus();
     //     }
@@ -1286,7 +1285,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'par') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Limber');
     //     }
     //     return false;
@@ -1316,7 +1315,7 @@ export const Abilities: {
   },
   magicbounce: {
     //   onTryHit(target, source, move) {
-    //     if (target === source || move.hasBounced || !move.flags['reflectable']) {
+    //     if (is(target,source) || move.hasBounced || !move.flags['reflectable']) {
     //       return;
     //     }
     //     const newMove = this.dex.getActiveMove(move.id);
@@ -1326,7 +1325,7 @@ export const Abilities: {
     //     return null;
     //   },
     //   onAllyTryHitSide(target, source, move) {
-    //     if (target.side === source.side || move.hasBounced || !move.flags['reflectable']) {
+    //     if (is(target.side,source.side) || move.hasBounced || !move.flags['reflectable']) {
     //       return;
     //     }
     //     const newMove = this.dex.getActiveMove(move.id);
@@ -1339,7 +1338,7 @@ export const Abilities: {
   magicguard: {
     //   onDamage(damage, target, source, effect) {
     //     if (effect.effectType !== 'Move') {
-    //       if (effect.effectType === 'Ability') { this.add('-activate', source, 'ability: ' + effect.name); }
+    //       if (is(effect.effectType,'Ability')) { this.add('-activate', source, 'ability: ' + effect.name); }
     //       return false;
     //     }
     //   },
@@ -1348,7 +1347,7 @@ export const Abilities: {
     //   onSourceHit(target, source, move) {
     //     if (!move || !target) { return; }
     //     if (target !== source && move.category !== 'Status') {
-    //       if (source.item || source.volatiles['gem'] || move.id === 'fling') { return; }
+    //       if (source.item || source.volatiles['gem'] || is(move.id,'fling')) { return; }
     //       const yourItem = target.takeItem(source);
     //       if (!yourItem) { return; }
     //       if (!source.setItem(yourItem)) {
@@ -1361,13 +1360,13 @@ export const Abilities: {
   },
   magmaarmor: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'frz') {
+    //     if (is(pokemon.status,'frz')) {
     //       this.add('-activate', pokemon, 'ability: Magma Armor');
     //       pokemon.cureStatus();
     //     }
     //   },
     //   onImmunity(type, pokemon) {
-    //     if (type === 'frz') { return false; }
+    //     if (is(type,'frz')) { return false; }
     //   },
   },
   magnetpull: {
@@ -1400,7 +1399,7 @@ export const Abilities: {
   },
   merciless: {
     //   onModifyCritRatio(critRatio, source, target) {
-    //     if (target && ['psn', 'tox'].includes(target.status)) { return 5; }
+    //     if (target && has(['psn', 'tox'],target.status)) { return 5; }
     //   },
   },
   mimicry: {
@@ -1455,7 +1454,7 @@ export const Abilities: {
   },
   minus: {
     //   onModifySpA(spa, pokemon) {
-    //     if (pokemon.side.active.length === 1) {
+    //     if (is(pokemon.side.active.length,1)) {
     //       return;
     //     }
     //     for (const allyActive of pokemon.side.active) {
@@ -1469,7 +1468,7 @@ export const Abilities: {
   mirrorarmor: {
     //   onBoost(boost, target, source, effect) {
     //         Don't bounce self stat changes, or boosts that have already bounced
-    //     if (target === source || !boost || effect.id === 'mirrorarmor') { return; }
+    //     if (is(target,source) || !boost || is(effect.id,'mirrorarmor')) { return; }
     //     let b;
     //     for (b in boost) {
     //       if (boost[b] < 0) {
@@ -1501,7 +1500,7 @@ export const Abilities: {
     //     const boost = {};
     //     let statPlus;
     //     for (statPlus in pokemon.boosts) {
-    //       if (statPlus === 'accuracy' || statPlus === 'evasion') { continue; }
+    //       if (is(statPlus,'accuracy') || is(statPlus,'evasion')) { continue; }
     //       if (pokemon.boosts[statPlus] < 6) {
     //         stats.push(statPlus);
     //       }
@@ -1511,7 +1510,7 @@ export const Abilities: {
     //     stats = [];
     //     let statMinus;
     //     for (statMinus in pokemon.boosts) {
-    //       if (statMinus === 'accuracy' || statMinus === 'evasion') { continue; }
+    //       if (is(statMinus,'accuracy') || is(statMinus,'evasion')) { continue; }
     //       if (pokemon.boosts[statMinus] > -6 && statMinus !== randomStat) {
     //         stats.push(statMinus);
     //       }
@@ -1523,7 +1522,7 @@ export const Abilities: {
   },
   motordrive: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Electric') {
+    //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.boost({spe: 1})) {
     //         this.add('-immune', target, '[from] ability: Motor Drive');
     //       }
@@ -1533,7 +1532,7 @@ export const Abilities: {
   },
   moxie: {
     //   onSourceAfterFaint(length, target, source, effect) {
-    //     if (effect && effect.effectType === 'Move') {
+    //     if (effect && is(effect.effectType,'Move')) {
     //       this.boost({atk: length}, source);
     //     }
     //   },
@@ -1555,7 +1554,7 @@ export const Abilities: {
     //     }
     //   },
     //   onBasePower(basePower, pokemon, target, move) {
-    //     if (move.multihitType === 'parentalbond' && move.hit > 1) { return this.chainModify(0.25); }
+    //     if (is(move.multihitType,'parentalbond') && move.hit > 1) { return this.chainModify(0.25); }
     //   },
   },
   naturalcure: {
@@ -1565,8 +1564,8 @@ export const Abilities: {
     //         since you can see how many of your opponent's pokemon are statused.
     //         The only ambiguous situation happens in Doubles/Triples, where multiple pokemon
     //         that could have Natural Cure switch out, but only some of them get cured.
-    //     if (pokemon.side.active.length === 1) { return; }
-    //     if (pokemon.showCure === true || pokemon.showCure === false) { return; }
+    //     if (is(pokemon.side.active.length,1)) { return; }
+    //     if (is(pokemon.showCure,true) || is(pokemon.showCure,false)) { return; }
     //     const cureList = [];
     //     let noCureCount = 0;
     //     for (const curPoke of pokemon.side.active) {
@@ -1611,7 +1610,7 @@ export const Abilities: {
     //     } else {
     //           It's not possible to know what pokemon were cured
     //           Unlike a -hint, this is real information that battlers need, so we use a -message
-    //       this.add('-message', "(" + cureList.length + " of " + pokemon.side.name + "'s pokemon " + (cureList.length === 1 ? "was" : "were") + " cured by Natural Cure.)");
+    //       this.add('-message', "(" + cureList.length + " of " + pokemon.side.name + "'s pokemon " + (is(cureList.length,1) ? "was" : "were") + " cured by Natural Cure.)");
     //       for (const pkmn of cureList) {
     //         pkmn.showCure = false;
     //       }
@@ -1621,7 +1620,7 @@ export const Abilities: {
     //     if (!pokemon.status) { return; }
     //         if pokemon.showCure is undefined, it was skipped because its ability
     //         is known
-    //     if (pokemon.showCure === undefined) { pokemon.showCure = true; }
+    //     if (is(pokemon.showCure,undefined)) { pokemon.showCure = true; }
     //     if (pokemon.showCure) { this.add('-curestatus', pokemon, pokemon.status, '[from] ability: Natural Cure'); }
     //     pokemon.setStatus('');
     //         only reset .showCure if it's false
@@ -1659,10 +1658,10 @@ export const Abilities: {
   },
   noguard: {
     //   onAnyInvulnerability(target, source, move) {
-    //     if (move && (source === this.effectData.target || target === this.effectData.target)) { return 0; }
+    //     if (move && (is(source,this.effectData.target) || is(target,this.effectData.target))) { return 0; }
     //   },
     //   onAnyAccuracy(accuracy, target, source, move) {
-    //     if (move && (source === this.effectData.target || target === this.effectData.target)) {
+    //     if (move && (is(source,this.effectData.target) || is(target,this.effectData.target))) {
     //       return true;
     //     }
     //     return accuracy;
@@ -1697,10 +1696,10 @@ export const Abilities: {
     //     }
     //   },
     //   onImmunity(type, pokemon) {
-    //     if (type === 'attract') { return false; }
+    //     if (is(type,'attract')) { return false; }
     //   },
     //   onTryHit(pokemon, target, move) {
-    //     if (move.id === 'attract' || move.id === 'captivate' || move.id === 'taunt') {
+    //     if (is(move.id,'attract') || is(move.id,'captivate') || is(move.id,'taunt')) {
     //       this.add('-immune', pokemon, '[from] ability: Oblivious');
     //       return null;
     //     }
@@ -1708,7 +1707,7 @@ export const Abilities: {
   },
   overcoat: {
     //   onImmunity(type, pokemon) {
-    //     if (type === 'sandstorm' || type === 'hail' || type === 'powder') { return false; }
+    //     if (is(type,'sandstorm') || is(type,'hail') || is(type,'powder')) { return false; }
     //   },
     //   onTryHit(target, source, move) {
     //     if (move.flags['powder'] && target !== source && this.dex.getImmunity('powder', target)) {
@@ -1719,7 +1718,7 @@ export const Abilities: {
   },
   overgrow: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Grass") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Overgrow boost");
         return 0x1800;
       }
@@ -1733,66 +1732,66 @@ export const Abilities: {
     //     }
     //   },
     //   onTryAddVolatile(status, pokemon) {
-    //     if (status.id === 'confusion') { return null; }
+    //     if (is(status.id,'confusion')) { return null; }
     //   },
     //   onHit(target, source, move) {
-    //     if ((move === null || move === void 0 ? void 0 : move.volatileStatus) === 'confusion') {
+    //     if ((is(move,null) || is(move,void) 0 ? void 0 : move.volatileStatus) === 'confusion') {
     //       this.add('-immune', target, 'confusion', '[from] ability: Own Tempo');
     //     }
     //   },
   },
   parentalbond: {
     //   onPrepareHit(source, target, move) {
-    //     if (move.category === 'Status' || move.selfdestruct || move.multihit) { return; }
-    //     if (['iceball', 'rollout'].includes(move.id)) { return; }
+    //     if (is(move.category,'Status') || move.selfdestruct || move.multihit) { return; }
+    //     if (has(['iceball', 'rollout'],move.id)) { return; }
     //     if (!move.flags['charge'] && !move.spreadHit && !move.isZ && !move.isMax) {
     //       move.multihit = 2;
     //       move.multihitType = 'parentalbond';
     //     }
     //   },
     //   onBasePower(basePower, pokemon, target, move) {
-    //     if (move.multihitType === 'parentalbond' && move.hit > 1) { return this.chainModify(0.25); }
+    //     if (is(move.multihitType,'parentalbond') && move.hit > 1) { return this.chainModify(0.25); }
     //   },
     //   onSourceModifySecondaries(secondaries, target, source, move) {
-    //     if (move.multihitType === 'parentalbond' && move.id === 'secretpower' && move.hit < 2) {
+    //     if (is(move.multihitType,'parentalbond') && is(move.id,'secretpower') && move.hit < 2) {
     //           hack to prevent accidentally suppressing King's Rock/Razor Fang
-    //       return secondaries.filter(effect => effect.volatileStatus === 'flinch');
+    //       return secondaries.filter(effect => is(effect.volatileStatus,'flinch'));
     //     }
     //   },
   },
   pastelveil: {
     //   onStart(pokemon: Context.Pokemon) {
     //     for (const ally of pokemon.allies()) {
-    //       if (['psn', 'tox'].includes(ally.status)) {
+    //       if (has(['psn', 'tox'],ally.status)) {
     //         this.add('-activate', pokemon, 'ability: Pastel Veil');
     //         ally.cureStatus();
     //       }
     //     }
     //   },
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (['psn', 'tox'].includes(pokemon.status)) {
+    //     if (has(['psn', 'tox'],pokemon.status)) {
     //       this.add('-activate', pokemon, 'ability: Pastel Veil');
     //       pokemon.cureStatus();
     //     }
     //   },
     //   onAllySwitchIn(pokemon: Context.Pokemon) {
-    //     if (['psn', 'tox'].includes(pokemon.status)) {
+    //     if (has(['psn', 'tox'],pokemon.status)) {
     //       this.add('-activate', this.effectData.target, 'ability: Pastel Veil');
     //       pokemon.cureStatus();
     //     }
     //   },
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
-    //     if (!['psn', 'tox'].includes(status.id)) { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if (!has(['psn', 'tox'],status.id)) { return; }
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Pastel Veil');
     //     }
     //     return false;
     //   },
     //   onAllySetStatus(status, target, source, effect) {
     //     let _a;
-    //     if (!['psn', 'tox'].includes(status.id)) { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if (!has(['psn', 'tox'],status.id)) { return; }
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       const effectHolder = this.effectData.target;
     //       this.add('-block', target, 'ability: Pastel Veil', '[of] ' + effectHolder);
     //     }
@@ -1815,8 +1814,8 @@ export const Abilities: {
   },
   pickpocket: {
     //   onAfterMoveSecondary(target, source, move) {
-    //     if (source && source !== target && (move === null || move === void 0 ? void 0 : move.flags['contact'])) {
-    //       if (target.item || target.switchFlag || target.forceSwitchFlag || source.switchFlag === true) {
+    //     if (source && source !== target && (is(move,null) || is(move,void) 0 ? void 0 : move.flags['contact'])) {
+    //       if (target.item || target.switchFlag || target.forceSwitchFlag || is(source.switchFlag,true)) {
     //         return;
     //       }
     //       const yourItem = source.takeItem(target);
@@ -1852,7 +1851,7 @@ export const Abilities: {
   pixilate: {
     //   onModifyType(move, pokemon) {
     //     const noModifyType = ['judgment', 'multiattack', 'naturalgift', 'revelationdance', 'technoblast', 'weatherball'];
-    //     if (move.type === 'Normal' && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
+    //     if (is(move.type,'Normal') && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
     //       move.type = 'Fairy';
     //       move.pixilateBoosted = true;
     //     }
@@ -1863,7 +1862,7 @@ export const Abilities: {
   },
   plus: {
     //   onModifySpA(spa, pokemon) {
-    //     if (pokemon.side.active.length === 1) {
+    //     if (is(pokemon.side.active.length,1)) {
     //       return;
     //     }
     //     for (const allyActive of pokemon.side.active) {
@@ -1876,7 +1875,7 @@ export const Abilities: {
   },
   poisonheal: {
     //   onDamage(damage, target, source, effect) {
-    //     if (effect.id === 'psn' || effect.id === 'tox') {
+    //     if (is(effect.id,'psn') || is(effect.id,'tox')) {
     //       this.heal(target.baseMaxhp / 8);
     //       return false;
     //     }
@@ -1893,7 +1892,7 @@ export const Abilities: {
   },
   poisontouch: {
     //   onModifyMove(move) {
-    //     if (!move || !move.flags['contact'] || move.target === 'self') { return; }
+    //     if (!move || !move.flags['contact'] || is(move.target,'self')) { return; }
     //     if (!move.secondaries) {
     //       move.secondaries = [];
     //     }
@@ -1907,7 +1906,7 @@ export const Abilities: {
   powerconstruct: {
     //   onResidual(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Zygarde' || pokemon.transformed || !pokemon.hp) { return; }
-    //     if (pokemon.species.id === 'zygardecomplete' || pokemon.hp > pokemon.maxhp / 2) { return; }
+    //     if (is(pokemon.species.id,'zygardecomplete') || pokemon.hp > pokemon.maxhp / 2) { return; }
     //     this.add('-activate', pokemon, 'ability: Power Construct');
     //     pokemon.formeChange('Zygarde-Complete', this.effect, true);
     //     pokemon.baseMaxhp = Math.floor(Math.floor(2 * pokemon.species.baseStats['hp'] + pokemon.set.ivs['hp'] + Math.floor(pokemon.set.evs['hp'] / 4) + 100) * pokemon.level / 100 + 10);
@@ -1939,7 +1938,7 @@ export const Abilities: {
   },
   prankster: {
     //   onModifyPriority(priority, pokemon, target, move) {
-    //     if ((move === null || move === void 0 ? void 0 : move.category) === 'Status') {
+    //     if ((is(move,null) || is(move,void) 0 ? void 0 : move.category) === 'Status') {
     //       move.pranksterBoosted = true;
     //       return priority + 1;
     //     }
@@ -1950,7 +1949,7 @@ export const Abilities: {
     //     this.add('-ability', pokemon, 'Pressure');
     //   },
     //   onDeductPP(target, source) {
-    //     if (target.side === source.side) { return; }
+    //     if (is(target.side,source.side)) { return; }
     //     return 1;
     //   },
   },
@@ -1960,12 +1959,12 @@ export const Abilities: {
     //   },
     //   onAnySetWeather(target, source, weather) {
     //     const strongWeathers = ['desolateland', 'primordialsea', 'deltastream'];
-    //     if (this.field.getWeather().id === 'primordialsea' && !strongWeathers.includes(weather.id)) { return false; }
+    //     if (this.field.getWeather()is(.id,'primordialsea') && !strongWeathers.includes(weather.id)) { return false; }
     //   },
     //   onEnd(pokemon: Context.Pokemon) {
     //     if (this.field.weatherData.source !== pokemon) { return; }
     //     for (const target of this.getAllActive()) {
-    //       if (target === pokemon) { continue; }
+    //       if (is(target,pokemon)) { continue; }
     //       if (target.hasAbility('primordialsea')) {
     //         this.field.weatherData.source = target;
     //         return;
@@ -2026,11 +2025,11 @@ export const Abilities: {
   queenlymajesty: {
     //   onFoeTryMove(target, source, move) {
     //     const targetAllExceptions = ['perishsong', 'flowershield', 'rototiller'];
-    //     if (move.target === 'foeSide' || (move.target === 'all' && !targetAllExceptions.includes(move.id))) {
+    //     if (is(move.target,'foeSide') || (is(move.target,'all') && !targetAllExceptions.includes(move.id))) {
     //       return;
     //     }
     //     const dazzlingHolder = this.effectData.target;
-    //     if ((source.side === dazzlingHolder.side || move.target === 'all') && move.priority > 0.1) {
+    //     if ((is(source.side,dazzlingHolder.side) || is(move.target,'all')) && move.priority > 0.1) {
     //       this.attrLastMove('[still]');
     //       this.add('cant', dazzlingHolder, 'ability: Queenly Majesty', move, '[of] ' + target);
     //       return false;
@@ -2039,7 +2038,7 @@ export const Abilities: {
   },
   quickfeet: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (pokemon.status?.name === "par") {
+      if (is(pokemon.status?.name, "par")) {
         return 0x2000;
       }
     },
@@ -2047,19 +2046,19 @@ export const Abilities: {
   raindish: {
     //   onWeather(target, source, effect) {
     //     if (target.hasItem('utilityumbrella')) { return; }
-    //     if (effect.id === 'raindance' || effect.id === 'primordialsea') {
+    //     if (is(effect.id,'raindance') || is(effect.id,'primordialsea')) {
     //       this.heal(target.baseMaxhp / 16);
     //     }
     //   },
   },
   rattled: {
     //   onDamagingHit(damage, target, source, move) {
-    //     if (['Dark', 'Bug', 'Ghost'].includes(move.type)) {
+    //     if (has(['Dark', 'Bug', 'Ghost'],move.type)) {
     //       this.boost({spe: 1});
     //     }
     //   },
     //   onAfterBoost(boost, target, source, effect) {
-    //     if (effect && effect.id === 'intimidate') {
+    //     if (effect && is(effect.id,'intimidate')) {
     //       this.boost({spe: 1});
     //     }
     //   },
@@ -2086,7 +2085,7 @@ export const Abilities: {
   refrigerate: {
     //   onModifyType(move, pokemon) {
     //     const noModifyType = ['judgment', 'multiattack', 'naturalgift', 'revelationdance', 'technoblast', 'weatherball'];
-    //     if (move.type === 'Normal' && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
+    //     if (is(move.type,'Normal') && !noModifyType.includes(move.id) && !(move.isZ && move.category !== 'Status')) {
     //       move.type = 'Ice';
     //       move.refrigerateBoosted = true;
     //     }
@@ -2140,13 +2139,13 @@ export const Abilities: {
   rivalry: {
     onBasePower(pokemon: Context.Pokemon) {
       if (pokemon.gender && pokemon.gender) {
-        return pokemon.gender === pokemon.gender ? 1400 : 0xc00;
+        return is(pokemon.gender, pokemon.gender) ? 1400 : 0xc00;
       }
     },
   },
   rockhead: {
     //   onDamage(damage, target, source, effect) {
-    //     if (effect.id === 'recoil') {
+    //     if (is(effect.id,'recoil')) {
     //       if (!this.activeMove) { throw new Error("Battle.activeMove is null"); }
     //       if (this.activeMove.id !== 'struggle') { return null; }
     //     }
@@ -2162,24 +2161,24 @@ export const Abilities: {
   sandforce: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
-        pokemon.side?.field?.weather?.name === "Sand" &&
-        pokemon.move?.hasType("Rock", "Ground", "Steel")
+        is(pokemon.side?.field?.weather?.name, "Sand") &&
+        has(["Rock", "Ground", "Steel"], pokemon.move?.type)
       ) {
         return 0x14cd;
       }
     },
     //   onImmunity(type, pokemon) {
-    //     if (type === 'sandstorm') { return false; }
+    //     if (is(type,'sandstorm')) { return false; }
     //   },
   },
   sandrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (pokemon.side?.field?.weather?.name === "Sand") {
+      if (is(pokemon.side?.field?.weather?.name, "Sand")) {
         return 0x2000;
       }
     },
     // onImmunity(type, pokemon) {
-    //   if (type === "sandstorm") {
+    //   if (is(type,"sandstorm")) {
     //     return false;
     //   }
     // },
@@ -2198,7 +2197,7 @@ export const Abilities: {
   },
   sandveil: {
     //   onImmunity(type, pokemon) {
-    //     if (type === 'sandstorm') { return false; }
+    //     if (is(type,'sandstorm')) { return false; }
     //   },
     //   onModifyAccuracy(accuracy) {
     //     if (typeof accuracy !== 'number') { return; }
@@ -2210,7 +2209,7 @@ export const Abilities: {
   },
   sapsipper: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Grass') {
+    //     if (target !== source && is(move.type,'Grass')) {
     //       if (!this.boost({atk: 1})) {
     //         this.add('-immune', target, '[from] ability: Sap Sipper');
     //       }
@@ -2218,8 +2217,8 @@ export const Abilities: {
     //     }
     //   },
     //   onAllyTryHitSide(target, source, move) {
-    //     if (target === this.effectData.target || target.side !== source.side) { return; }
-    //     if (move.type === 'Grass') {
+    //     if (is(target,this.effectData.target) || target.side !== source.side) { return; }
+    //     if (is(move.type,'Grass')) {
     //       this.boost({atk: 1}, this.effectData.target);
     //     }
     //   },
@@ -2228,11 +2227,11 @@ export const Abilities: {
     //   onStart(pokemon: Context.Pokemon) {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Wishiwashi' || pokemon.level < 20 || pokemon.transformed) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 4) {
-    //       if (pokemon.species.id === 'wishiwashi') {
+    //       if (is(pokemon.species.id,'wishiwashi')) {
     //         pokemon.formeChange('Wishiwashi-School');
     //       }
     //     } else {
-    //       if (pokemon.species.id === 'wishiwashischool') {
+    //       if (is(pokemon.species.id,'wishiwashischool')) {
     //         pokemon.formeChange('Wishiwashi');
     //       }
     //     }
@@ -2241,11 +2240,11 @@ export const Abilities: {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Wishiwashi' || pokemon.level < 20 ||
     //               pokemon.transformed || !pokemon.hp) { return; }
     //     if (pokemon.hp > pokemon.maxhp / 4) {
-    //       if (pokemon.species.id === 'wishiwashi') {
+    //       if (is(pokemon.species.id,'wishiwashi')) {
     //         pokemon.formeChange('Wishiwashi-School');
     //       }
     //     } else {
-    //       if (pokemon.species.id === 'wishiwashischool') {
+    //       if (is(pokemon.species.id,'wishiwashischool')) {
     //         pokemon.formeChange('Wishiwashi');
     //       }
     //     }
@@ -2326,7 +2325,7 @@ export const Abilities: {
     //     if (move.secondaries) {
     //       delete move.secondaries;
     //           Technically not a secondary effect, but it is negated
-    //       if (move.id === 'clangoroussoulblaze') { delete move.selfBoost; }
+    //       if (is(move.id,'clangoroussoulblaze')) { delete move.selfBoost; }
     //           Actual negation of `AfterMoveSecondary` effects implemented in scripts.js
     //       move.hasSheerForce = true;
     //     }
@@ -2349,7 +2348,7 @@ export const Abilities: {
     //         pokemon.formeChange('Minior-Meteor');
     //       }
     //     } else {
-    //       if (pokemon.species.forme === 'Meteor') {
+    //       if (is(pokemon.species.forme,'Meteor')) {
     //         pokemon.formeChange(pokemon.set.species);
     //       }
     //     }
@@ -2361,7 +2360,7 @@ export const Abilities: {
     //         pokemon.formeChange('Minior-Meteor');
     //       }
     //     } else {
-    //       if (pokemon.species.forme === 'Meteor') {
+    //       if (is(pokemon.species.forme,'Meteor')) {
     //         pokemon.formeChange(pokemon.set.species);
     //       }
     //     }
@@ -2369,7 +2368,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (target.species.id !== 'miniormeteor' || target.transformed) { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Shields Down');
     //     }
     //     return false;
@@ -2383,7 +2382,7 @@ export const Abilities: {
   },
   simple: {
     //   onBoost(boost, target, source, effect) {
-    //     if (effect && effect.id === 'zpower') { return; }
+    //     if (effect && is(effect.id,'zpower')) { return; }
     //     let i;
     //     for (i in boost) {
     //       boost[i] *= 2;
@@ -2425,7 +2424,7 @@ export const Abilities: {
   },
   slushrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (["Hail", "Snow"].includes(pokemon.side?.field?.weather?.name || "")) {
+      if (has(["Hail", "Snow"], pokemon.side?.field?.weather?.name || "")) {
         return 0x2000;
       }
     },
@@ -2439,7 +2438,7 @@ export const Abilities: {
   },
   snowcloak: {
     //   onImmunity(type, pokemon) {
-    //     if (type === 'hail') { return false; }
+    //     if (is(type,'hail')) { return false; }
     //   },
     //   onModifyAccuracy(accuracy) {
     //     if (typeof accuracy !== 'number') { return; }
@@ -2462,7 +2461,7 @@ export const Abilities: {
     //   },
     //   onWeather(target, source, effect) {
     //     if (target.hasItem('utilityumbrella')) { return; }
-    //     if (effect.id === 'sunnyday' || effect.id === 'desolateland') {
+    //     if (is(effect.id,'sunnyday') || is(effect.id,'desolateland')) {
     //       this.damage(target.baseMaxhp / 8, target, target);
     //     }
     //   },
@@ -2535,8 +2534,8 @@ export const Abilities: {
   stancechange: {
     //   onBeforeMove(attacker, defender, move) {
     //     if (attacker.species.baseSpecies !== 'Aegislash' || attacker.transformed) { return; }
-    //     if (move.category === 'Status' && move.id !== 'kingsshield') { return; }
-    //     const targetForme = (move.id === 'kingsshield' ? 'Aegislash' : 'Aegislash-Blade');
+    //     if (is(move.category,'Status') && move.id !== 'kingsshield') { return; }
+    //     const targetForme = (is(move.id,'kingsshield') ? 'Aegislash' : 'Aegislash-Blade');
     //     if (attacker.species.name !== targetForme) { attacker.formeChange(targetForme); }
     //   },
   },
@@ -2556,20 +2555,20 @@ export const Abilities: {
   },
   steamengine: {
     //   onDamagingHit(damage, target, source, move) {
-    //     if (['Water', 'Fire'].includes(move.type)) {
+    //     if (has(['Water', 'Fire'],move.type)) {
     //       this.boost({spe: 6});
     //     }
     //   },
   },
   steelworker: {
     //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Steel') {
+    //     if (is(move.type,'Steel')) {
     //       this.debug('Steelworker boost');
     //       return this.chainModify(1.5);
     //     }
     //   },
     //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Steel') {
+    //     if (is(move.type,'Steel')) {
     //       this.debug('Steelworker boost');
     //       return this.chainModify(1.5);
     //     }
@@ -2577,7 +2576,7 @@ export const Abilities: {
   },
   steelyspirit: {
     //   onAllyBasePower(basePower, attacker, defender, move) {
-    //     if (move.type === 'Steel') {
+    //     if (is(move.type,'Steel')) {
     //       this.debug('Steely Spirit boost');
     //       return this.chainModify(1.5);
     //     }
@@ -2589,7 +2588,7 @@ export const Abilities: {
     //       this.debug('Adding Stench flinch');
     //       if (!move.secondaries) { move.secondaries = []; }
     //       for (const secondary of move.secondaries) {
-    //         if (secondary.volatileStatus === 'flinch') { return; }
+    //         if (is(secondary.volatileStatus,'flinch')) { return; }
     //       }
     //       move.secondaries.push({
     //         chance: 10,
@@ -2600,9 +2599,9 @@ export const Abilities: {
   },
   stickyhold: {
     //   onTakeItem(item, pokemon, source) {
-    //     if (this.suppressingAttackEvents(pokemon: Context.Pokemon) || !pokemon.hp || pokemon.item === 'stickybarb') { return; }
+    //     if (this.suppressingAttackEvents(pokemon: Context.Pokemon) || !pokemon.hp || is(pokemon.item,'stickybarb')) { return; }
     //     if (!this.activeMove) { throw new Error("Battle.activeMove is null"); }
-    //     if ((source && source !== pokemon) || this.activeMove.id === 'knockoff') {
+    //     if ((source && source !== pokemon) || is(this.activeMove.id,'knockoff')) {
     //       this.add('-activate', pokemon, 'ability: Sticky Hold');
     //       return false;
     //     }
@@ -2610,7 +2609,7 @@ export const Abilities: {
   },
   stormdrain: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Water') {
+    //     if (target !== source && is(move.type,'Water')) {
     //       if (!this.boost({spa: 1})) {
     //         this.add('-immune', target, '[from] ability: Storm Drain');
     //       }
@@ -2618,8 +2617,8 @@ export const Abilities: {
     //     }
     //   },
     //   onAnyRedirectTarget(target, source, source2, move) {
-    //     if (move.type !== 'Water' || ['firepledge', 'grasspledge', 'waterpledge'].includes(move.id)) { return; }
-    //     const redirectTarget = ['randomNormal', 'adjacentFoe'].includes(move.target) ? 'normal' : move.target;
+    //     if (move.type !== 'Water' || has(['firepledge', 'grasspledge', 'waterpledge'],move.id)) { return; }
+    //     const redirectTarget = has(['randomNormal', 'adjacentFoe'],move.target) ? 'normal' : move.target;
     //     if (this.validTarget(this.effectData.target, source, redirectTarget)) {
     //       if (move.smartTarget) { move.smartTarget = false; }
     //       if (this.effectData.target !== target) {
@@ -2644,7 +2643,7 @@ export const Abilities: {
     //     }
     //   },
     //   onDamage(damage, target, source, effect) {
-    //     if (target.hp === target.maxhp && damage >= target.hp && effect && effect.effectType === 'Move') {
+    //     if (is(target.hp,target.maxhp) && damage >= target.hp && effect && is(effect.effectType,'Move')) {
     //       this.add('-ability', target, 'Sturdy');
     //       return target.hp - 1;
     //     }
@@ -2663,14 +2662,14 @@ export const Abilities: {
   },
   surgesurfer: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (pokemon.side?.field?.terrain?.name === "Electric") {
+      if (is(pokemon.side?.field?.terrain?.name, "Electric")) {
         return 0x2000;
       }
     },
   },
   swarm: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Bug") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Swarm boost");
         return 0x1800;
       }
@@ -2678,7 +2677,7 @@ export const Abilities: {
   },
   sweetveil: {
     //   onAllySetStatus(status, target, source, effect) {
-    //     if (status.id === 'slp') {
+    //     if (is(status.id,'slp')) {
     //       this.debug('Sweet Veil interrupts sleep');
     //       const effectHolder = this.effectData.target;
     //       this.add('-block', target, 'ability: Sweet Veil', '[of] ' + effectHolder);
@@ -2686,7 +2685,7 @@ export const Abilities: {
     //     }
     //   },
     //   onAllyTryAddVolatile(status, target) {
-    //     if (status.id === 'yawn') {
+    //     if (is(status.id,'yawn')) {
     //       this.debug('Sweet Veil blocking yawn');
     //       const effectHolder = this.effectData.target;
     //       this.add('-block', target, 'ability: Sweet Veil', '[of] ' + effectHolder);
@@ -2698,7 +2697,7 @@ export const Abilities: {
     onModifySpe(pokemon: Context.Pokemon) {
       if (
         pokemon.side?.field?.weather &&
-        ["Rain", "Heavy Rain"].includes(pokemon.side?.field?.weather?.name)
+        has(["Rain", "Heavy Rain"], pokemon.side?.field?.weather?.name)
       ) {
         return 0x2000;
       }
@@ -2719,9 +2718,9 @@ export const Abilities: {
   },
   synchronize: {
     //   onAfterSetStatus(status, target, source, effect) {
-    //     if (!source || source === target) { return; }
-    //     if (effect && effect.id === 'toxicspikes') { return; }
-    //     if (status.id === 'slp' || status.id === 'frz') { return; }
+    //     if (!source || is(source,target)) { return; }
+    //     if (effect && is(effect.id,'toxicspikes')) { return; }
+    //     if (is(status.id,'slp') || is(status.id,'frz')) { return; }
     //     this.add('-activate', target, 'ability: Synchronize');
     //         Hack to make status-prevention abilities think Synchronize is a status move
     //         and show messages when activating against it.
@@ -2732,7 +2731,7 @@ export const Abilities: {
   tangledfeet: {
     //   onModifyAccuracy(accuracy, target) {
     //     if (typeof accuracy !== 'number') { return; }
-    //     if (target === null || target === void 0 ? void 0 : target.volatiles['confusion']) {
+    //     if (is(target,null) || is(target,void) 0 ? void 0 : target.volatiles['confusion']) {
     //       this.debug('Tangled Feet - decreasing accuracy');
     //       return accuracy * 0.5;
     //     }
@@ -2755,7 +2754,7 @@ export const Abilities: {
   },
   telepathy: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && target.side === source.side && move.category !== 'Status') {
+    //     if (target !== source && is(target.side,source.side) && move.category !== 'Status') {
     //       this.add('-activate', target, 'ability: Telepathy');
     //       return null;
     //     }
@@ -2771,13 +2770,13 @@ export const Abilities: {
   },
   thickfat: {
     //   onSourceModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Ice' || move.type === 'Fire') {
+    //     if (is(move.type,'Ice') || is(move.type,'Fire')) {
     //       this.debug('Thick Fat weaken');
     //       return this.chainModify(0.5);
     //     }
     //   },
     //   onSourceModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Ice' || move.type === 'Fire') {
+    //     if (is(move.type,'Ice') || is(move.type,'Fire')) {
     //       this.debug('Thick Fat weaken');
     //       return this.chainModify(0.5);
     //     }
@@ -2794,7 +2793,7 @@ export const Abilities: {
   },
   torrent: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.hasType("Water") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Torrent boost");
         return 0x1800;
       }
@@ -2810,8 +2809,8 @@ export const Abilities: {
   toxicboost: {
     onBasePower(pokemon: Context.Pokemon) {
       if (
-        (pokemon.status?.name === "psn" || pokemon.status?.name === "tox") &&
-        pokemon.move?.category === "Physical"
+        (is(pokemon.status?.name, "psn") || is(pokemon.status?.name, "tox")) &&
+        is(pokemon.move?.category, "Physical")
       ) {
         return 0x1800;
       }
@@ -2819,7 +2818,7 @@ export const Abilities: {
   },
   trace: {
     //   onStart(pokemon: Context.Pokemon) {
-    //     if (pokemon.side.foe.active.some(foeActive => foeActive && this.isAdjacent(pokemon, foeActive) && foeActive.ability === 'noability')) {
+    //     if (pokemon.side.foe.active.some(foeActive => foeActive && this.isAdjacent(pokemon, foeActive) && is(foeActive.ability,'noability'))) {
     //       this.effectData.gaveUp = true;
     //     }
     //   },
@@ -2846,7 +2845,7 @@ export const Abilities: {
   },
   triage: {
     //   onModifyPriority(priority, pokemon, target, move) {
-    //     if (move === null || move === void 0 ? void 0 : move.flags['heal']) { return priority + 3; }
+    //     if (is(move,null) || is(move,void) 0 ? void 0 : move.flags['heal']) { return priority + 3; }
     //   },
   },
   truant: {
@@ -2875,13 +2874,13 @@ export const Abilities: {
   unaware: {
     //   onAnyModifyBoost(boosts, pokemon) {
     //     const unawareUser = this.effectData.target;
-    //     if (unawareUser === pokemon) { return; }
-    //     if (unawareUser === this.activePokemon && pokemon === this.activeTarget) {
+    //     if (is(unawareUser,pokemon)) { return; }
+    //     if (is(unawareUser,this.activePokemon) && is(pokemon,this.activeTarget)) {
     //       boosts['def'] = 0;
     //       boosts['spd'] = 0;
     //       boosts['evasion'] = 0;
     //     }
-    //     if (pokemon === this.activePokemon && unawareUser === this.activeTarget) {
+    //     if (is(pokemon,this.activePokemon) && is(unawareUser,this.activeTarget)) {
     //       boosts['atk'] = 0;
     //       boosts['def'] = 0;
     //       boosts['spa'] = 0;
@@ -2917,14 +2916,14 @@ export const Abilities: {
   },
   victorystar: {
     //   onAllyModifyMove(move) {
-    //     if (typeof move.accuracy === 'number') {
+    //     if (typeof is(move.accuracy,'number')) {
     //       move.accuracy *= 1.1;
     //     }
     //   },
   },
   vitalspirit: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'slp') {
+    //     if (is(pokemon.status,'slp')) {
     //       this.add('-activate', pokemon, 'ability: Vital Spirit');
     //       pokemon.cureStatus();
     //     }
@@ -2932,7 +2931,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'slp') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Vital Spirit');
     //     }
     //     return false;
@@ -2940,7 +2939,7 @@ export const Abilities: {
   },
   voltabsorb: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Electric') {
+    //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.heal(target.baseMaxhp / 4)) {
     //         this.add('-immune', target, '[from] ability: Volt Absorb');
     //       }
@@ -2951,11 +2950,11 @@ export const Abilities: {
   wanderingspirit: {
     //   onDamagingHit(damage, target, source, move) {
     //     if (target.volatiles['dynamax']) { return; }
-    //     if (['illusion', 'neutralizinggas', 'wanderingspirit', 'wonderguard'].includes(source.ability)) { return; }
+    //     if (has(['illusion', 'neutralizinggas', 'wanderingspirit', 'wonderguard'],source.ability)) { return; }
     //     if (move.flags['contact']) {
     //       const sourceAbility = source.setAbility('wanderingspirit', target);
     //       if (!sourceAbility) { return; }
-    //       if (target.side === source.side) {
+    //       if (is(target.side,source.side)) {
     //         this.add('-activate', target, 'Skill Swap', '', '', '[of] ' + source);
     //       } else {
     //         this.add('-activate', target, 'ability: Wandering Spirit', this.dex.getAbility(sourceAbility).name, 'Wandering Spirit', '[of] ' + source);
@@ -2966,7 +2965,7 @@ export const Abilities: {
   },
   waterabsorb: {
     //   onTryHit(target, source, move) {
-    //     if (target !== source && move.type === 'Water') {
+    //     if (target !== source && is(move.type,'Water')) {
     //       if (!this.heal(target.baseMaxhp / 4)) {
     //         this.add('-immune', target, '[from] ability: Water Absorb');
     //       }
@@ -2976,27 +2975,27 @@ export const Abilities: {
   },
   waterbubble: {
     //   onSourceModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Fire') {
+    //     if (is(move.type,'Fire')) {
     //       return this.chainModify(0.5);
     //     }
     //   },
     //   onSourceModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Fire') {
+    //     if (is(move.type,'Fire')) {
     //       return this.chainModify(0.5);
     //     }
     //   },
     //   onModifyAtk(atk, attacker, defender, move) {
-    //     if (move.type === 'Water') {
+    //     if (is(move.type,'Water')) {
     //       return this.chainModify(2);
     //     }
     //   },
     //   onModifySpA(atk, attacker, defender, move) {
-    //     if (move.type === 'Water') {
+    //     if (is(move.type,'Water')) {
     //       return this.chainModify(2);
     //     }
     //   },
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'brn') {
+    //     if (is(pokemon.status,'brn')) {
     //       this.add('-activate', pokemon, 'ability: Water Bubble');
     //       pokemon.cureStatus();
     //     }
@@ -3004,7 +3003,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'brn') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Water Bubble');
     //     }
     //     return false;
@@ -3012,14 +3011,14 @@ export const Abilities: {
   },
   watercompaction: {
     //   onDamagingHit(damage, target, source, move) {
-    //     if (move.type === 'Water') {
+    //     if (is(move.type,'Water')) {
     //       this.boost({def: 2});
     //     }
     //   },
   },
   waterveil: {
     //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (pokemon.status === 'brn') {
+    //     if (is(pokemon.status,'brn')) {
     //       this.add('-activate', pokemon, 'ability: Water Veil');
     //       pokemon.cureStatus();
     //     }
@@ -3027,7 +3026,7 @@ export const Abilities: {
     //   onSetStatus(status, target, source, effect) {
     //     let _a;
     //     if (status.id !== 'brn') { return; }
-    //     if ((_a = effect) === null || _a === void 0 ? void 0 : _a.status) {
+    //     if ((_a = effect) === null || is(_a,void) 0 ? void 0 : _a.status) {
     //       this.add('-immune', target, '[from] ability: Water Veil');
     //     }
     //     return false;
@@ -3035,14 +3034,14 @@ export const Abilities: {
   },
   weakarmor: {
     //   onDamagingHit(damage, target, source, move) {
-    //     if (move.category === 'Physical') {
+    //     if (is(move.category,'Physical')) {
     //       this.boost({def: -1, spe: 2}, target, target);
     //     }
     //   },
   },
   whitesmoke: {
     //   onBoost(boost, target, source, effect) {
-    //     if (source && target === source) { return; }
+    //     if (source && is(target,source)) { return; }
     //     let showMsg = false;
     //     let i;
     //     for (i in boost) {
@@ -3070,8 +3069,8 @@ export const Abilities: {
   },
   wonderguard: {
     //   onTryHit(target, source, move) {
-    //     if (target === source || move.category === 'Status' || move.type === '???' || move.id === 'struggle') { return; }
-    //     if (move.id === 'skydrop' && !source.volatiles['skydrop']) { return; }
+    //     if (is(target,source) || is(move.category,'Status') || is(move.type,'???') || is(move.id,'struggle')) { return; }
+    //     if (is(move.id,'skydrop') && !source.volatiles['skydrop']) { return; }
     //     this.debug('Wonder Guard immunity: ' + move.id);
     //     if (target.runEffectiveness(move) <= 0) {
     //       if (move.smartTarget) {
@@ -3085,7 +3084,7 @@ export const Abilities: {
   },
   wonderskin: {
     //   onModifyAccuracy(accuracy, target, source, move) {
-    //     if (move.category === 'Status' && typeof move.accuracy === 'number') {
+    //     if (is(move.category,'Status') && typeof is(move.accuracy,'number')) {
     //       this.debug('Wonder Skin - setting accuracy to 50');
     //       return 50;
     //     }
@@ -3096,9 +3095,9 @@ export const Abilities: {
     //     if (pokemon.baseSpecies.baseSpecies !== 'Darmanitan' || pokemon.transformed) {
     //       return;
     //     }
-    //     if (pokemon.hp <= pokemon.maxhp / 2 && !['Zen', 'Galar-Zen'].includes(pokemon.species.forme)) {
+    //     if (pokemon.hp <= pokemon.maxhp / 2 && !has(['Zen', 'Galar-Zen'],pokemon.species.forme)) {
     //       pokemon.addVolatile('zenmode');
-    //     } else if (pokemon.hp > pokemon.maxhp / 2 && ['Zen', 'Galar-Zen'].includes(pokemon.species.forme)) {
+    //     } else if (pokemon.hp > pokemon.maxhp / 2 && has(['Zen', 'Galar-Zen'],pokemon.species.forme)) {
     //       pokemon.addVolatile('zenmode'); // in case of base Darmanitan-Zen
     //       pokemon.removeVolatile('zenmode');
     //     }
@@ -3107,7 +3106,7 @@ export const Abilities: {
     //     if (!pokemon.volatiles['zenmode'] || !pokemon.hp) { return; }
     //     pokemon.transformed = false;
     //     delete pokemon.volatiles['zenmode'];
-    //     if (pokemon.species.baseSpecies === 'Darmanitan' && pokemon.species.battleOnly) {
+    //     if (is(pokemon.species.baseSpecies,'Darmanitan') && pokemon.species.battleOnly) {
     //       pokemon.formeChange(pokemon.species.battleOnly, this.effect, false, '[silent]');
     //     }
     //   },
@@ -3120,7 +3119,7 @@ export const Abilities: {
     //       }
     //     },
     //     onEnd(pokemon: Context.Pokemon) {
-    //       if (['Zen', 'Galar-Zen'].includes(pokemon.species.forme)) {
+    //       if (has(['Zen', 'Galar-Zen'],pokemon.species.forme)) {
     //         pokemon.formeChange(pokemon.species.battleOnly);
     //       }
     //     },
@@ -3128,12 +3127,12 @@ export const Abilities: {
   },
   mountaineer: {
     //   onDamage(damage, target, source, effect) {
-    //     if (effect && effect.id === 'stealthrock') {
+    //     if (effect && is(effect.id,'stealthrock')) {
     //       return false;
     //     }
     //   },
     //   onTryHit(target, source, move) {
-    //     if (move.type === 'Rock' && !target.activeTurns) {
+    //     if (is(move.type,'Rock') && !target.activeTurns) {
     //       this.add('-immune', target, '[from] ability: Mountaineer');
     //       return null;
     //     }
@@ -3142,7 +3141,7 @@ export const Abilities: {
   rebound: {
     //   onTryHit(target, source, move) {
     //     if (this.effectData.target.activeTurns) { return; }
-    //     if (target === source || move.hasBounced || !move.flags['reflectable']) {
+    //     if (is(target,source) || move.hasBounced || !move.flags['reflectable']) {
     //       return;
     //     }
     //     const newMove = this.dex.getActiveMove(move.id);
@@ -3152,7 +3151,7 @@ export const Abilities: {
     //   },
     //   onAllyTryHitSide(target, source, move) {
     //     if (this.effectData.target.activeTurns) { return; }
-    //     if (target.side === source.side || move.hasBounced || !move.flags['reflectable']) {
+    //     if (is(target.side,source.side) || move.hasBounced || !move.flags['reflectable']) {
     //       return;
     //     }
     //     const newMove = this.dex.getActiveMove(move.id);
