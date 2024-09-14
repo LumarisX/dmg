@@ -128,31 +128,21 @@ export const Conditions = new (class {
 
     // Field Conditions
     if ((condition = Weathers[id])) {
-      return gen.num >= condition[1]
-        ? [condition[0], 'Weather', 'field']
-        : undefined;
+      return gen.num >= condition[1] ? [condition[0], 'Weather', 'field'] : undefined;
     } else if ((condition = Terrains[id])) {
-      return gen.num >= condition[1]
-        ? [condition[0], 'Terrain', 'field']
-        : undefined;
+      return gen.num >= condition[1] ? [condition[0], 'Terrain', 'field'] : undefined;
     } else if ((condition = PseudoWeathers[id])) {
-      return gen.num >= condition[1]
-        ? [condition[0], 'Pseudo Weather', 'field']
-        : undefined;
+      return gen.num >= condition[1] ? [condition[0], 'Pseudo Weather', 'field'] : undefined;
     }
 
     // Side Conditions
     if ((condition = SideConditions[id])) {
-      return gen.num >= condition[1]
-        ? [condition[0], 'Side Condition', condition[2]!]
-        : undefined;
+      return gen.num >= condition[1] ? [condition[0], 'Side Condition', condition[2]!] : undefined;
     }
 
     // Pokemon Conditions
     if ((condition = Volatiles[id])) {
-      return gen.num >= condition[1]
-        ? [condition[0], 'Volatile Status', condition[2]!]
-        : undefined;
+      return gen.num >= condition[1] ? [condition[0], 'Volatile Status', condition[2]!] : undefined;
     } else if (id in Statuses) {
       return [id as StatusName, 'Status'];
     }

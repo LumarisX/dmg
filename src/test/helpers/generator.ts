@@ -56,12 +56,11 @@ export function generate(s: string, pkg: 'dmg' | 'calc' = 'dmg') {
     range = `, ${from}, ${to}, `;
   }
 
-  return (
-    `tests('TODO', ${range}({gen, calculate}) => {
+  return `tests('TODO', ${range}({gen, calculate}) => {
   expect(calculate(${encoded})).toMatch(gen, {
     ${diff}
   });
-}`);
+}`;
 }
 
 // PRECONDITION: b[k] !== undefined
@@ -70,7 +69,7 @@ function breakdownField(k: keyof ResultBreakdown, a: ResultBreakdown, b: ResultB
     const b_ = b[k] as [number, number];
     if (Array.isArray(a[k])) {
       const a_ = a[k] as [number, number];
-      if (!a[k] || (a_[0] !== b_[0] || a_[1] !== b_[1])) {
+      if (!a[k] || a_[0] !== b_[0] || a_[1] !== b_[1]) {
         return `${k}: [${b_[0]}, ${b_[1]}]`;
       }
     } else {
@@ -143,14 +142,18 @@ function calc(state: pkmn.State): ResultBreakdown {
 }
 
 function calcSideAndPokemon(gen: Generation, state: pkmn.State.Side) {
-  const isReflect =
-    !!(gen.num <= 2 ? state.pokemon.volatiles.reflect : state.sideConditions.reflect);
-  const isLightScreen =
-    !!(gen.num <= 2 ? state.pokemon.volatiles.lightscreen : state.sideConditions.lightscreen);
-  const isFriendGuard = !!state.active?.some(p =>
-    p?.ability === 'friendguard' && !p.fainted && p.position !== state.pokemon.position);
-  const isBattery = !!state.active?.some(p =>
-    p?.ability === 'battery' && !p.fainted && p.position !== state.pokemon.position);
+  const isReflect = !!(gen.num <= 2
+    ? state.pokemon.volatiles.reflect
+    : state.sideConditions.reflect);
+  const isLightScreen = !!(gen.num <= 2
+    ? state.pokemon.volatiles.lightscreen
+    : state.sideConditions.lightscreen);
+  const isFriendGuard = !!state.active?.some(
+    p => p?.ability === 'friendguard' && !p.fainted && p.position !== state.pokemon.position
+  );
+  const isBattery = !!state.active?.some(
+    p => p?.ability === 'battery' && !p.fainted && p.position !== state.pokemon.position
+  );
 
   const side = new smogon.Side({
     spikes: state.sideConditions.spikes?.level ?? 0,

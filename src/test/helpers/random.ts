@@ -32,7 +32,7 @@ import * as math from '../../math';
 
 export function generate(gens: Generations, prng: PRNG) {
   const gen = gens.get(range(prng, 1, 8) as GenerationNum);
-  const gameType = (gen.num >= 3 && prng.randomChance(1, 4)) ? 'doubles' : 'singles';
+  const gameType = gen.num >= 3 && prng.randomChance(1, 4) ? 'doubles' : 'singles';
 
   const field = generateField(gen, prng);
   const attacker = generateSide(gen, gameType, prng);
@@ -45,11 +45,17 @@ export function generate(gens: Generations, prng: PRNG) {
 function generateField(gen: Generation, prng: PRNG) {
   const options: FieldOptions = {};
   if (gen.num >= 2 && prng.randomChance(1, 10)) {
-    options.weather = sample(prng, Object.values(Weathers).filter(v => v[1] <= gen.num))[0];
+    options.weather = sample(
+      prng,
+      Object.values(Weathers).filter(v => v[1] <= gen.num)
+    )[0];
   }
   if (gen.num >= 4) {
     if (prng.randomChance(1, 20)) {
-      options.terrain = sample(prng, Object.values(Terrains).filter(v => v[1] <= gen.num))[0];
+      options.terrain = sample(
+        prng,
+        Object.values(Terrains).filter(v => v[1] <= gen.num)
+      )[0];
     }
     const pws = Object.values(PseudoWeathers).filter(v => v[1] <= gen.num);
     options.pseudoWeather = {};
@@ -64,8 +70,15 @@ function generateField(gen: Generation, prng: PRNG) {
 }
 
 const ALLY_ABILITIES = [
-  'flowergift', 'battery', 'powerspot', 'steelyspirit', 'friendguard', 'stormdrain',
-  'aurabreak', 'darkaura', 'fairyaura', // Aura abilities effect any
+  'flowergift',
+  'battery',
+  'powerspot',
+  'steelyspirit',
+  'friendguard',
+  'stormdrain',
+  'aurabreak',
+  'darkaura',
+  'fairyaura', // Aura abilities effect any
 ];
 
 function generateSide(gen: Generation, gameType: GameType, prng: PRNG) {
@@ -101,8 +114,10 @@ function generatePokemon(gen: Generation, prng: PRNG) {
     options.item = sample(prng, Array.from(gen.items)).name;
   }
   if (gen.num >= 3) {
-    options.ability =
-      sample(prng, Object.values(species.abilities).filter(a => !!gen.abilities.get(a)));
+    options.ability = sample(
+      prng,
+      Object.values(species.abilities).filter(a => !!gen.abilities.get(a))
+    );
   }
   // NOTE: not worth the complexity of setting gender some fraction of the time
   // NOTE: happiness is set only if Return or Frustration are selected
@@ -111,8 +126,9 @@ function generatePokemon(gen: Generation, prng: PRNG) {
     if (options.status === 'tox') options.statusState = {toxicTurns: range(prng, 0, 15)};
   }
 
-  const volatiles = Object.values(Volatiles).filter(v =>
-    Conditions.get(gen, v[0])?.[1] === 'Volatile Status' && v[0] !== 'Dynamax');
+  const volatiles = Object.values(Volatiles).filter(
+    v => Conditions.get(gen, v[0])?.[1] === 'Volatile Status' && v[0] !== 'Dynamax'
+  );
   options.volatiles = {};
   // Special case Dynamax to proc more often than other volatiles
   if (gen.num === 8 && prng.randomChance(1, 4)) options.volatiles.dynamax = {};
@@ -151,16 +167,29 @@ function generatePokemon(gen: Generation, prng: PRNG) {
         continue;
       }
     }
-    options.ivs[stat] = stat === 'hp' && gen.num < 3
-      ? gen.stats.toIV(gen.stats.getHPDV(options.ivs))
-      : prng.randomChance(1, 10) ? range(prng, 0, 31) : 31;
-    if (gen.num < 3) options.ivs[stat] = gen.stats.toIV(gen.stats.toDV(options.ivs[stat]!));
-    options.evs[stat] = gen.num >= 3
-      ? (prng.randomChance(1, 2) ? range(prng, 0, math.min(total, 252)) : math.min(total, 252))
-      : (prng.randomChance(1, 20) ? range(prng, 0, 252) : 252);
-    total -= options.evs[stat]!;
+    options.ivs[stat] =
+      stat === 'hp' && gen.num < 3
+        ? gen.stats.toIV(gen.stats.getHPDV(options.ivs))
+        : prng.randomChance(1, 10)
+          ? range(prng, 0, 31)
+          : 31;
+    if (gen.num < 3) options.ivs[stat] = gen.stats.toIV(gen.stats.toDV(options.ivs[stat]));
+    options.evs[stat] =
+      gen.num >= 3
+        ? prng.randomChance(1, 2)
+          ? range(prng, 0, math.min(total, 252))
+          : math.min(total, 252)
+        : prng.randomChance(1, 20)
+          ? range(prng, 0, 252)
+          : 252;
+    total -= options.evs[stat];
     stats[stat] = gen.stats.calc(
-      stat, species.baseStats[stat], options.ivs[stat], options.evs[stat], options.level, nature
+      stat,
+      species.baseStats[stat],
+      options.ivs[stat],
+      options.evs[stat],
+      options.level,
+      nature
     );
   }
 
@@ -197,7 +226,10 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
 
   let move = item?.zMoveFrom
     ? gen.moves.get(item.zMoveFrom)!
-    : sample(prng, Array.from(gen.moves).filter(m => status ? m.status : !m.status));
+    : sample(
+      prng,
+      Array.from(gen.moves).filter(m => (status ? m.status : !m.status))
+    );
 
   if (move.id === 'hiddenpower' && move.name !== 'Hidden Power') {
     // Change our IVs to match our Hidden Power or change the Hidden Power type to match our IVs
@@ -215,7 +247,11 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
         }
       }
       const maxhp = gen.stats.calc(
-        'hp', pokemon.species.baseStats.hp, pokemon.ivs.hp, pokemon.evs?.hp ?? 252, pokemon.level
+        'hp',
+        pokemon.species.baseStats.hp,
+        pokemon.ivs.hp,
+        pokemon.evs?.hp ?? 252,
+        pokemon.level
       );
       const fraction = pokemon.hp / pokemon.maxhp;
       pokemon.maxhp = maxhp;
@@ -231,13 +267,20 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
     options.hits = range(prng, move.multihit[0], move.multihit[1]);
   }
 
-  if (gen.num >= 3 && gameType === 'doubles' &&
-    is(move.target, 'allAdjacent', 'allAdjacentFoes') && prng.randomChance(4, 5)) {
+  if (
+    gen.num >= 3 &&
+    gameType === 'doubles' &&
+    is(move.target, 'allAdjacent', 'allAdjacentFoes') &&
+    prng.randomChance(4, 5)
+  ) {
     options.spread = true;
   }
   if (pokemon.item === 'metronome') options.consecutive = range(prng, 1, 10);
-  if (gen.num === 7 && !move.isZ &&
-      (item?.zMove ? prng.randomChance(4, 5) : prng.randomChance(1, 100))) {
+  if (
+    gen.num === 7 &&
+    !move.isZ &&
+    (item?.zMove ? prng.randomChance(4, 5) : prng.randomChance(1, 100))
+  ) {
     options.useZ = true;
     options.hits = undefined;
   }

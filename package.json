@@ -49,8 +49,7 @@
     "test:integration": "npm run test && node integration",
     "prepare": "npm run build",
     "pretest": "npm run build",
-    "posttest": "npm run lint",
-    "lumtest": "nodemon src/test/lum.ts"
+    "posttest": "npm run lint"
   },
   "jest": {
     "testEnvironment": "node",
@@ -135,6 +134,19 @@
           ]
         }
       }
+    ]
+  },
+  "prettier": {
+    "semi": true,
+    "singleQuote": true,
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "printWidth": 150,
+    "bracketSpacing": false,
+    "arrowParens": "avoid",
+    "space-in-parens": [
+      "error",
+      "never"
     ]
   }
 }

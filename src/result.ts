@@ -1,20 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import type {
-  BoostID,
-  BoostsTable,
-  Generation,
-  Specie,
-  StatID,
-  StatsTable,
-} from "@pkmn/data";
+import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from '@pkmn/data';
 
-import { Context } from "./context";
-import { encode } from "./encode";
-import { Appliers, calculateDamage, HANDLERS, Handlers } from "./mechanics";
-import { State } from "./state";
-import { DeepReadonly, extend, is } from "./utils";
-import * as math from "./math";
+import {Context} from './context';
+import {encode} from './encode';
+import {Appliers, HANDLERS, Handlers, calculateDamage} from './mechanics';
+import {State} from './state';
+import {DeepReadonly, extend, is} from './utils';
+import * as math from './math';
 
 export class Relevancy {
   gameType: boolean;
@@ -26,14 +19,14 @@ export class Relevancy {
   constructor() {
     this.gameType = false;
     this.p1 = {
-      pokemon: { volatiles: {}, stats: {}, boosts: {} },
+      pokemon: {volatiles: {}, stats: {}, boosts: {}},
       sideConditions: {},
     };
     this.p2 = {
-      pokemon: { volatiles: {}, stats: {}, boosts: {} },
+      pokemon: {volatiles: {}, stats: {}, boosts: {}},
       sideConditions: {},
     };
-    this.field = { pseudoWeather: {} };
+    this.field = {pseudoWeather: {}};
     this.move = {};
   }
 
@@ -41,7 +34,7 @@ export class Relevancy {
     const gen = state.gen as Generation;
     return {
       gen,
-      gameType: relevant.gameType ? state.gameType : "singles",
+      gameType: relevant.gameType ? state.gameType : 'singles',
       p1: simplifySide(gen, state.p1, relevant.p1),
       p2: simplifySide(gen, state.p2, relevant.p2),
       move: simplifyMove(state.move, relevant.move),
@@ -54,12 +47,12 @@ export namespace Relevancy {
   export interface Field {
     weather?: boolean;
     terrain?: boolean;
-    pseudoWeather: { [id: string]: boolean };
+    pseudoWeather: {[id: string]: boolean};
   }
 
   export interface Side {
     pokemon: Pokemon;
-    sideConditions: { [id: string]: boolean };
+    sideConditions: {[id: string]: boolean};
     active?: boolean;
     team?: boolean;
   }
@@ -74,7 +67,7 @@ export namespace Relevancy {
 
     status?: boolean;
     // statusData is covered by status: 'tox' already
-    volatiles: { [id: string]: boolean };
+    volatiles: {[id: string]: boolean};
 
     // types are always relevant (though usually elided in output)
     // addedType is always relevant
@@ -83,7 +76,7 @@ export namespace Relevancy {
     // hp is relevant for the defender, but is checked when calculating OHKO chance
 
     // certain moves/conditions change which stats are relevant
-    stats: Partial<Omit<StatsTable<boolean>, "hp">>;
+    stats: Partial<Omit<StatsTable<boolean>, 'hp'>>;
     // usually only the boosts in the relevant stats matter, but Stored Power etc depends on more
     boosts: Partial<BoostsTable<boolean>>;
 
@@ -106,8 +99,8 @@ export namespace Relevancy {
   }
 }
 
-export type Notation = "%" | "/48" | "px" | number;
-export type KOType = "none" | "hazards" | "residual" | "both";
+export type Notation = '%' | '/48' | 'px' | number;
+export type KOType = 'none' | 'hazards' | 'residual' | 'both';
 
 /**
  * The result of a damage calculation. Multi-hit moves or moves affected by Parental Bond etc may
@@ -186,18 +179,22 @@ export class Result {
     return (this.cache.range = [min, max]);
   }
 
+  get damage() {
+    return this.range[0];
+  }
+
   recoil(relevant?: Relevancy) {
     if (this.cache.recoil && !relevant) return this.cache.recoil;
-    const { gen, p1, p2, move } = this.context;
+    const {gen, p1, p2, move} = this.context;
 
     let recoil: number | [number, number] | undefined;
 
     if (move.recoil) {
-      if (is(p1.pokemon.ability?.id, "rockhead", "magicguard")) {
+      if (is(p1.pokemon.ability?.id, 'rockhead', 'magicguard')) {
         if (relevant) relevant.p1.pokemon.ability = true;
       } else {
         const damage = move.recoil[0] / move.recoil[1];
-        const max = p2.pokemon.hp;
+        const max = p2.pokemon.hp * damage;
         for (const hit of this.hits) {
           if (Array.isArray(hit.damage)) {
             if (!recoil) recoil = [0, 0];
@@ -206,10 +203,7 @@ export class Result {
             r[0] = math.min(max, r[0] + math.round(range[0] * damage));
             r[1] = math.min(max, r[1] + math.round(range[1] * damage));
           } else {
-            recoil = math.min(
-              max,
-              ((recoil || 0) as number) + math.round(hit.damage * damage)
-            );
+            recoil = math.min(max, ((recoil || 0) as number) + math.round(hit.damage * damage));
           }
         }
       }
@@ -222,7 +216,7 @@ export class Result {
         );
       }
     } else if (move.mindBlownRecoil) {
-      if (is(p1.pokemon.ability?.id, "magicguard")) {
+      if (is(p1.pokemon.ability?.id, 'magicguard')) {
         if (relevant) relevant.p1.pokemon.ability = true;
       } else {
         for (let i = 0; i < this.hits.length; i++) {
@@ -239,12 +233,12 @@ export class Result {
 
   crash(relevant?: Relevancy) {
     if (this.cache.crash && !relevant) return this.cache.crash;
-    const { gen, p1, p2, move } = this.context;
+    const {gen, p1, p2, move} = this.context;
 
     let crash: number | [number, number] | undefined;
 
     if (move.hasCrashDamage) {
-      if (is(p1.pokemon.ability?.id, "magicguard")) {
+      if (is(p1.pokemon.ability?.id, 'magicguard')) {
         if (relevant) relevant.p1.pokemon.ability = true;
       } else {
         if (gen.num === 1) {
@@ -259,14 +253,8 @@ export class Result {
             const hit = this.hits[0];
             const range = hit.range;
             const c = crash as [number, number];
-            c[0] = math.min(
-              max,
-              c[0] + math.max(math.roundDown(range[0] / denominator), 1)
-            );
-            c[1] = math.min(
-              max,
-              c[1] + math.max(math.roundDown(range[1] / denominator), 1)
-            );
+            c[0] = math.min(max, c[0] + math.max(math.roundDown(range[0] / denominator), 1));
+            c[1] = math.min(max, c[1] + math.max(math.roundDown(range[1] / denominator), 1));
           }
         } else {
           for (let i = 0; i < this.hits.length; i++) {
@@ -284,12 +272,12 @@ export class Result {
 
   recovery(relevant?: Relevancy) {
     if (this.cache.recovery && !relevant) return this.cache.recovery;
-    const { gen, p1, p2, move } = this.context;
+    const {gen, p1, p2, move} = this.context;
 
     let recovery: number | [number, number] | undefined;
 
-    const ignored = gen.num === 3 && is(move.id, "doomdesire", "futuresight");
-    if (is(p1.pokemon.item?.id, "shellbell") && !ignored) {
+    const ignored = gen.num === 3 && is(move.id, 'doomdesire', 'futuresight');
+    if (is(p1.pokemon.item?.id, 'shellbell') && !ignored) {
       if (relevant) relevant.p1.pokemon.item = true;
 
       const max = math.roundDown(p2.pokemon.hp / 8);
@@ -298,25 +286,18 @@ export class Result {
           if (!recovery) recovery = [0, 0];
           const range = hit.range;
           const r = recovery as [number, number];
-          r[0] = math.min(
-            max,
-            r[0] + math.max(math.roundDown(range[0] / 8), 1)
-          );
-          r[1] = math.min(
-            max,
-            r[1] + math.max(math.roundDown(range[1] / 8), 1)
-          );
+          r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
+          r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
         } else {
           recovery = math.min(
             max,
-            ((recovery || 0) as number) +
-              math.max(math.roundDown(hit.damage / 8), 1)
+            ((recovery || 0) as number) + math.max(math.roundDown(hit.damage / 8), 1)
           );
         }
       }
     }
 
-    if (is(move.id, "gmaxfinale")) {
+    if (is(move.id, 'gmaxfinale')) {
       const healed = math.round(p1.pokemon.maxhp / 6);
       if (Array.isArray(recovery)) {
         recovery[0] += healed;
@@ -326,7 +307,7 @@ export class Result {
       }
     } else if (move.drain) {
       let mod: number | undefined;
-      if (is(p1.pokemon.item?.id, "bigroot")) {
+      if (is(p1.pokemon.item?.id, 'bigroot')) {
         if (relevant) relevant.p1.pokemon.item = true;
         mod = 0x14cc;
       }
@@ -340,10 +321,7 @@ export class Result {
           r[0] = math.min(max, r[0] + math.round(range[0] * healed));
           r[1] = math.min(max, r[1] + math.round(range[1] * healed));
         } else {
-          recovery = math.min(
-            max,
-            ((recovery || 0) as number) + math.round(hit.damage * healed)
-          );
+          recovery = math.min(max, ((recovery || 0) as number) + math.round(hit.damage * healed));
         }
       }
     }
@@ -352,40 +330,32 @@ export class Result {
   }
 
   // chain (if same turn, wont be taking hazards), if second term just nothing / residual
-  knockout(type: KOType = "both", relevant = extend({}, this.relevant)) {
+  knockout(type: KOType = 'both', relevant = extend({}, this.relevant)) {
     // FIXME
 
     // TODO: how does onresidual work, depends on state of mon.. (when does berry proc?)
-    return { n: 0, chance: 0, exact: true };
+    return {n: 0, chance: 0, exact: true};
   }
 
-  recoveryText(notation: Notation = "%", relevant?: Relevancy) {
-    return this.describe(notation, this.recovery(relevant), "recovered");
+  recoveryText(notation: Notation = '%', relevant?: Relevancy) {
+    return this.describe(notation, this.recovery(relevant), 'recovered');
   }
 
-  recoilText(notation: Notation = "%", relevant?: Relevancy) {
+  recoilText(notation: Notation = '%', relevant?: Relevancy) {
     return this.describe(
       notation,
       this.recoil(relevant),
-      `${this.state.move.struggleRecoil ? "struggle" : "recoil"} damage`
+      `${this.state.move.struggleRecoil ? 'struggle' : 'recoil'} damage`
     );
   }
 
-  crashText(notation: Notation = "%", relevant?: Relevancy) {
-    return this.describe(notation, this.recovery(relevant), "crash damage");
+  crashText(notation: Notation = '%', relevant?: Relevancy) {
+    return this.describe(notation, this.recovery(relevant), 'crash damage');
   }
 
-  moveText(notation: Notation = "%", relevant?: Relevancy) {
-    const min = this.display(
-      notation,
-      this.range[0],
-      this.state.p2.pokemon.maxhp
-    );
-    const max = this.display(
-      notation,
-      this.range[1],
-      this.state.p2.pokemon.maxhp
-    );
+  moveText(notation: Notation = '%', relevant?: Relevancy) {
+    const min = this.display(notation, this.range[0], this.state.p2.pokemon.maxhp);
+    const max = this.display(notation, this.range[1], this.state.p2.pokemon.maxhp);
 
     const recovery = this.recoveryText(notation, relevant);
     const recoil = this.recoilText(notation, relevant);
@@ -393,13 +363,11 @@ export class Result {
 
     return (
       `${min} - ${max}${notation}` +
-      `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${
-        crash && ` (${crash})`
-      }`
+      `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`
     );
   }
 
-  text(type: KOType = "both", notation: Notation = "%", relevant?: Relevancy) {
+  text(type: KOType = 'both', notation: Notation = '%', relevant?: Relevancy) {
     const range = this.range;
     const min = this.display(notation, range[0], this.state.p2.pokemon.maxhp);
     const max = this.display(notation, range[1], this.state.p2.pokemon.maxhp);
@@ -410,40 +378,28 @@ export class Result {
     const state = encode(Relevancy.simplify(this.state, relevant!));
     if (!ko.chance) return `${state}: ${damage}`;
 
-    const prefix = ko.exact
-      ? ko.chance === 1
-        ? "guaranteed "
-        : ""
-      : "approx. ";
-    const percent =
-      ko.chance < 1 ? `${this.display("%", ko.chance, 1)}% chance to ` : "";
-    const result = `${ko.n === 1 ? "O" : ko.n}HKO`;
+    const prefix = ko.exact ? (ko.chance === 1 ? 'guaranteed ' : '') : 'approx. ';
+    const percent = ko.chance < 1 ? `${this.display('%', ko.chance, 1)}% chance to ` : '';
+    const result = `${ko.n === 1 ? 'O' : ko.n}HKO`;
 
     return `${state}: ${damage} -- ${prefix}${percent}${result}`;
   }
 
   toString() {
     const relevant = extend({}, this.relevant) as Relevancy;
-    const recovery = this.recoveryText("%", relevant);
-    const recoil = this.recoilText("%", relevant);
-    const crash = this.crashText("%", relevant);
+    const recovery = this.recoveryText('%', relevant);
+    const recoil = this.recoilText('%', relevant);
+    const crash = this.crashText('%', relevant);
     const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${
       crash && ` (${crash})`
     }`;
     const rolls = this.hits
-      .map(
-        (h) =>
-          `[${typeof h.damage === "number" ? h.damage : h.damage.join(", ")}]`
-      )
-      .join(", ");
-    return `${this.text("both", "%", relevant)}${end}\n${rolls}`;
+      .map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.join(', ')}]`)
+      .join(', ');
+    return `${this.text('both', '%', relevant)}${end}\n${rolls}`;
   }
 
-  private describe(
-    notation: Notation,
-    n: number | [number, number] | undefined,
-    s: string
-  ) {
+  private describe(notation: Notation, n: number | [number, number] | undefined, s: string) {
     if (n !== undefined) {
       if (Array.isArray(n)) {
         const min = this.display(notation, n[0], this.state.p1.pokemon.maxhp);
@@ -454,22 +410,14 @@ export class Result {
         return `${amount}${notation} ${s}`;
       }
     }
-    return "";
+    return '';
   }
 
   private display(notation: Notation, a: number, b: number, f = 1) {
-    if (notation === "%") return Math.floor((a * (1000 / f)) / b) / 10;
+    if (notation === '%') return Math.floor((a * (1000 / f)) / b) / 10;
     const g = this.state.gen.num;
     const px =
-      notation === "/48"
-        ? 48
-        : notation === "px"
-        ? g < 7
-          ? 48
-          : g < 8
-          ? 86
-          : 400
-        : notation;
+      notation === '/48' ? 48 : notation === 'px' ? (g < 7 ? 48 : g < 8 ? 86 : 400) : notation;
     return Math.floor((a * (px / f)) / b);
   }
 }
@@ -503,8 +451,7 @@ export class HitResult {
   // PRECONDITION: this.damage has been finalized
   get range() {
     if (this.cached) return this.cached;
-    if (!Array.isArray(this.damage))
-      return (this.cached = [this.damage, this.damage]);
+    if (!Array.isArray(this.damage)) return (this.cached = [this.damage, this.damage]);
     let min = this.damage[0];
     let max = min;
     for (let i = 1; i < this.damage.length; i++) {
@@ -523,8 +470,7 @@ export class HitResult {
 
   toString() {
     const state = encode(Relevancy.simplify(this.state, this.relevant));
-    const rolls =
-      typeof this.damage === "number" ? this.damage : this.damage.join(", ");
+    const rolls = typeof this.damage === 'number' ? this.damage : this.damage.join(', ');
     return `${state}: [${rolls}]`;
   }
 }
@@ -584,11 +530,11 @@ export class Results {
 function apply(appliers: Appliers, state: State) {
   // Apply any *guaranteed* effects of the move/abilities/items, potentially triggering things
   // like Stamina or Foul Play into Defeatist.
-  appliers.apply("Moves", "p1", state.move.id, state, true);
-  for (const side of ["p1", "p2"] as const) {
+  appliers.apply('Moves', 'p1', state.move.id, state, true);
+  for (const side of ['p1', 'p2'] as const) {
     // TODO: this should only proc flashfire if not guaranteed (only if state.move.type === Fire)
-    appliers.apply("Abilities", side, state[side].pokemon.ability, state, true);
-    appliers.apply("Items", side, state[side].pokemon.item, state, true);
+    appliers.apply('Abilities', side, state[side].pokemon.ability, state, true);
+    appliers.apply('Items', side, state[side].pokemon.item, state, true);
   }
 }
 
@@ -610,9 +556,9 @@ function merge(a: Trace, b?: Trace) {
   for (const k in a) {
     const v = a[k];
     const u = b?.[k];
-    if (typeof v === "object") {
+    if (typeof v === 'object') {
       c[k] = u ? v : merge(v, u as Trace | undefined);
-    } else if (typeof u === "object") {
+    } else if (typeof u === 'object') {
       c[k] = u;
     } else {
       c[k] = v || u;
@@ -621,34 +567,24 @@ function merge(a: Trace, b?: Trace) {
   return c;
 }
 
-function simplifyField(
-  state: DeepReadonly<State.Field>,
-  relevant: Relevancy.Field
-) {
+function simplifyField(state: DeepReadonly<State.Field>, relevant: Relevancy.Field) {
   const field: State.Field = {
     weather: relevant.weather ? state.weather : undefined,
     terrain: relevant.terrain ? state.terrain : undefined,
     pseudoWeather: {},
   };
   for (const id in state.pseudoWeather) {
-    if (relevant.pseudoWeather[id])
-      field.pseudoWeather[id] = extend({}, state.pseudoWeather[id]);
+    if (relevant.pseudoWeather[id]) field.pseudoWeather[id] = extend({}, state.pseudoWeather[id]);
   }
   return field;
 }
 
-function simplifySide(
-  gen: Generation,
-  state: DeepReadonly<State.Side>,
-  relevant: Relevancy.Side
-) {
+function simplifySide(gen: Generation, state: DeepReadonly<State.Side>, relevant: Relevancy.Side) {
   const side: State.Side = {
     pokemon: simplifyPokemon(gen, state.pokemon, relevant.pokemon),
     sideConditions: {},
-    active: relevant.active
-      ? state.active!.map((p) => extend({}, p))
-      : undefined,
-    team: relevant.team ? state.team!.map((p) => extend({}, p)) : undefined,
+    active: relevant.active ? state.active!.map(p => extend({}, p)) : undefined,
+    team: relevant.team ? state.team!.map(p => extend({}, p)) : undefined,
   };
   for (const id in state.sideConditions) {
     if (relevant.sideConditions[id]) {
@@ -672,7 +608,7 @@ function simplifyPokemon(
     gender: relevant.gender ? state.gender : undefined,
     status: relevant.status ? state.status : undefined,
     volatiles: {},
-    types: state.types as State.Pokemon["types"],
+    types: state.types as State.Pokemon['types'],
     maxhp: state.maxhp,
     hp: state.hp,
     nature: state.nature,
@@ -680,14 +616,11 @@ function simplifyPokemon(
     ivs: {},
     boosts: {},
     switching: relevant.switching ? state.switching : undefined,
-    moveLastTurnResult: relevant.moveLastTurnResult
-      ? state.moveLastTurnResult
-      : undefined,
+    moveLastTurnResult: relevant.moveLastTurnResult ? state.moveLastTurnResult : undefined,
     hurtThisTurn: relevant.hurtThisTurn ? state.hurtThisTurn : undefined,
   };
   for (const id in state.volatiles) {
-    if (relevant.volatiles[id])
-      pokemon.volatiles[id] = extend({}, state.volatiles[id]);
+    if (relevant.volatiles[id]) pokemon.volatiles[id] = extend({}, state.volatiles[id]);
   }
   // TODO: Hidden Power needs to mark all IVs as relevant, encode takes care of eliding.
   for (const s in relevant.stats) {
@@ -702,10 +635,7 @@ function simplifyPokemon(
   return pokemon;
 }
 
-function simplifyMove(
-  state: DeepReadonly<State.Move>,
-  relevant: Relevancy.Move
-) {
+function simplifyMove(state: DeepReadonly<State.Move>, relevant: Relevancy.Move) {
   const move = extend({}, state) as State.Move;
   if (!relevant.crit) move.crit = undefined;
   if (!relevant.hits) move.hits = undefined;

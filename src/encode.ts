@@ -6,10 +6,26 @@ import {computeStats} from './mechanics';
 import * as math from './math';
 
 const FORWARD = {
-  '/': '$', '{': '(', '}': ')', '[': '(', ']': ')', '@': '*', ':': '=', ' ': '_', '%': '~',
+  '/': '$',
+  '{': '(',
+  '}': ')',
+  '[': '(',
+  ']': ')',
+  '@': '*',
+  ':': '=',
+  ' ': '_',
+  '%': '~',
 };
 const BACKWARD = {
-  '$': '/', '{': '[', '}': ']', '(': '[', ')': ']', '*': '@', '=': ':', '_': ' ', '~': '%',
+  $: '/',
+  '{': '[',
+  '}': ']',
+  '(': '[',
+  ')': ']',
+  '*': '@',
+  '=': ':',
+  _: ' ',
+  '~': '%',
 };
 
 const ENCODE = /\/|{|}|\[|\]|@|:| |%/g;
@@ -83,8 +99,15 @@ export function encode(state: State, url = false) {
 }
 
 export const ABILITIES: {[id: string]: 'p1' | 'p2'} = {
-  aurabreak: 'p2', battery: 'p1', darkaura: 'p2', fairyaura: 'p2', flowergift: 'p2',
-  friendguard: 'p2', powerspot: 'p1', steelyspirit: 'p1', stormdrain: 'p2',
+  aurabreak: 'p2',
+  battery: 'p1',
+  darkaura: 'p2',
+  fairyaura: 'p2',
+  flowergift: 'p2',
+  friendguard: 'p2',
+  powerspot: 'p1',
+  steelyspirit: 'p1',
+  stormdrain: 'p2',
 };
 
 export const STAT_ORDER: readonly StatID[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
@@ -102,8 +125,12 @@ function encodeSide(
   const order = gen.num === 1 ? RBY_STAT_ORDER : STAT_ORDER;
 
   // Boosts
-  if (!normal || !stats || (stats && !pokemon.boosts[stats[p]]) ||
-    Object.values(pokemon.boosts).filter(Boolean).length > 1) {
+  if (
+    !normal ||
+    !stats ||
+    (stats && !pokemon.boosts[stats[p]]) ||
+    Object.values(pokemon.boosts).filter(Boolean).length > 1
+  ) {
     for (const boost of [...order.slice(1), 'accuracy', 'evasion'] as BoostID[]) {
       if (!pokemon.boosts[boost]) continue;
       const s = gen.stats.display(boost);
@@ -144,13 +171,15 @@ function encodeSide(
     pokemon.level
   );
   if (pokemon.hp !== pokemon.maxhp) {
-    const hp = math.round(pokemon.hp * 1000 / pokemon.maxhp) / 10;
-    buf.push(math.round(hp * pokemon.maxhp / 100) === pokemon.hp ? `${hp}%` : `HP:${pokemon.hp}`);
+    const hp = math.round((pokemon.hp * 1000) / pokemon.maxhp) / 10;
+    buf.push(math.round((hp * pokemon.maxhp) / 100) === pokemon.hp ? `${hp}%` : `HP:${pokemon.hp}`);
   }
 
   // Status
   if (pokemon.status === 'tox') {
-    buf.push(pokemon.statusState?.toxicTurns ? `Toxic:${pokemon.statusState.toxicTurns}` : '+Toxic');
+    buf.push(
+      pokemon.statusState?.toxicTurns ? `Toxic:${pokemon.statusState.toxicTurns}` : '+Toxic'
+    );
   } else if (pokemon.status) {
     buf.push(`+${Statuses[pokemon.status]}`);
   }
@@ -180,8 +209,11 @@ function encodeSide(
   }
 
   // Gender
-  if (pokemon.gender && pokemon.gender !== pokemon.species.gender &&
-      is('rivalry', state.p1.pokemon.ability)) {
+  if (
+    pokemon.gender &&
+    pokemon.gender !== pokemon.species.gender &&
+    is('rivalry', state.p1.pokemon.ability)
+  ) {
     buf.push(`Gender:${pokemon.gender}`);
   }
 
@@ -202,11 +234,12 @@ function encodeSide(
     // Hidden Power changes the expected IVs - if hypertraining isn't possible the IVs should match
     // the default Hidden Power IVs (which requires a special case for Gen 2...)
     if (p === 'p1' && state.move.id === 'hiddenpower' && (gen.num <= 6 || pokemon.level !== 100)) {
-      const type = gen.types.get(state.move.id.slice(11)) ??
+      const type =
+        gen.types.get(state.move.id.slice(11)) ??
         gen.types.get(gen.types.getHiddenPower(gen.stats.fill({...pokemon.ivs}, 31)).type);
       if (gen.num <= 2) {
         for (const stat of gen.stats) {
-          expected[stat] = type?.HPdvs?.[stat] ? gen.stats.toIV(type.HPdvs[stat]!) : 31;
+          expected[stat] = type?.HPdvs?.[stat] ? gen.stats.toIV(type.HPdvs[stat]) : 31;
         }
         expected.hp = gen.stats.toIV(gen.stats.getHPDV(expected));
       } else {
@@ -239,13 +272,15 @@ function encodeSide(
     if (unexpected.length) {
       if (unexpected.length === 1 && typedHP) {
         const iv = unexpected[0];
-        buf.push(gen.num >= 3
-          ? `${gen.stats.display(iv)}IV:${pokemon.ivs[iv]}`
-          : `${gen.stats.display(iv)}DV:${gen.stats.toDV(pokemon.ivs[iv]!)}`);
+        buf.push(
+          gen.num >= 3
+            ? `${gen.stats.display(iv)}IV:${pokemon.ivs[iv]}`
+            : `${gen.stats.display(iv)}DV:${gen.stats.toDV(pokemon.ivs[iv]!)}`
+        );
       } else {
-        buf.push(gen.num >= 3
-          ? `IVs:${ivs.join('/')}`
-          : `DVs:${ivs.map(v => gen.stats.toDV(v)).join('/')}`);
+        buf.push(
+          gen.num >= 3 ? `IVs:${ivs.join('/')}` : `DVs:${ivs.map(v => gen.stats.toDV(v)).join('/')}`
+        );
       }
     }
   }
@@ -259,13 +294,13 @@ function encodeSide(
   // Allies
   let eligible = true;
   const allies = [];
-  for (const active of (state[p].active || [])) {
+  for (const active of state[p].active || []) {
     if (active?.ability) {
       if (!ABILITIES[active.ability]) eligible = false;
       allies.push(display(gen.abilities.get(active.ability)!.name));
     }
   }
-  for (const member of (state[p].team || [])) {
+  for (const member of state[p].team || []) {
     eligible = false;
     allies.push(member.species.baseStats.atk);
   }
@@ -332,7 +367,10 @@ function shouldAddAbility(pokemon: State.Pokemon) {
 }
 
 function getStats(
-  gen: Generation, p1: State.Pokemon, p2: State.Pokemon, move: State.Move
+  gen: Generation,
+  p1: State.Pokemon,
+  p2: State.Pokemon,
+  move: State.Move
 ): [{p1: Exclude<StatID, 'hp'>; p2: Exclude<StatID, 'hp'>} | undefined, boolean] {
   if (move.category === 'Status') return [undefined, true];
   switch (move.name) {
@@ -344,27 +382,50 @@ function getStats(
     case 'Shell Side Arm': {
       const {atk, spa} = computeStats(gen, p1);
       const {def, spd} = computeStats(gen, p2);
-      return [(atk / def) > (spa / spd) ? {p1: 'atk', p2: 'def'} : {p1: 'spa', p2: 'spd'}, false];
+      return [atk / def > spa / spd ? {p1: 'atk', p2: 'def'} : {p1: 'spa', p2: 'spd'}, false];
     }
     default:
-      return [{
-        p1: move.overrideOffensiveStat || (move.category === 'Special' ? 'spa' : 'atk'),
-        p2: move.overrideDefensiveStat || (move.category === 'Special' ? 'spd' : 'def'),
-      }, move.name !== 'Body Press'];
+      return [
+        {
+          p1: move.overrideOffensiveStat || (move.category === 'Special' ? 'spa' : 'atk'),
+          p2: move.overrideDefensiveStat || (move.category === 'Special' ? 'spd' : 'def'),
+        },
+        move.name !== 'Body Press',
+      ];
   }
 }
 
 const NATURE_ORDER: readonly NatureName[] = [
-  'Hardy', 'Lonely', 'Adamant', 'Naughty', 'Brave',
-  'Bold', 'Docile', 'Impish', 'Lax', 'Relaxed',
-  'Modest', 'Mild', 'Bashful', 'Rash', 'Quiet',
-  'Calm', 'Gentle', 'Careful', 'Quirky', 'Sassy',
-  'Timid', 'Hasty', 'Jolly', 'Naive', 'Serious',
+  'Hardy',
+  'Lonely',
+  'Adamant',
+  'Naughty',
+  'Brave',
+  'Bold',
+  'Docile',
+  'Impish',
+  'Lax',
+  'Relaxed',
+  'Modest',
+  'Mild',
+  'Bashful',
+  'Rash',
+  'Quiet',
+  'Calm',
+  'Gentle',
+  'Careful',
+  'Quirky',
+  'Sassy',
+  'Timid',
+  'Hasty',
+  'Jolly',
+  'Naive',
+  'Serious',
 ];
 
 export function getNature(
   nature: {plus?: StatID; minus?: StatID},
-  evs: Partial<StatsTable & {spc: number}> | undefined,
+  evs: Partial<StatsTable & {spc: number}> | undefined
 ) {
   if (nature.plus === 'hp' || nature.minus === 'hp') throw new Error('Natures cannot modify HP');
   if (nature.plus && nature.minus) return getNatureFromPlusMinus(nature.plus, nature.minus);
@@ -372,7 +433,7 @@ export function getNature(
 
   const unspecified: Array<Exclude<StatID, 'hp'>> = [];
   for (const stat of STAT_ORDER) {
-    if (stat === 'hp' || evs && stat in evs) continue;
+    if (stat === 'hp' || (evs && stat in evs)) continue;
     unspecified.push(stat);
   }
   if (!unspecified.length) return undefined;

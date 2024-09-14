@@ -1,15 +1,14 @@
-import { Applier, Handler } from ".";
-import { Context } from "../context";
-import { chainMod } from "../math";
-import { has, is } from "../utils";
+import {Applier, Handler} from '.';
+import {Context} from '../context';
+import {chainMod} from '../math';
+import {has, is} from '../utils';
 
 export const Abilities: {
   [id: string]: Partial<Applier & Handler<Context.Pokemon>>;
 } = {
   adaptability: {
     onModifySTAB(pokemon: Context.Pokemon) {
-      if (pokemon.move?.type && pokemon.types.includes(pokemon.move.type))
-        return 0x2000;
+      if (pokemon.move?.type && pokemon.types.includes(pokemon.move.type)) return 0x2000;
     },
   },
   aerilate: {
@@ -188,7 +187,7 @@ export const Abilities: {
   },
   blaze: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Fire') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Blaze boost");
         return 0x1800;
       }
@@ -209,10 +208,7 @@ export const Abilities: {
   },
   chlorophyll: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (
-        pokemon.side?.field &&
-        has(["Sun", "Harsh Sunshine"], pokemon.side.field.weather?.name || "")
-      ) {
+      if (pokemon.side?.field && has(['Sun', 'Harsh Sunshine'], pokemon.side.field.weather?.name || '')) {
         return 0x2000;
       }
     },
@@ -355,23 +351,22 @@ export const Abilities: {
     //   onStart(pokemon: Context.Pokemon) {
     //     this.add('-ability', pokemon, 'Dark Aura');
     //   },
-    onAnyBasePower(pokemon: Context.Pokemon) {
-      // if (
-      //   pokemon !== pokemon ||
-      //   is(pokemon.move?.category,"Status") ||
-      //   pokemon.context.move.type !== "Dark"
-      // ) {
-      //   return;
-      // }
-      // // if (!pokemon.context.move.auraBooster) {
-      // //   move.auraBooster = this.effectData.target;
-      // // }
-      // // if (move.auraBooster !== this.effectData.target) {
-      // //   return;
-      // // }
-      // return this.chainModify([pokemon.context.move.hasAuraBreak ? 0x0c00 : 0x1547, 0x1000]);
-      return 0x1000;
-    },
+    // onAnyBasePower(pokemon: Context.Pokemon) {
+    // if (
+    //   pokemon !== pokemon ||
+    //   is(pokemon.move?.category,"Status") ||
+    //   pokemon.context.move.type !== "Dark"
+    // ) {
+    //   return;
+    // }
+    // // if (!pokemon.context.move.auraBooster) {
+    // //   move.auraBooster = this.effectData.target;
+    // // }
+    // // if (move.auraBooster !== this.effectData.target) {
+    // //   return;
+    // // }
+    // return this.chainModify([pokemon.context.move.hasAuraBreak ? 0x0c00 : 0x1547, 0x1000]);
+    // },
   },
   dauntlessshield: {
     //   onStart(pokemon: Context.Pokemon) {
@@ -536,7 +531,7 @@ export const Abilities: {
     //     }
     //   },
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water")) {
+      if (is(pokemon.move?.type, 'Water')) {
         return 0x1400;
       }
     },
@@ -592,13 +587,12 @@ export const Abilities: {
     //   },
   },
   filter: {
-    onModifyDamageDefender(pokemon: Context.Pokemon) {
-      // if (pokemon.context.efftarget.getMoveHitData(move).typeMod > 0) {
-      //   this.debug('Filter neutralize');
-      //   return this.chainModify(0.75);
-      // }
-      return undefined;
-    },
+    // onModifyDamageDefender(pokemon: Context.Pokemon) {
+    // if (pokemon.context.efftarget.getMoveHitData(move).typeMod > 0) {
+    //   this.debug('Filter neutralize');
+    //   return this.chainModify(0.75);
+    // }
+    // },
   },
   flamebody: {
     //   onDamagingHit(damage, target, source, move) {
@@ -611,10 +605,7 @@ export const Abilities: {
   },
   flareboost: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        is(pokemon.status?.name, "brn") &&
-        is(pokemon.move?.category, "Special")
-      ) {
+      if (is(pokemon.status?.name, 'brn') && is(pokemon.move?.category, 'Special')) {
         return 0x1800;
       }
     },
@@ -719,14 +710,14 @@ export const Abilities: {
   },
   fluffy: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      let mod = 0x1000;
-      if (is(pokemon.move?.type, "Water")) {
+      const mod = 0x1000;
+      if (is(pokemon.move?.type, 'Fire')) {
         chainMod(mod, 0x2000);
       }
-      if (pokemon.move?.flags["contact"]) {
+      if (pokemon.move?.flags['contact']) {
         chainMod(mod, 0x800);
       }
-      if (mod != 0x1000) return mod;
+      if (mod !== 0x1000) return mod;
     },
   },
   forecast: {
@@ -954,7 +945,7 @@ export const Abilities: {
   },
   heatproof: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water")) {
+      if (is(pokemon.move?.type, 'Water')) {
         return 0x800;
       }
     },
@@ -1060,7 +1051,7 @@ export const Abilities: {
   },
   icescales: {
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.category, "Special")) {
+      if (is(pokemon.move?.category, 'Special')) {
         return 0x800;
       }
     },
@@ -1196,7 +1187,7 @@ export const Abilities: {
   },
   ironfist: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.flags["punch"]) {
+      if (pokemon.move?.flags['punch']) {
         return 0x1333;
       }
     },
@@ -1392,7 +1383,7 @@ export const Abilities: {
   },
   megalauncher: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.flags["pulse"]) {
+      if (pokemon.move?.flags['pulse']) {
         return 0x1800;
       }
     },
@@ -1629,12 +1620,11 @@ export const Abilities: {
     //   },
   },
   neuroforce: {
-    onModifyDamageAttacker(pokemon: Context.Pokemon) {
-      // if (move && target.getMoveHitData(move).typeMod > 0) {
-      //   return this.chainModify([0x1400, 0x1000]);
-      // }
-      return undefined;
-    },
+    // onModifyDamageAttacker(pokemon: Context.Pokemon) {
+    // if (move && target.getMoveHitData(move).typeMod > 0) {
+    //   return this.chainModify([0x1400, 0x1000]);
+    // }
+    // },
   },
   neutralizinggas: {
     //   onPreStart(pokemon: Context.Pokemon) {
@@ -1677,10 +1667,9 @@ export const Abilities: {
     //       move.normalizeBoosted = true;
     //     }
     //   },
-    onBasePower(pokemon: Context.Pokemon) {
-      // if (move.normalizeBoosted) { return this.chainModify([0x1333, 0x1000]); }
-      return undefined;
-    },
+    // onBasePower(pokemon: Context.Pokemon) {
+    // if (move.normalizeBoosted) { return this.chainModify([0x1333, 0x1000]); }
+    // },
   },
   oblivious: {
     //   onUpdate(pokemon: Context.Pokemon) {
@@ -1718,7 +1707,7 @@ export const Abilities: {
   },
   overgrow: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Water') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Overgrow boost");
         return 0x1800;
       }
@@ -1974,13 +1963,12 @@ export const Abilities: {
     //   },
   },
   prismarmor: {
-    onModifyDamageDefender(pokemon: Context.Pokemon) {
-      // if (target.getMoveHitData(move).typeMod > 0) {
-      //   this.debug('Prism Armor neutralize');
-      //   return this.chainModify(0.75);
-      // }
-      return undefined;
-    },
+    // onModifyDamageDefender(pokemon: Context.Pokemon) {
+    // if (target.getMoveHitData(move).typeMod > 0) {
+    //   this.debug('Prism Armor neutralize');
+    //   return this.chainModify(0.75);
+    // }
+    // },
   },
   propellertail: {
     //   onModifyMove(move) {
@@ -2012,7 +2000,7 @@ export const Abilities: {
     //     }
     //   },
     onModifyDamageDefender(pokemon: Context.Pokemon) {
-      if (pokemon.move?.flags["sound"]) {
+      if (pokemon.move?.flags['sound']) {
         return 0x800;
       }
     },
@@ -2038,7 +2026,7 @@ export const Abilities: {
   },
   quickfeet: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (is(pokemon.status?.name, "par")) {
+      if (is(pokemon.status?.name, 'par')) {
         return 0x2000;
       }
     },
@@ -2090,10 +2078,9 @@ export const Abilities: {
     //       move.refrigerateBoosted = true;
     //     }
     //   },
-    onBasePower(pokemon: Context.Pokemon) {
-      // if (pokemon.context.move.refrigerateBoosted) { return 0x1333
-      return undefined;
-    },
+    // onBasePower(pokemon: Context.Pokemon) {
+    // if (pokemon.context.move.refrigerateBoosted) { return 0x1333
+    // },
   },
   regenerator: {
     //   onSwitchOut(pokemon: Context.Pokemon) {
@@ -2116,25 +2103,25 @@ export const Abilities: {
     //       }
     //     }
     //   },
-    onModifyDamageDefender(pokemon: Context.Pokemon) {
-      //   if (target.abilityData.berryWeaken) {
-      //         Pokemon ate a berry that weakened damage from this attack, ripen adds another 1/4 that.
-      //     this.debug(`Ripen increases damage reduction to 3/4`);
-      //     target.abilityData.berryWeaken = "";
-      //         Not sure if this is the correct multiplier to get 3/4 total, assuming its taking 1/2 of 1/2 (3/4)
-      //     return this.chainModify(0.5);
-      //   }
-      // },
-      // onEatItem(item, pokemon) {
-      //   const weakenBerries = [
-      //     'Babiri Berry', 'Charti Berry', 'Chilan Berry', 'Chople Berry', 'Coba Berry', 'Colbur Berry', 'Haban Berry', 'Kasib Berry', 'Kebia Berry', 'Occa Berry', 'Passho Berry', 'Payapa Berry', 'Rindo Berry', 'Roseli Berry', 'Shuca Berry', 'Tanga Berry', 'Wacan Berry', 'Yache Berry',
-      //   ];
-      //   if (weakenBerries.includes(item.name)) {
-      //         Record that the pokemon ate a berry to resist an attack
-      //     pokemon.abilityData.berryWeaken = "true";
-      //   }
-      return undefined;
-    },
+    // onModifyDamageDefender(pokemon: Context.Pokemon) {
+    //   if (target.abilityData.berryWeaken) {
+    //         Pokemon ate a berry that weakened damage from this attack, ripen adds another 1/4 that.
+    //     this.debug(`Ripen increases damage reduction to 3/4`);
+    //     target.abilityData.berryWeaken = "";
+    //         Not sure if this is the correct multiplier to get 3/4 total, assuming its taking 1/2 of 1/2 (3/4)
+    //     return this.chainModify(0.5);
+    //   }
+    // },
+    // onEatItem(item, pokemon) {
+    //   const weakenBerries = [
+    //     'Babiri Berry', 'Charti Berry', 'Chilan Berry', 'Chople Berry', 'Coba Berry', 'Colbur Berry', 'Haban Berry', 'Kasib Berry', 'Kebia Berry', 'Occa Berry', 'Passho Berry', 'Payapa Berry', 'Rindo Berry', 'Roseli Berry', 'Shuca Berry', 'Tanga Berry', 'Wacan Berry', 'Yache Berry',
+    //   ];
+    //   if (weakenBerries.includes(item.name)) {
+    //         Record that the pokemon ate a berry to resist an attack
+    //     pokemon.abilityData.berryWeaken = "true";
+    //   }
+    // return undefined;
+    // },
   },
   rivalry: {
     onBasePower(pokemon: Context.Pokemon) {
@@ -2160,10 +2147,7 @@ export const Abilities: {
   },
   sandforce: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        is(pokemon.side?.field?.weather?.name, "Sand") &&
-        has(["Rock", "Ground", "Steel"], pokemon.move?.type)
-      ) {
+      if (is(pokemon.side?.field?.weather?.name, 'Sand') && has(['Rock', 'Ground', 'Steel'], pokemon.move?.type)) {
         return 0x14cd;
       }
     },
@@ -2173,7 +2157,7 @@ export const Abilities: {
   },
   sandrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (is(pokemon.side?.field?.weather?.name, "Sand")) {
+      if (is(pokemon.side?.field?.weather?.name, 'Sand')) {
         return 0x2000;
       }
     },
@@ -2424,7 +2408,7 @@ export const Abilities: {
   },
   slushrush: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (has(["Hail", "Snow"], pokemon.side?.field?.weather?.name || "")) {
+      if (has(['Hail', 'Snow'], pokemon.side?.field?.weather?.name || '')) {
         return 0x2000;
       }
     },
@@ -2467,13 +2451,13 @@ export const Abilities: {
     //   },
   },
   solidrock: {
-    onModifyDamageDefender(pokemon: Context.Pokemon) {
-      //     if (target.getMoveHitData(move).typeMod > 0) {
-      //       this.debug('Solid Rock neutralize');
-      //       return this.chainModify(0.75);
-      //     }
-      return undefined;
-    },
+    // onModifyDamageDefender(pokemon: Context.Pokemon) {
+    //     if (target.getMoveHitData(move).typeMod > 0) {
+    //       this.debug('Solid Rock neutralize');
+    //       return this.chainModify(0.75);
+    //     }
+    //   return undefined;
+    // },
   },
   soulheart: {
     //   onAnyFaint() {
@@ -2630,7 +2614,7 @@ export const Abilities: {
   },
   strongjaw: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.flags["bite"]) {
+      if (pokemon.move?.flags['bite']) {
         return 0x1800;
       }
     },
@@ -2662,14 +2646,14 @@ export const Abilities: {
   },
   surgesurfer: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (is(pokemon.side?.field?.terrain?.name, "Electric")) {
+      if (is(pokemon.side?.field?.terrain?.name, 'Electric')) {
         return 0x2000;
       }
     },
   },
   swarm: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Water') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Swarm boost");
         return 0x1800;
       }
@@ -2695,10 +2679,7 @@ export const Abilities: {
   },
   swiftswim: {
     onModifySpe(pokemon: Context.Pokemon) {
-      if (
-        pokemon.side?.field?.weather &&
-        has(["Rain", "Heavy Rain"], pokemon.side?.field?.weather?.name)
-      ) {
+      if (pokemon.side?.field?.weather && has(['Rain', 'Heavy Rain'], pokemon.side?.field?.weather?.name)) {
         return 0x2000;
       }
     },
@@ -2783,7 +2764,7 @@ export const Abilities: {
     //   },
   },
   tintedlens: {
-    onModifyDamageAttacker(pokemon: Context.Pokemon) {
+    onModifyDamageAttacker() {
       //     if (target.getMoveHitData(move).typeMod < 0) {
       //       this.debug('Tinted Lens boost');
       //       return this.chainModify(2);
@@ -2793,7 +2774,7 @@ export const Abilities: {
   },
   torrent: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, "Water") && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Water') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Torrent boost");
         return 0x1800;
       }
@@ -2801,17 +2782,14 @@ export const Abilities: {
   },
   toughclaws: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.move?.flags["contact"]) {
+      if (pokemon.move?.flags['contact']) {
         return 0x14cd;
       }
     },
   },
   toxicboost: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (
-        (is(pokemon.status?.name, "psn") || is(pokemon.status?.name, "tox")) &&
-        is(pokemon.move?.category, "Physical")
-      ) {
+      if ((is(pokemon.status?.name, 'psn') || is(pokemon.status?.name, 'tox')) && is(pokemon.move?.category, 'Physical')) {
         return 0x1800;
       }
     },

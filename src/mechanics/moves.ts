@@ -1,11 +1,11 @@
-import { Applier, Handler } from ".";
-import { Context } from "../context";
-import { floor } from "../math";
-import { has, is } from "../utils";
+import {Applier, Handler} from '.';
+import {Context} from '../context';
+import {floor} from '../math';
+import {has, is} from '../utils';
 
-export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
+export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
   acrobatics: {
-    basePowerCallback({ p1, move }) {
+    basePowerCallback({p1, move}) {
       return p1.pokemon.item ? move.basePower : move.basePower * 2;
     },
   },
@@ -285,12 +285,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   beatup: {
-    basePowerCallback(context: Context) {
-      // return (
-      //   5 + Math.floor(context.p1.team.shift().species.baseStats.atk / 10)
-      // );
-      return 5;
-    },
+    // basePowerCallback(context: Context) {
+    // return (
+    //   5 + Math.floor(context.p1.team.shift().species.baseStats.atk / 10)
+    // );
+    // },
     //   onModifyMove(move, pokemon) {
     //     move.allies = pokemon.side.pokemon.filter(ally => is(ally,pokemon) || !ally.fainted && !ally.status);
     //     move.multihit = move.allies.length;
@@ -481,9 +480,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   captivate: {
-    //   onTryImmunity(pokemon, source) {
-    //     return (is(pokemon.gender,'M') && is(source.gender,'F')) || (is(pokemon.gender,'F') && is(source.gender,'M'));
-    //   },
+    onTryImmunity(context: Context) {
+      return !(
+        (is(context.p1.pokemon.gender, 'M') && is(context.p2.pokemon.gender, 'F')) ||
+        (is(context.p1.pokemon.gender, 'F') && is(context.p2.pokemon.gender, 'M'))
+      );
+    },
   },
   celebrate: {
     //   onTryHit(target, source) {
@@ -690,18 +692,8 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   crushgrip: {
     basePowerCallback(context: Context) {
       return (
-        Math.floor(
-          Math.floor(
-            (120 *
-              (100 *
-                Math.floor(
-                  (context.p2.pokemon.hp * 0x1000) / context.p2.pokemon.maxhp
-                )) +
-              0x800 -
-              1) /
-              0x1000
-          ) / 100
-        ) || 1
+        Math.floor(Math.floor((120 * (100 * Math.floor((context.p2.pokemon.hp * 0x1000) / context.p2.pokemon.maxhp)) + 0x800 - 1) / 0x1000) / 100) ||
+        1
       );
     },
   },
@@ -945,10 +937,15 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     return null;
     //   },
   },
+  dragonrage: {
+    damageCallback() {
+      return 40;
+    },
+  },
   dreameater: {
-    //   onTryImmunity(target) {
-    //     return is(target.status,'slp') || target.hasAbility('comatose');
-    //   },
+    onTryImmunity(context: Context) {
+      return !(is(context.p2.pokemon.status?.name, 'slp') || is(context.p2.pokemon.ability?.id, 'comatose'));
+    },
   },
   echoedvoice: {
     //   basePowerCallback() {
@@ -1096,12 +1093,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   endeavor: {
-    //   damageCallback(pokemon, target) {
-    //     return target.getUndynamaxedHP() - pokemon.hp;
-    //   },
-    //   onTryImmunity(target, pokemon) {
-    //     return pokemon.hp < target.hp;
-    //   },
+    damageCallback(context: Context) {
+      return context.p2.pokemon.hp - context.p1.pokemon.hp;
+    },
+    onTryImmunity(context: Context) {
+      return context.p2.pokemon.hp <= context.p1.pokemon.hp;
+    },
   },
   endure: {
     //   onTryHit(pokemon) {
@@ -1147,15 +1144,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   eruption: {
     basePowerCallback(context: Context) {
-      return (
-        (context.move.basePower * context.p1.pokemon.hp) /
-        context.p1.pokemon.maxhp
-      );
+      return (context.move.basePower * context.p1.pokemon.hp) / context.p1.pokemon.maxhp;
     },
   },
   facade: {
     onBasePower(context: Context) {
-      if (context.p1.pokemon.status?.name !== "slp") {
+      if (context.p1.pokemon.status?.name !== 'slp') {
         return 0x2000;
       }
     },
@@ -1518,9 +1512,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   frustration: {
     basePowerCallback(context: Context) {
-      return (
-        Math.floor(((255 - (context.p1.pokemon.happiness || 0)) * 10) / 25) || 1
-      );
+      return Math.floor(((255 - (context.p1.pokemon.happiness || 0)) * 10) / 25) || 1;
     },
   },
   furycutter: {
@@ -1963,31 +1955,25 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   grassknot: {
-    //   basePowerCallback(pokemon, target) {
-    //     const targetWeight = target.getWeight();
-    //     if (targetWeight >= 2000) {
-    //       this.debug('120 bp');
-    //       return 120;
-    //     }
-    //     if (targetWeight >= 1000) {
-    //       this.debug('100 bp');
-    //       return 100;
-    //     }
-    //     if (targetWeight >= 500) {
-    //       this.debug('80 bp');
-    //       return 80;
-    //     }
-    //     if (targetWeight >= 250) {
-    //       this.debug('60 bp');
-    //       return 60;
-    //     }
-    //     if (targetWeight >= 100) {
-    //       this.debug('40 bp');
-    //       return 40;
-    //     }
-    //     this.debug('20 bp');
-    //     return 20;
-    //   },
+    basePowerCallback(context: Context) {
+      const targetWeight = context.p2.pokemon.weighthg;
+      if (targetWeight >= 2000) {
+        return 120;
+      }
+      if (targetWeight >= 1000) {
+        return 100;
+      }
+      if (targetWeight >= 500) {
+        return 80;
+      }
+      if (targetWeight >= 250) {
+        return 60;
+      }
+      if (targetWeight >= 100) {
+        return 40;
+      }
+      return 20;
+    },
     //   onTryHit(target, source, move) {
     //     if (target.volatiles['dynamax']) {
     //       this.add('-fail', source, 'move: Grass Knot', '[from] Dynamax');
@@ -2089,7 +2075,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   gravapple: {
     onBasePower(context: Context) {
-      if ("gravity" in context.field.pseudoWeather) {
+      if ('gravity' in context.field.pseudoWeather) {
         return 0x1800;
       }
     },
@@ -2693,9 +2679,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       }
     //     },
     //   },
-    //   onTryImmunity(target) {
-    //     return !target.hasType('Grass');
-    //   },
+    onTryImmunity(context: Context) {
+      return has(context.p2.pokemon.types, 'Grass');
+    },
   },
   lightscreen: {
     //   effect: {
@@ -3533,9 +3519,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   naturesmadness: {
-    //   damageCallback(pokemon, target) {
-    //     return this.dex.clampIntRange(Math.floor(target.getUndynamaxedHP() / 2), 1);
-    //   },
+    damageCallback(context: Context) {
+      return floor(context.p2.pokemon.hp / 2);
+    },
   },
   nightmare: {
     //   effect: {
@@ -3549,6 +3535,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       this.damage(pokemon.baseMaxhp / 4);
     //     },
     //   },
+  },
+  nightshade: {
+    damageCallback(context: Context) {
+      return context.p1.pokemon.level;
+    },
   },
   noretreat: {
     //   onTryHit(target, source, move) {
@@ -4237,12 +4228,12 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   retaliate: {
-    onBasePower(context: Context) {
-      // if (context.p1.faintedLastTurn) {
-      //   return 0x2000;
-      // }
-      return undefined;
-    },
+    // onBasePower(context: Context) {
+    // if (context.p1.faintedLastTurn) {
+    //   return 0x2000;
+    // }
+    //   return undefined;
+    // },
   },
   return: {
     basePowerCallback(context: Context) {
@@ -4393,6 +4384,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     }
     //   },
   },
+  ruination: {
+    damageCallback(context: Context) {
+      return context.p1.pokemon.level;
+    },
+  },
   safeguard: {
     //   effect: {
     //     durationCallback(target, source, effect) {
@@ -4466,6 +4462,11 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //       });
     //     }
     //   },
+  },
+  seismictoss: {
+    damageCallback(context: Context) {
+      return context.p1.pokemon.level;
+    },
   },
   shadowforce: {
     //   onTryMove(attacker, defender, move) {
@@ -4817,12 +4818,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     return null;
     //   },
     onBasePower(context: Context) {
-      if (
-        has(
-          ["raindance", "primordialsea", "sandstorm", "hail"],
-          context.field.weather?.name
-        )
-      ) {
+      if (is(context.field.weather?.name, 'raindance', 'primordialsea', 'sandstorm', 'hail')) {
         return 0x800;
       }
     },
@@ -4845,14 +4841,14 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //     return null;
     //   },
     onBasePower(context: Context) {
-      if (
-        has(
-          ["raindance", "primordialsea", "sandstorm", "hail"],
-          context.field.weather?.name
-        )
-      ) {
+      if (is(context.field.weather?.name, 'raindance', 'primordialsea', 'sandstorm', 'hail')) {
         return 0x800;
       }
+    },
+  },
+  sonicboom: {
+    damageCallback() {
+      return 20;
     },
   },
   sparklingaria: {
@@ -5183,9 +5179,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   superfang: {
-    //   damageCallback(pokemon, target) {
-    //     return this.dex.clampIntRange(target.getUndynamaxedHP() / 2, 1);
-    //   },
+    damageCallback(context: Context) {
+      return context.p1.pokemon.level;
+    },
   },
   swallow: {
     //   onTryHit(pokemon) {
@@ -5199,9 +5195,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   switcheroo: {
-    //   onTryImmunity(target) {
-    //     return !target.hasAbility('stickyhold');
-    //   },
+    onTryImmunity(context: Context) {
+      return is(context.p1.pokemon.ability?.id, 'stickyhold');
+    },
     //   onHit(target, source, move) {
     //     const yourItem = target.takeItem(source);
     //     const myItem = source.takeItem();
@@ -5232,9 +5228,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   synchronoise: {
-    //   onTryImmunity(target, source) {
-    //     return target.hasType(source.getTypes());
-    //   },
+    onTryImmunity(context: Context) {
+      return !has(context.p1.pokemon.types, context.p2.pokemon.types);
+    },
   },
   synthesis: {
     //   onHit(pokemon) {
@@ -5526,9 +5522,9 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
     //   },
   },
   trick: {
-    //   onTryImmunity(target) {
-    //     return !target.hasAbility('stickyhold');
-    //   },
+    onTryImmunity(context: Context) {
+      return is(context.p2.pokemon.ability?.id, 'stickyhold');
+    },
     //   onHit(target, source, move) {
     //     const yourItem = target.takeItem(source);
     //     const myItem = source.takeItem();
@@ -5665,10 +5661,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   venoshock: {
     onBasePower(context: Context) {
-      if (
-        is(context.p2.pokemon.status?.name, "psn") ||
-        is(context.p2.pokemon.status?.name, "tox")
-      ) {
+      if (is(context.p2.pokemon.status?.name, 'psn') || is(context.p2.pokemon.status?.name, 'tox')) {
         return 0x2000;
       }
     },
@@ -5890,20 +5883,7 @@ export const Moves: { [id: string]: Partial<Applier & Handler<Context>> } = {
   },
   wringout: {
     basePowerCallback(context: Context) {
-      return (
-        floor(
-          floor(
-            (120 *
-              (100 *
-                floor(
-                  (context.p2.pokemon.hp * 0x1000) / context.p2.pokemon.maxhp
-                )) +
-              0x800 -
-              1) /
-              0x1000
-          ) / 100
-        ) || 1
-      );
+      return floor(floor((120 * (100 * floor((context.p2.pokemon.hp * 0x1000) / context.p2.pokemon.maxhp)) + 0x800 - 1) / 0x1000) / 100) || 1;
     },
   },
   yawn: {

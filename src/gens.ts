@@ -1,33 +1,53 @@
 import type {GameType, Generation, GenerationNum, Generations, Specie} from '@pkmn/data';
 
-import {MoveOptions, PokemonOptions, State} from './state';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State} from './state';
 import {Result} from './result';
 import {calculate} from './mechanics';
 
 import * as parser from './parse';
 
 /** Constructs a `State.Pokemon` in a specific generation `gen`. */
-const pokemon = (gen: Generation) => (
-  name: string,
-  options: PokemonOptions = {},
-  move: string | {name?: string} = {},
-) => State.createPokemon(gen, name, options, move);
+const pokemon =
+  (gen: Generation) =>
+    (name: string, options: PokemonOptions = {}, move: string | {name?: string} = {}) =>
+      State.createPokemon(gen, name, options, move);
+
+/** Constructs a `State.Side` in a specific generation `gen`. */
+const side =
+  (gen: Generation) =>
+    (sPokemon: State.Pokemon | string, sideOptions: SideOptions = {}) => {
+      if (typeof sPokemon === 'string') sPokemon = State.createPokemon(gen, sPokemon);
+      return State.createSide(gen, sPokemon, sideOptions);
+    };
 
 /** Constructs a `State.Move` in a specific generation `gen`. */
-const move = (gen: Generation) => (
-  name: string,
-  options: MoveOptions = {},
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  pokemon: string | {
-    species?: string | Specie;
-    item?: string;
-    ability?: string;
-  } = {}
-) => State.createMove(gen, name, options, pokemon);
+const createMove =
+  (gen: Generation) =>
+    (
+      name: string,
+      options: MoveOptions = {},
+      // eslint-disable-next-line @typescript-eslint/no-shadow
+      pokemon:
+      | string
+      | {
+        species?: string | Specie;
+        item?: string;
+        ability?: string;
+      } = {}
+    ) =>
+      State.createMove(gen, name, options, pokemon);
+
+/** Constructs a `State.Field` in a specific generation `gen`. */
+const field =
+  (gen: Generation) =>
+    (options: FieldOptions = {}) =>
+      State.createField(gen, options);
 
 /** Performs a damage calculation in specific generation `gen`. */
 interface Calculate {
-  (gen: Generation): (
+  (
+    gen: Generation
+  ): (
     attacker: State.Side | State.Pokemon,
     defender: State.Side | State.Pokemon,
     move: State.Move,
@@ -46,17 +66,22 @@ export interface Scope {
   calculate: Calculate;
   parse: ReturnType<typeof parse>;
   Pokemon: ReturnType<typeof pokemon>;
-  Move: ReturnType<typeof move>;
+  Move: ReturnType<typeof createMove>;
+  Field: ReturnType<typeof field>;
+  Side: ReturnType<typeof side>;
 }
 
 /** Executes a function `fn` scoped to a specific generation `gen`. */
 export function inGen<T>(gen: Generation, fn: (scope: Scope) => T) {
   return fn({
     gen,
-    calculate: ((...args: any[]) => calculate(gen as any, ...args)) as unknown as Calculate,
+    calculate: ((generation: Generation) => (attacker: State.Pokemon, defender: State.Pokemon, smove: State.Move) =>
+      calculate(generation, attacker, defender, smove)) as Calculate,
     parse: parse(gen),
-    Move: move(gen),
+    Move: createMove(gen),
     Pokemon: pokemon(gen),
+    Field: field(gen),
+    Side: side(gen),
   });
 }
 
@@ -66,8 +91,7 @@ export function inGen<T>(gen: Generation, fn: (scope: Scope) => T) {
  */
 export function inGens(gens: Generations, fn: (scope: Scope) => void): void;
 export function inGens(gens: Generations, from: GenerationNum, fn: (scope: Scope) => void): void;
-export function inGens(
-  gens: Generations, from: GenerationNum, to: GenerationNum, fn: (scope: Scope) => void): void;
+export function inGens(gens: Generations, from: GenerationNum, to: GenerationNum, fn: (scope: Scope) => void): void;
 export function inGens(
   gens: Generations,
   from: GenerationNum | ((scope: Scope) => void),

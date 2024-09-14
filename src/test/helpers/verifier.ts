@@ -30,11 +30,13 @@ export function verify(state: State, result: Result, num = N, seed = SEED) {
       const ranges = undefined! as {p1: [number, number]; p2: [number, number]};
       for (const p in ranges) {
         const player = p as 'p1' | 'p2';
-        if (players[player].pokemon.hp < ranges[player][0] ||
-            players[player].pokemon.hp > ranges[player][1]) {
+        if (
+          players[player].pokemon.hp < ranges[player][0] ||
+          players[player].pokemon.hp > ranges[player][1]
+        ) {
           throw new Error(
             `Expected ${player}'s ${players[player].pokemon.species.name} HP to be within` +
-            `[${ranges[player][0]},${ranges[player][1]}] but it was ${players[player].pokemon.hp}`
+              `[${ranges[player][0]},${ranges[player][1]}] but it was ${players[player].pokemon.hp}`
           );
         }
       }
@@ -62,7 +64,7 @@ function isSupported(state: State) {
   // Setting up the field to ensure a move is a spread hit is too much work
   if (state.move.spread) return false;
   // Guaranteeing a certain number of hits for multihit moves is not tractable
-  if (state.move.multihit || state.move.hits && state.move.hits > 1) return false;
+  if (state.move.multihit || (state.move.hits && state.move.hits > 1)) return false;
   // Setting up the scenario where a certain mon is switching in or out is too difficult
   if (state.p1.pokemon.switching || state.p2.pokemon.switching) return false;
   // Non-trivial active/team scenarios are a headache to attempt to set up
@@ -92,7 +94,7 @@ function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
 
   const t = state[player].team || [];
   if (state[player].active) {
-    for (const active of state[player].active!) {
+    for (const active of state[player].active) {
       if (!active) continue;
       if ('position' in active) {
         if (active.position === p.position) continue;
@@ -148,9 +150,8 @@ function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
   if (p.moveLastTurnResult === false) pokemon.moveLastTurnResult = false;
   pokemon.hurtThisTurn = p.hurtThisTurn ? 1 : null;
 
-  const choice = player === 'p1'
-    ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}`
-    : 'move splash';
+  const choice =
+    player === 'p1' ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}` : 'move splash';
 
   return {pokemon, choice};
 }

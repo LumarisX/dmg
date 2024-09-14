@@ -20,14 +20,14 @@ import type {
   StatsTable,
   StatusName,
   TypeName,
-} from "@pkmn/data";
+} from '@pkmn/data';
 
-import { TerrainName, WeatherName } from "./conditions";
-import { HANDLERS, Handler, HandlerKind, Handlers } from "./mechanics";
-import { Relevancy } from "./result";
-import { DeepReadonly, extend, toID } from "./utils";
-import { State } from "./state";
-import { apply, chain } from "./math";
+import {TerrainName, WeatherName} from './conditions';
+import {apply, chain} from './math';
+import {HANDLERS, Handler, HandlerKind, Handlers} from './mechanics';
+import {Relevancy} from './result';
+import {State} from './state';
+import {DeepReadonly, extend, toID} from './utils';
 
 export class Context {
   gameType: GameType;
@@ -39,11 +39,7 @@ export class Context {
 
   readonly relevant: Relevancy;
 
-  constructor(
-    state: DeepReadonly<State>,
-    handlers: Handlers = HANDLERS,
-    relevant: Relevancy = new Relevancy()
-  ) {
+  constructor(state: DeepReadonly<State>, handlers: Handlers = HANDLERS, relevant: Relevancy = new Relevancy()) {
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
     this.move = new Context.Move(state.move, relevant.move, handlers);
@@ -55,14 +51,7 @@ export class Context {
   }
 
   toState() {
-    return new State(
-      this.gen,
-      this.p1.toState(),
-      this.p2.toState(),
-      this.move.toState(),
-      this.field.toState(),
-      this.gameType
-    );
+    return new State(this.gen, this.p1.toState(), this.p2.toState(), this.move.toState(), this.field.toState(), this.gameType);
   }
 
   toJSON() {
@@ -76,58 +65,39 @@ export class Context {
 
 export namespace Context {
   export class Field {
-    weather?: { name: WeatherName } & Partial<Handler<Context>>;
-    terrain?: { name: TerrainName } & Partial<Handler<Context>>;
+    weather?: {name: WeatherName} & Partial<Handler<Context>>;
+    terrain?: {name: TerrainName} & Partial<Handler<Context>>;
     pseudoWeather: {
-      [id: string]: { data: object } & Partial<Handler<Context>>;
+      [id: string]: {data: object} & Partial<Handler<Context>>;
     };
 
     readonly relevant: Relevancy.Field;
 
-    constructor(
-      state: DeepReadonly<State.Field>,
-      relevant: Relevancy.Field,
-      handlers: Handlers
-    ) {
+    constructor(state: DeepReadonly<State.Field>, relevant: Relevancy.Field, handlers: Handlers) {
       this.relevant = relevant;
 
       if (state.weather) {
         const id = toID(state.weather);
-        this.weather = reify(
-          { name: state.weather },
-          id,
-          handlers.Conditions,
-          () => {
-            this.relevant.weather = true;
-          }
-        );
+        this.weather = reify({name: state.weather}, id, handlers.Conditions, () => {
+          this.relevant.weather = true;
+        });
       }
       if (state.terrain) {
         const id = toID(state.terrain);
-        this.terrain = reify(
-          { name: state.terrain },
-          id,
-          handlers.Conditions,
-          () => {
-            this.relevant.terrain = true;
-          }
-        );
+        this.terrain = reify({name: state.terrain}, id, handlers.Conditions, () => {
+          this.relevant.terrain = true;
+        });
       }
       this.pseudoWeather = {};
       for (const pw in state.pseudoWeather) {
-        this.pseudoWeather[pw] = reify(
-          { data: state.pseudoWeather[pw] },
-          pw as ID,
-          handlers.Conditions,
-          () => {
-            this.relevant.pseudoWeather[pw] = true;
-          }
-        );
+        this.pseudoWeather[pw] = reify({data: state.pseudoWeather[pw]}, pw as ID, handlers.Conditions, () => {
+          this.relevant.pseudoWeather[pw] = true;
+        });
       }
     }
 
     toState(): State.Field {
-      const pseudoWeather: { [id: string]: object } = {};
+      const pseudoWeather: {[id: string]: object} = {};
       for (const pw in this.pseudoWeather) {
         pseudoWeather[pw] = this.pseudoWeather[pw].data;
       }
@@ -146,7 +116,7 @@ export namespace Context {
   export class Side {
     pokemon: Pokemon;
     sideConditions: {
-      [id: string]: { level?: number } & Partial<Handler<Context>>;
+      [id: string]: {level?: number} & Partial<Handler<Context>>;
     };
     active?: Array<{
       ability?: ID;
@@ -154,7 +124,7 @@ export namespace Context {
       fainted?: boolean;
     } | null>;
     team?: Array<{
-      species: { baseStat: { atk: number } };
+      species: {baseStat: {atk: number}};
       status?: StatusName;
       fainted?: boolean;
       position?: number;
@@ -162,49 +132,30 @@ export namespace Context {
     readonly relevant: Relevancy.Side;
     readonly field?: Context.Field;
 
-    constructor(
-      context: Context,
-      state: DeepReadonly<State.Side>,
-      relevant: Relevancy.Side,
-      handlers: Handlers
-    ) {
+    constructor(context: Context, state: DeepReadonly<State.Side>, relevant: Relevancy.Side, handlers: Handlers) {
       this.relevant = relevant;
       this.field = context.field;
-      this.pokemon = new Pokemon(
-        context,
-        this,
-        state.pokemon,
-        relevant.pokemon,
-        handlers
-      );
+      this.pokemon = new Pokemon(context, this, state.pokemon, relevant.pokemon, handlers);
       this.sideConditions = {};
       for (const sc in state.sideConditions) {
-        this.sideConditions[sc] = reify(
-          extend({}, state.sideConditions[sc]),
-          sc as ID,
-          handlers.Conditions,
-          () => {
-            this.relevant.sideConditions[sc] = true;
-          }
-        );
+        this.sideConditions[sc] = reify(extend({}, state.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
+          this.relevant.sideConditions[sc] = true;
+        });
       }
-      this.active = this.active?.map((p) => extend({}, p));
-      this.team = this.team?.map((p) => extend({}, p));
+      this.active = this.active?.map(p => extend({}, p));
+      this.team = this.team?.map(p => extend({}, p));
     }
 
     toState(): State.Side {
-      const sideConditions: { [id: string]: { level?: number } } = {};
+      const sideConditions: {[id: string]: {level?: number}} = {};
       for (const sc in this.sideConditions) {
-        sideConditions[sc] =
-          "level" in this.sideConditions[sc]
-            ? { level: this.sideConditions[sc].level }
-            : {};
+        sideConditions[sc] = 'level' in this.sideConditions[sc] ? {level: this.sideConditions[sc].level} : {};
       }
       return {
         pokemon: this.pokemon.toState(),
         sideConditions: extend({}, this.sideConditions),
-        active: this.active?.map((p) => extend({}, p)),
-        team: this.team?.map((p) => extend({}, p)),
+        active: this.active?.map(p => extend({}, p)),
+        team: this.team?.map(p => extend({}, p)),
       };
     }
   }
@@ -214,17 +165,18 @@ export namespace Context {
     level: number;
     weighthg: number;
 
-    item?: { id: ID } & Partial<Handler<Context.Pokemon>>;
-    ability?: { id: ID } & Partial<Handler<Context.Pokemon>>;
+    item?: {id: ID} & Partial<Handler<Context.Pokemon>>;
+    ability?: {id: ID} & Partial<Handler<Context.Pokemon>>;
     gender?: GenderName;
     happiness?: number;
 
-    status?: { name: StatusName } & Partial<Handler<Context>>;
-    statusData?: { toxicTurns: number };
-    volatiles: { [id: string]: { level?: number } & Partial<Handler<Context>> };
+    status?: {name: StatusName} & Partial<Handler<Context>>;
+    statusData?: {toxicTurns: number};
+    volatiles: {[id: string]: {level?: number} & Partial<Handler<Context>>};
 
     types: [TypeName] | [TypeName, TypeName];
     addedType?: TypeName;
+    teraType: TypeName;
 
     maxhp: number;
     hp: number;
@@ -235,7 +187,7 @@ export namespace Context {
 
     position?: number;
     transformed?: boolean;
-    switching?: "in" | "out";
+    switching?: 'in' | 'out';
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
 
@@ -248,13 +200,7 @@ export namespace Context {
     private evs?: Partial<StatsTable>;
     private ivs?: Partial<StatsTable>;
 
-    constructor(
-      context: Context,
-      side: Context.Side,
-      state: DeepReadonly<State.Pokemon>,
-      relevant: Relevancy.Pokemon,
-      handlers: Handlers
-    ) {
+    constructor(context: Context, side: Context.Side, state: DeepReadonly<State.Pokemon>, relevant: Relevancy.Pokemon, handlers: Handlers) {
       this.relevant = relevant;
       this.side = side;
       this.move = context.move;
@@ -262,54 +208,35 @@ export namespace Context {
       this.species = state.species as Specie;
       this.level = state.level;
       this.weighthg = state.weighthg;
+      this.teraType = state.teraType || state.types[0];
 
       if (state.item) {
-        this.item = reify(
-          { id: state.item },
-          state.item,
-          handlers.Items,
-          () => {
-            this.relevant.item = true;
-          }
-        );
+        this.item = reify({id: state.item}, state.item, handlers.Items, () => {
+          this.relevant.item = true;
+        });
       }
       if (state.ability) {
-        this.ability = reify(
-          { id: state.ability },
-          state.ability,
-          handlers.Abilities,
-          () => {
-            this.relevant.ability = true;
-          }
-        );
+        this.ability = reify({id: state.ability}, state.ability, handlers.Abilities, () => {
+          this.relevant.ability = true;
+        });
       }
       this.gender = state.gender;
       this.happiness = state.happiness;
 
       if (state.status) {
-        this.status = reify(
-          { name: state.status },
-          state.status as ID,
-          handlers.Conditions,
-          () => {
-            this.relevant.status = true;
-          }
-        );
+        this.status = reify({name: state.status}, state.status as ID, handlers.Conditions, () => {
+          this.relevant.status = true;
+        });
       }
       this.statusData = this.statusData && extend({}, state.statusState);
       this.volatiles = {};
       for (const v in state.volatiles) {
-        this.volatiles[v] = reify(
-          extend({}, state.volatiles[v]),
-          v as ID,
-          handlers.Conditions,
-          () => {
-            this.relevant.volatiles[v] = true;
-          }
-        );
+        this.volatiles[v] = reify(extend({}, state.volatiles[v]), v as ID, handlers.Conditions, () => {
+          this.relevant.volatiles[v] = true;
+        });
       }
 
-      this.types = state.types.slice() as Pokemon["types"];
+      this.types = state.types.slice() as Pokemon['types'];
       this.addedType = state.addedType;
 
       this.maxhp = state.maxhp;
@@ -334,16 +261,21 @@ export namespace Context {
             nature
           );
           let statMod = 0x1000;
-          if (stat === "atk" && this.item?.onModifyAtk)
+          if (stat === 'atk' && this.item?.onModifyAtk) {
             statMod = chain(statMod, this.item.onModifyAtk(this));
-          if (stat === "spa" && this.item?.onModifySpA)
+          }
+          if (stat === 'spa' && this.item?.onModifySpA) {
             statMod = chain(statMod, this.item.onModifySpA(this));
-          if (stat === "def" && this.item?.onModifyDef)
+          }
+          if (stat === 'def' && this.item?.onModifyDef) {
             statMod = chain(statMod, this.item.onModifyDef(this));
-          if (stat === "spd" && this.item?.onModifySpD)
+          }
+          if (stat === 'spd' && this.item?.onModifySpD) {
             statMod = chain(statMod, this.item.onModifySpD(this));
-          if (stat === "spe" && this.item?.onModifySpe)
+          }
+          if (stat === 'spe' && this.item?.onModifySpe) {
             statMod = chain(statMod, this.item.onModifySpe(this));
+          }
           this.stats[stat] = apply(this.stats[stat], statMod);
         }
       }
@@ -356,12 +288,9 @@ export namespace Context {
     }
 
     toState(): State.Pokemon {
-      const volatiles: { [id: string]: { level?: number } } = {};
+      const volatiles: {[id: string]: {level?: number}} = {};
       for (const v in this.volatiles) {
-        volatiles[v] =
-          "level" in this.volatiles[v]
-            ? { level: this.volatiles[v].level }
-            : {};
+        volatiles[v] = 'level' in this.volatiles[v] ? {level: this.volatiles[v].level} : {};
       }
       return {
         species: this.species,
@@ -370,11 +299,12 @@ export namespace Context {
         item: this.item?.id,
         ability: this.ability?.id,
         gender: this.gender,
+        teraType: this.teraType,
         happiness: this.hp,
         status: this.status?.name,
         statusState: this.statusData && extend({}, this.statusData),
         volatiles,
-        types: this.types.slice() as Pokemon["types"],
+        types: this.types.slice() as Pokemon['types'],
         addedType: this.addedType,
         maxhp: this.maxhp,
         hp: this.hp,
@@ -403,10 +333,10 @@ export namespace Context {
     isNonstandard!: Nonstandard | null;
     duration?: number;
 
-    effectType!: "Move";
-    kind!: "Move";
+    effectType!: 'Move';
+    kind!: 'Move';
     secondaries!: SecondaryEffect[] | null;
-    flags!: DMove["flags"];
+    flags!: DMove['flags'];
     zMoveEffect?: ID;
     isZ!: boolean | ID;
     zMove?: {
@@ -436,16 +366,16 @@ export namespace Context {
 
     realMove?: string;
     condition?: Partial<ConditionData>;
-    damage?: number | "level" | false | null;
+    damage?: number | 'level' | false | null;
     noPPBoosts?: boolean;
 
-    ohko?: boolean | "Ice";
+    ohko?: boolean | 'Ice';
     thawsTarget?: boolean;
     heal?: number[] | null;
     forceSwitch?: boolean;
-    selfSwitch?: boolean | "copyvolatile";
-    selfBoost?: { boosts?: Partial<BoostsTable> };
-    selfdestruct?: boolean | "ifHit" | "always";
+    selfSwitch?: boolean | 'copyvolatile';
+    selfBoost?: {boosts?: Partial<BoostsTable>};
+    selfdestruct?: boolean | 'ifHit' | 'always';
     breaksProtect?: boolean;
     recoil?: [number, number];
     drain?: [number, number];
@@ -459,16 +389,16 @@ export namespace Context {
     basePowerModifier?: number;
     critModifier?: number;
     critRatio?: number;
-    overrideOffensivePokemon?: "target" | "source";
-    overrideOffensiveStat?: Exclude<StatID, "hp">;
-    overrideDefensivePokemon?: "target" | "source";
-    overrideDefensiveStat?: Exclude<StatID, "hp">;
+    overrideOffensivePokemon?: 'target' | 'source';
+    overrideOffensiveStat?: Exclude<StatID, 'hp'>;
+    overrideDefensivePokemon?: 'target' | 'source';
+    overrideDefensiveStat?: Exclude<StatID, 'hp'>;
     forceSTAB?: boolean;
     ignoreAbility?: boolean;
     ignoreAccuracy?: boolean;
     ignoreDefensive?: boolean;
     ignoreEvasion?: boolean;
-    ignoreImmunity?: boolean | { [k in keyof TypeName]?: boolean };
+    ignoreImmunity?: boolean | {[k in keyof TypeName]?: boolean};
     ignoreNegativeOffensive?: boolean;
     ignoreOffensive?: boolean;
     ignorePositiveDefensive?: boolean;
@@ -501,6 +431,7 @@ export namespace Context {
 
     basePowerCallback?(context: Context): number;
     damageCallback?(context: Context): number;
+    onTryImmunity?(context: Context): boolean;
     onBasePower?(context: Context): number | undefined;
     onModifyAtk?(pokemon: Context): number | undefined;
     onModifySpA?(pokemon: Context): number | undefined;
@@ -514,42 +445,28 @@ export namespace Context {
 
     effectiveness: number = 1;
 
-    constructor(
-      state: DeepReadonly<State.Move>,
-      relevant: Relevancy.Move,
-      handlers: Handlers
-    ) {
+    constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers) {
       extend(this, state);
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
     }
 
     updateData(context: Context) {
-      if (this.basePowerCallback)
-        this.basePower = this.basePowerCallback(context);
+      if (this.basePowerCallback) this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
-      if (context.p1.pokemon.ability?.onBasePower)
-        basePowerMod = chain(
-          basePowerMod,
-          context.p1.pokemon.ability.onBasePower(context.p1.pokemon)
-        );
-
-      if (context.p1.pokemon.item?.onBasePower) {
-        basePowerMod = chain(
-          basePowerMod,
-          context.p1.pokemon.item.onBasePower(context.p1.pokemon)
-        );
+      if (context.p1.pokemon.ability?.onBasePower) {
+        basePowerMod = chain(basePowerMod, context.p1.pokemon.ability.onBasePower(context.p1.pokemon));
       }
 
-      if (this.onBasePower)
-        basePowerMod = chain(basePowerMod, this.onBasePower(context));
+      if (context.p1.pokemon.item?.onBasePower) {
+        basePowerMod = chain(basePowerMod, context.p1.pokemon.item.onBasePower(context.p1.pokemon));
+      }
+
+      if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(context));
 
       this.basePower = apply(this.basePower, basePowerMod);
-      this.effectiveness = context.gen.types.totalEffectiveness(
-        this.type,
-        context.p2.pokemon
-      );
+      this.effectiveness = context.gen.types.totalEffectiveness(this.type, context.p2.pokemon);
     }
 
     toState(): State.Move {
@@ -558,21 +475,16 @@ export namespace Context {
   }
 }
 
-function reify<T>(
-  obj: T & Partial<Handler<Context | Context.Pokemon>>,
-  id: ID,
-  handlers: Handlers[HandlerKind],
-  cbfn?: () => void
-) {
+function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon>>, id: ID, handlers: Handlers[HandlerKind], cbfn?: () => void) {
   const handler = handlers[id];
   if (handler) {
     for (const n in handler) {
       const k = n as keyof Handler<Context | Context.Pokemon>; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
-      if (fn && typeof fn === "function") {
+      if (fn && typeof fn === 'function') {
         obj[k] = (x: Context | Context.Pokemon) => {
           const r = (fn as any)(x);
-          if (typeof r !== "undefined" && cbfn) cbfn();
+          if (typeof r !== 'undefined' && cbfn) cbfn();
           return r;
         };
       }

@@ -34,13 +34,13 @@ export function tests(...args: any[]) {
     fn = args[1];
     type = args[2];
   } else if (typeof args[2] !== 'number') {
-    from = args[1] as GenerationNum ?? 1;
+    from = (args[1] as GenerationNum) ?? 1;
     to = 8;
     fn = args[2];
     type = args[3];
   } else {
-    from = args[1] as GenerationNum ?? 1;
-    to = args[2] as GenerationNum ?? 8;
+    from = (args[1] as GenerationNum) ?? 1;
+    to = (args[2] as GenerationNum) ?? 8;
     fn = args[3];
     type = args[4];
   }

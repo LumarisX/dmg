@@ -15,13 +15,7 @@ import type {
 
 import {ConditionKind, Conditions, Player} from './conditions';
 import {MOVE_SUGAR, State, bounded} from './state';
-import {
-  ABILITIES,
-  RBY_STAT_ORDER,
-  STAT_ORDER,
-  decodeURL,
-  getNature,
-} from './encode';
+import {ABILITIES, RBY_STAT_ORDER, STAT_ORDER, decodeURL, getNature} from './encode';
 import {has, is, toID} from './utils';
 
 // Flags can either be specified as key:value or as 'implicits'
@@ -57,12 +51,8 @@ const DEFAULTS: {[id: string]: 'p1' | 'p2'} = {
 };
 
 const stats = (s: string) =>
-  ['hp', 'atk', 'def', 'spa', 'spd', 'spc', 'spe'].map((stat) => `${stat}${s}`);
-const boosts = (s: string) => [
-  ...stats(s).slice(1),
-  `accuracy${s}`,
-  `evasion${s}`,
-];
+  ['hp', 'atk', 'def', 'spa', 'spd', 'spc', 'spe'].map(stat => `${stat}${s}`);
+const boosts = (s: string) => [...stats(s).slice(1), `accuracy${s}`, `evasion${s}`];
 // Known keys for the various Flags scopes above - in strict mode unknown keys causes errors, note
 // that scalar conditions (weather/terrain/status) are 'lifted' out of _ up to the top level
 const PLAYER_KNOWN = [
@@ -107,8 +97,7 @@ const EVS =
   /((?:\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)(?:\s*\/\s*\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)){0,5})?\s+)?/;
 const HP = /(?:(100|\d{1,2}(?:\.\d+)?)%\s+)?/;
 // eslint-disable-next-line no-misleading-character-class
-const POKEMON_AND_ITEM =
-  /(?:([A-Za-z][-0-9A-Za-zé%'’:. ]+)(?:\s*@\s*([A-Za-z][-0-9A-Za-z:' ]+))?)/;
+const POKEMON_AND_ITEM = /(?:([A-Za-z][-0-9A-Za-zé%'’:. ]+)(?:\s*@\s*([A-Za-z][-0-9A-Za-z:' ]+))?)/;
 const MOVE_VS = /\s*\[([-0-9A-Za-z', ]+)\]\s+vs\.?\s+/;
 const VS = /^vs\.?$/i;
 
@@ -133,7 +122,7 @@ const PHRASE = new RegExp(
     // eslint-disable-next-line no-misleading-character-class
     new RegExp(`${POKEMON_AND_ITEM.source}$`), // 12 & 13
   ]
-    .map((r) => r.source)
+    .map(r => r.source)
     .join(''),
   'i'
 );
@@ -196,11 +185,7 @@ interface ParseContext {
 // let stringify = JSON.stringify;
 // try { stringify = require('json-stringify-pretty-compact'); } catch {}
 
-export function parse(
-  gens: Generation | Generations,
-  s: string,
-  strict = false
-) {
+export function parse(gens: Generation | Generations, s: string, strict = false) {
   const context: ParseContext = {input: s};
   try {
     // Decode the string in case it was URL encoded and then split up the string into
@@ -254,8 +239,7 @@ export function parse(
     // Useful to include in error messages to reveal how `s` was parsed
     const parsed = phrase ? parsePhrase(gen, phrase) : undefined;
     context.phrase.output = parsed;
-    if (phrase && !parsed && strict)
-      throw new Error(`Unable to parse phrase: '${phrase}'`);
+    if (phrase && !parsed && strict) throw new Error(`Unable to parse phrase: '${phrase}'`);
 
     // DEBUG console.log(stringify(context, null, 2) + '\n');
     return build(gen, gameType, parsed, flags, strict);
@@ -313,9 +297,7 @@ function validateGen(
   if (isNaN(n) || !bounded('gen', n)) {
     if (strict) throw new Error(`Invalid generation flag '${val}'`);
   } else if ((strict || 'num' in gens) && g && g !== n) {
-    throw new Error(
-      `Conflicting values for flag generation: '${g}' vs. '${val}'`
-    );
+    throw new Error(`Conflicting values for flag generation: '${g}' vs. '${val}'`);
   } else {
     return n as GenerationNum;
   }
@@ -372,9 +354,7 @@ function parseFlags(
     if (KNOWN[k].includes(id)) {
       // NOTE: all booleans should have been converted to '1' or '0' by parseFlag before this
       if (strict && flags[k][id] && toID(flags[k][id]) !== toID(val)) {
-        throw new Error(
-          `Conflicting values for flag '${id}': '${flags[k][id]}' vs. '${val}'`
-        );
+        throw new Error(`Conflicting values for flag '${id}': '${flags[k][id]}' vs. '${val}'`);
       }
       flags[k][id] = val;
     } else if (strict) {
@@ -392,16 +372,7 @@ function parseFlags(
       }
       const type = UNAMBIGUOUS[id];
       if (type === 'field') {
-        parseConditionFlag(
-          gen,
-          flags,
-          val,
-          origFlag,
-          strict,
-          'field',
-          true,
-          CONDITIONS[id]
-        );
+        parseConditionFlag(gen, flags, val, origFlag, strict, 'field', true, CONDITIONS[id]);
       } else {
         setFlag(type, id, val, origID);
       }
@@ -416,32 +387,14 @@ function parseFlags(
     } else if (id.startsWith('attacker') || id.startsWith('p1')) {
       id = id.slice(id.charAt(0) === 'p' ? 2 : 8) as ID;
       if (CONDITIONS[id]) {
-        parseConditionFlag(
-          gen,
-          flags,
-          val,
-          origFlag,
-          strict,
-          'p1',
-          true,
-          CONDITIONS[id]
-        );
+        parseConditionFlag(gen, flags, val, origFlag, strict, 'p1', true, CONDITIONS[id]);
         continue;
       }
       setFlag('p1', id, val, origID);
     } else if (id.startsWith('defender') || id.startsWith('p2')) {
       id = id.slice(id.charAt(0) === 'p' ? 2 : 8) as ID;
       if (CONDITIONS[id]) {
-        parseConditionFlag(
-          gen,
-          flags,
-          val,
-          origFlag,
-          strict,
-          'p2',
-          true,
-          CONDITIONS[id]
-        );
+        parseConditionFlag(gen, flags, val, origFlag, strict, 'p2', true, CONDITIONS[id]);
         continue;
       }
       setFlag('p2', id, val, origID);
@@ -450,15 +403,7 @@ function parseFlags(
       setFlag(scope, id, val, origID);
       continue;
     } else {
-      parseConditionFlag(
-        gen,
-        flags,
-        `${id}=${val}`,
-        origFlag,
-        strict,
-        scope,
-        false
-      );
+      parseConditionFlag(gen, flags, `${id}=${val}`, origFlag, strict, scope, false);
     }
   }
 
@@ -509,26 +454,17 @@ function parseFlag(arg: string, condition = false): [ID, string] | undefined {
   } else {
     const id = toID(m[1]);
     const val = QUOTED.test(m[2]) ? m[2].slice(1, -1) : m[2];
-    if (id.startsWith('no'))
-      return [id.slice(2) as ID, asBoolean(val) ? '0' : '1'];
-    if (id.startsWith('is'))
-      return [id.slice(2) as ID, asBoolean(val) ? '1' : '0'];
-    if (id.startsWith('has'))
-      return [id.slice(3) as ID, asBoolean(val) ? '1' : '0'];
-    if (!condition && has(NON_CONDITION_BOOLS, id))
-      return [id, asBoolean(val) ? '1' : '0'];
-    if (condition && !has(CONDITION_NON_BOOLS, id))
-      return [id, asBoolean(val) ? '1' : '0'];
-    if (PLURALS.some((p) => id.endsWith(p))) return [`${id}s` as ID, val];
+    if (id.startsWith('no')) return [id.slice(2) as ID, asBoolean(val) ? '0' : '1'];
+    if (id.startsWith('is')) return [id.slice(2) as ID, asBoolean(val) ? '1' : '0'];
+    if (id.startsWith('has')) return [id.slice(3) as ID, asBoolean(val) ? '1' : '0'];
+    if (!condition && has(NON_CONDITION_BOOLS, id)) return [id, asBoolean(val) ? '1' : '0'];
+    if (condition && !has(CONDITION_NON_BOOLS, id)) return [id, asBoolean(val) ? '1' : '0'];
+    if (PLURALS.some(p => id.endsWith(p))) return [`${id}s` as ID, val];
     return [id, val];
   }
 }
 
-const FIELD_CONDITIONS: ConditionKind[] = [
-  'Weather',
-  'Terrain',
-  'Pseudo Weather',
-];
+const FIELD_CONDITIONS: ConditionKind[] = ['Weather', 'Terrain', 'Pseudo Weather'];
 
 function parseConditionFlag(
   gen: Generation,
@@ -540,14 +476,10 @@ function parseConditionFlag(
   explicit?: boolean,
   kind?: ConditionKind
 ) {
-  const raw = s
-    .split(SPLIT_SUBFLAG)
-    .filter((x) => x !== null && x !== undefined);
+  const raw = s.split(SPLIT_SUBFLAG).filter(x => x !== null && x !== undefined);
   if (strict && !raw.length) {
     const k = kind ? `${kind} ` : '';
-    throw new Error(
-      `Expected '${s}' to contain at least one ${k}condition but found none`
-    );
+    throw new Error(`Expected '${s}' to contain at least one ${k}condition but found none`);
   }
 
   for (const arg of raw) {
@@ -555,9 +487,7 @@ function parseConditionFlag(
     if (!parsed) {
       parsed = parseFlag(`+${arg}`, !!kind);
       if (!parsed) {
-        throw new Error(
-          `Unable to parse '${arg}' as a flag for a condition from '${s}'`
-        );
+        throw new Error(`Unable to parse '${arg}' as a flag for a condition from '${s}'`);
       }
     }
     let [id, val] = parsed;
@@ -576,10 +506,7 @@ function parseConditionFlag(
         flags[cscope][id] = val;
         continue;
       }
-      if (strict)
-        throw new Error(
-          `Unrecognized or invalid condition '${id}' from '${s}'`
-        );
+      if (strict) throw new Error(`Unrecognized or invalid condition '${id}' from '${s}'`);
       continue;
     }
 
@@ -587,9 +514,7 @@ function parseConditionFlag(
 
     const name = condition[0];
     if (kind && kind !== condition[1]) {
-      throw new Error(
-        `Mismatched kind for condition '${name}': '${kind}' vs. '${condition[1]}'`
-      );
+      throw new Error(`Mismatched kind for condition '${name}': '${kind}' vs. '${condition[1]}'`);
     }
 
     const ckind = condition[1];
@@ -613,11 +538,7 @@ function parseConditionFlag(
           // BUG: if toxic:1 is used in a subflag there is no way to properly discern the count
           const match = FLAG.exec(orig);
           if (match && !match[3]) {
-            if (
-              strict &&
-              flags[cscope].toxiccounter &&
-              flags[cscope].toxiccounter !== val
-            ) {
+            if (strict && flags[cscope].toxiccounter && flags[cscope].toxiccounter !== val) {
               throw new Error(
                 "Conflicting values for flag 'toxiccounter': " +
                   `'${flags[cscope].toxiccounter}' vs. '${val}'`
@@ -629,22 +550,17 @@ function parseConditionFlag(
       }
       val = toID(name);
       if (strict && flags[cscope][id] && flags[cscope][id] !== val) {
-        throw new Error(
-          `Conflicting values for flag '${id}': '${flags[cscope][id]}' vs. '${val}'`
-        );
+        throw new Error(`Conflicting values for flag '${id}': '${flags[cscope][id]}' vs. '${val}'`);
       }
       flags[cscope][id] = val;
       continue;
     }
 
     id = toID(name);
-    const conditions = (flags[cscope][_][ckind] =
-      flags[cscope][_][ckind] || {});
+    const conditions = (flags[cscope][_][ckind] = flags[cscope][_][ckind] || {});
 
     if (strict && conditions[id] && conditions[id] !== val) {
-      throw new Error(
-        `Conflicting values for condition '${id}': '${conditions[id]}' vs. '${val}'`
-      );
+      throw new Error(`Conflicting values for condition '${id}': '${conditions[id]}' vs. '${val}'`);
     }
     conditions[id] = val;
   }
@@ -734,17 +650,13 @@ function parseSpreadValues(
 
   const split = s.split('/');
   if (compact && (split.length < 5 || split.length > 6)) {
-    checks?.error(
-      true,
-      `Invalid number of ${type.toUpperCase()}s: ${split.length}`
-    );
+    checks?.error(true, `Invalid number of ${type.toUpperCase()}s: ${split.length}`);
     return type === 'ev' ? {evs: vals} : vals;
   }
   const order = split.length === 5 ? RBY_STAT_ORDER : STAT_ORDER;
   for (const [i, v] of split.entries()) {
     let [val, name] = v.trim().split(/\s+/);
-    const stat =
-      (name && gen.stats.get(name)) || (compact ? order[i] : undefined);
+    const stat = (name && gen.stats.get(name)) || (compact ? order[i] : undefined);
     if (!stat) {
       checks?.error(true, `Unknown stat for ${type.toUpperCase()}s`);
       continue;
@@ -766,24 +678,12 @@ function parseSpreadValues(
     vals[stat] = +val;
   }
 
-  return type === 'ev'
-    ? {evs: vals, nature: plus || minus ? {plus, minus} : undefined}
-    : vals;
+  return type === 'ev' ? {evs: vals, nature: plus || minus ? {plus, minus} : undefined} : vals;
 }
 
 interface Checks {
-  conflict<T>(
-    k: string,
-    a: T | undefined,
-    b: T | undefined,
-    required?: boolean
-  ): T | undefined;
-  number<T>(
-    k: string,
-    a: T | undefined,
-    b?: T | undefined,
-    required?: boolean
-  ): number | undefined;
+  conflict<T>(k: string, a: T | undefined, b: T | undefined, required?: boolean): T | undefined;
+  number<T>(k: string, a: T | undefined, b?: T | undefined, required?: boolean): number | undefined;
   error(condition: boolean, msg: string): void;
 }
 
@@ -796,12 +696,7 @@ function build(
   flags: Flags,
   strict: boolean
 ): State {
-  const conflict = <T>(
-    k: string,
-    a: T | undefined,
-    b: T | undefined,
-    required?: boolean
-  ) => {
+  const conflict = <T>(k: string, a: T | undefined, b: T | undefined, required?: boolean) => {
     if (strict && a && b && toID(a) !== toID(b)) {
       throw new Error(`Conflicting values for ${k}: '${a}' vs. '${b}'`);
     }
@@ -812,17 +707,11 @@ function build(
   };
   const checks = {
     conflict,
-    number<T>(
-      k: string,
-      a: T | undefined,
-      b?: T | undefined,
-      required?: boolean
-    ) {
+    number<T>(k: string, a: T | undefined, b?: T | undefined, required?: boolean) {
       const n = conflict(k, a, b, required);
       if (n === undefined || n === null) return undefined;
       // NOTE: regardless of whether we're strict or not we need a number here
-      if (isNaN(+n))
-        throw new Error(`Expected number for ${k}, received '${n}'`);
+      if (isNaN(+n)) throw new Error(`Expected number for ${k}, received '${n}'`);
       return +n;
     },
     error(condition: boolean, msg: string) {
@@ -831,21 +720,12 @@ function build(
   };
 
   if (flags.general.gametype) {
-    gameType = checks.conflict(
-      'game type',
-      flags.general.gametype,
-      gameType
-    ) as GameType;
+    gameType = checks.conflict('game type', flags.general.gametype, gameType) as GameType;
   } else if (!gameType) {
     gameType = 'singles';
   }
-  if (
-    !is(gameType, 'singles', 'doubles') ||
-    (gen.num <= 2 && gameType === 'doubles')
-  ) {
-    throw new Error(
-      `Invalid game type '${gameType}' for generation ${gen.num}`
-    );
+  if (!is(gameType, 'singles', 'doubles') || (gen.num <= 2 && gameType === 'doubles')) {
+    throw new Error(`Invalid game type '${gameType}' for generation ${gen.num}`);
   }
 
   const field = buildField(gen, flags, checks);
@@ -866,12 +746,7 @@ function buildField(gen: Generation, flags: Flags, checks: Checks) {
     for (const id in pw) {
       if (has(CONDITION_NON_BOOLS, id)) {
         pseudoWeather[id] = {
-          level: checks.number(
-            `Pseudo Weather ${id}`,
-            pw[id],
-            undefined,
-            REQUIRED
-          ),
+          level: checks.number(`Pseudo Weather ${id}`, pw[id], undefined, REQUIRED),
         };
       }
       if (pw[id] === '1') pseudoWeather[id] = {};
@@ -885,11 +760,7 @@ function buildField(gen: Generation, flags: Flags, checks: Checks) {
   });
 }
 
-function buildMoveOptions(
-  phrase: Phrase | undefined,
-  flags: Flags,
-  checks: Checks
-) {
+function buildMoveOptions(phrase: Phrase | undefined, flags: Flags, checks: Checks) {
   const useZ = checks.conflict('move useZ', flags.move.usez, flags.move.z);
   return {
     name: checks.conflict('move', phrase?.move.id, flags.move.name, REQUIRED)!,
@@ -923,15 +794,10 @@ function buildSide(
       for (const id in c[kind]) {
         if (has(CONDITION_NON_BOOLS, id)) {
           obj[id] = {
-            level: checks.number(
-              `${side} ${kind} ${id}`,
-              c[kind]![id],
-              undefined,
-              REQUIRED
-            ),
+            level: checks.number(`${side} ${kind} ${id}`, c[kind][id], undefined, REQUIRED),
           };
         }
-        if (c[kind]![id] === '1') obj[id] = {};
+        if (c[kind][id] === '1') obj[id] = {};
       }
     }
     return obj;
@@ -960,13 +826,10 @@ function buildSide(
   const stat = !m
     ? undefined
     : side === 'p1'
-    ? m.overrideOffensiveStat || (m.category === 'Special' ? 'spa' : 'atk')
-    : m.overrideDefensiveStat || (m.category === 'Special' ? 'spd' : 'def');
+      ? m.overrideOffensiveStat || (m.category === 'Special' ? 'spa' : 'atk')
+      : m.overrideDefensiveStat || (m.category === 'Special' ? 'spd' : 'def');
   // This can really only happen with an invalid move....
-  checks.error(
-    !stat && !!p?.boosts,
-    `Ambiguous boosts ${p?.boosts} for ${side}`
-  );
+  checks.error(!stat && !!p?.boosts, `Ambiguous boosts ${p?.boosts} for ${side}`);
 
   const spread = parseSpreadValues(gen, 'ev', true, f.evs, checks) as {
     evs: Partial<StatsTable & {spc?: number}>;
@@ -1005,10 +868,10 @@ function buildSide(
   }
 
   const dvs = parseSpreadValues(gen, 'dv', true, f.dvs, checks) as Partial<
-    StatsTable & {spc?: number}
+  StatsTable & {spc?: number}
   >;
   const ivs = parseSpreadValues(gen, 'iv', true, f.ivs, checks) as Partial<
-    StatsTable & {spc?: number}
+  StatsTable & {spc?: number}
   >;
   // eslint-disable-next-line @typescript-eslint/no-shadow
   const boosts: Partial<BoostsTable & {spc: number}> = {
@@ -1028,11 +891,7 @@ function buildSide(
     if (s === 'hp') continue;
 
     const boost = stat === s ? p?.boosts : undefined;
-    boosts[s] = checks.number(
-      `${side} ${d} boosts`,
-      boost,
-      f[`${s}boosts`] as any
-    );
+    boosts[s] = checks.number(`${side} ${d} boosts`, boost, f[`${s}boosts`] as any);
   }
 
   if (gen.num <= 2) {
@@ -1099,11 +958,7 @@ function buildSide(
       gender,
       happiness: checks.number(`${side} happiness`, f.happiness),
       hp: checks.number(`${side} HP`, f.hp),
-      hpPercent: checks.number(
-        `${side} HP percent`,
-        p?.hp,
-        f.hppercent as unknown
-      ),
+      hpPercent: checks.number(`${side} HP percent`, p?.hp, f.hppercent as unknown),
       maxhp: checks.number(`${side} HP`, f.maxhp),
       nature,
       evs,
@@ -1116,9 +971,7 @@ function buildSide(
         ? {toxicTurns: checks.number(`${side} toxic counter`, f.toxiccounter)}
         : undefined,
       addedType,
-      moveLastTurnResult: f.movelastturn
-        ? asBoolean(f.movelastturn)
-        : undefined,
+      moveLastTurnResult: f.movelastturn ? asBoolean(f.movelastturn) : undefined,
       hurtThisTurn: f.hurtthisturn ? asBoolean(f.hurtthisturn) : undefined,
       switching,
       volatiles: fillConditions('Volatile Status'),
@@ -1185,8 +1038,7 @@ function toParseContext(flags: Flags) {
 // `\3` and `\5` are a backreference to the quote style (' or ") captured
 
 // NOTE: Modified to only allow double quotes
-const TOKENIZE =
-  /([^\s"]([^\s"]*(["])([^\0x3]*?)\3)+[^\s"]*)|[^\s"]+|(["])([^\0x5]*?)\5/gi;
+const TOKENIZE = /([^\s"]([^\s"]*(["])([^\0x3]*?)\3)+[^\s"]*)|[^\s"]+|(["])([^\0x5]*?)\5/gi;
 
 function tokenize(s: string): string[] {
   const args: string[] = [];
