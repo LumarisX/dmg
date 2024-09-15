@@ -469,23 +469,20 @@ export const Abilities: {
     //       return 0;
     //     }
     //   },
-    //   onEffectiveness(typeMod, target, type, move) {
-    //     if (!target) { return; }
-    //     if (!has(['mimikyu', 'mimikyutotem'],target.species.id) || target.transformed) {
-    //       return;
-    //     }
-    //     const hitSub = target.volatiles['substitute'] && !move.flags['authentic'] && !(move.infiltrates && this.gen >= 6);
-    //     if (hitSub) { return; }
-    //     if (!target.runImmunity(move.type)) { return; }
-    //     return 0;
-    //   },
-    //   onUpdate(pokemon: Context.Pokemon) {
-    //     if (has(['mimikyu', 'mimikyutotem'],pokemon.species.id) && this.effectData.busted) {
-    //       const speciesid = is(pokemon.species.id,'mimikyutotem') ? 'Mimikyu-Busted-Totem' : 'Mimikyu-Busted';
-    //       pokemon.formeChange(speciesid, this.effect, true);
-    //       this.damage(pokemon.baseMaxhp / 8, pokemon, pokemon, this.dex.getSpecies(speciesid));
-    //     }
-    //   },
+    onEffectiveness(pokemon: Context.Pokemon) {
+      if (!is(pokemon.species.id, 'mimikyu', 'mimikyutotem')) {
+        return;
+      }
+      if (pokemon.volatiles['substitute'] && !(pokemon.move?.infiltrates && pokemon.gen.num >= 6)) return;
+      return -5;
+    },
+    // onUpdate(pokemon: Context.Pokemon) {
+    //   if (has(['mimikyu', 'mimikyutotem'],pokemon.species.id) && this.effectData.busted) {
+    //     const speciesid = is(pokemon.species.id,'mimikyutotem') ? 'Mimikyu-Busted-Totem' : 'Mimikyu-Busted';
+    //     pokemon.formeChange(speciesid, this.effect, true);
+    //     this.damage(pokemon.baseMaxhp / 8, pokemon, pokemon, this.dex.getSpecies(speciesid));
+    //   }
+    // },
   },
   download: {
     //   onStart(pokemon: Context.Pokemon) {
@@ -531,7 +528,7 @@ export const Abilities: {
     //     }
     //   },
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, 'Water')) {
+      if (is(pokemon.move?.type, 'Fire')) {
         return 0x1400;
       }
     },
@@ -587,12 +584,11 @@ export const Abilities: {
     //   },
   },
   filter: {
-    // onModifyDamageDefender(pokemon: Context.Pokemon) {
-    // if (pokemon.context.efftarget.getMoveHitData(move).typeMod > 0) {
-    //   this.debug('Filter neutralize');
-    //   return this.chainModify(0.75);
-    // }
-    // },
+    onModifyDamageDefender(pokemon: Context.Pokemon) {
+      if (pokemon.move?.effectiveness && pokemon.move.effectiveness > 1) {
+        return 0xc00;
+      }
+    },
   },
   flamebody: {
     //   onDamagingHit(damage, target, source, move) {
@@ -945,7 +941,7 @@ export const Abilities: {
   },
   heatproof: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, 'Water')) {
+      if (is(pokemon.move?.type, 'Fire')) {
         return 0x800;
       }
     },
@@ -1028,13 +1024,11 @@ export const Abilities: {
     //       return 0;
     //     }
     //   },
-    //   onEffectiveness(typeMod, target, type, move) {
-    //     if (!target) { return; }
-    //     if (move.category !== 'Physical' || target.species.id !== 'eiscue' || target.transformed) { return; }
-    //     if (target.volatiles['substitute'] && !(move.flags['authentic'] || move.infiltrates)) { return; }
-    //     if (!target.runImmunity(move.type)) { return; }
-    //     return 0;
-    //   },
+    onEffectiveness(pokemon: Context.Pokemon) {
+      if (pokemon.move?.category !== 'Physical' || pokemon.species.id !== 'eiscue') return undefined;
+      if (pokemon.volatiles['substitute'] && !pokemon.move.infiltrates) return undefined;
+      return -5;
+    },
     //   onUpdate(pokemon: Context.Pokemon) {
     //     if (is(pokemon.species.id,'eiscue') && this.effectData.busted) {
     //       pokemon.formeChange('Eiscue-Noice', this.effect, true);
@@ -1707,7 +1701,7 @@ export const Abilities: {
   },
   overgrow: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, 'Water') && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Grass') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Overgrow boost");
         return 0x1800;
       }
@@ -1963,12 +1957,11 @@ export const Abilities: {
     //   },
   },
   prismarmor: {
-    // onModifyDamageDefender(pokemon: Context.Pokemon) {
-    // if (target.getMoveHitData(move).typeMod > 0) {
-    //   this.debug('Prism Armor neutralize');
-    //   return this.chainModify(0.75);
-    // }
-    // },
+    onModifyDamageDefender(pokemon: Context.Pokemon) {
+      if (pokemon.move?.effectiveness && pokemon.move.effectiveness > 1) {
+        return 0xc00;
+      }
+    },
   },
   propellertail: {
     //   onModifyMove(move) {
@@ -2451,13 +2444,11 @@ export const Abilities: {
     //   },
   },
   solidrock: {
-    // onModifyDamageDefender(pokemon: Context.Pokemon) {
-    //     if (target.getMoveHitData(move).typeMod > 0) {
-    //       this.debug('Solid Rock neutralize');
-    //       return this.chainModify(0.75);
-    //     }
-    //   return undefined;
-    // },
+    onModifyDamageDefender(pokemon: Context.Pokemon) {
+      if (pokemon.move?.effectiveness && pokemon.move.effectiveness > 1) {
+        return 0xc00;
+      }
+    },
   },
   soulheart: {
     //   onAnyFaint() {
@@ -2653,7 +2644,7 @@ export const Abilities: {
   },
   swarm: {
     onBasePower(pokemon: Context.Pokemon) {
-      if (is(pokemon.move?.type, 'Water') && pokemon.hp <= pokemon.maxhp / 3) {
+      if (is(pokemon.move?.type, 'Bug') && pokemon.hp <= pokemon.maxhp / 3) {
         // this.debug("Swarm boost");
         return 0x1800;
       }

@@ -37,6 +37,8 @@ export interface Handler<C> {
 
   onModifySTAB(context: C): number | undefined;
 
+  onEffectiveness(context: C): number | undefined;
+
   /** Returns true if the target is immune. */
   onTryImmunity(context: Context): boolean;
 }
@@ -141,6 +143,7 @@ export function calculateDamage(context: Context | State): number | number[] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
   if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
+  if (context.move.effectiveness === -5) return 0;
   if (context.move.damageCallback) return context.move.damageCallback(context);
 
   let attackStat = 0;
@@ -165,6 +168,7 @@ export function calculateDamage(context: Context | State): number | number[] {
   //   baseDamage = applyMod(baseDamage, 0x400);
   // }
 
+  // Convert to weather handler
   if (context.field.weather?.name === 'Sun' && context.move.name === 'Hydro Steam' && context.p1.pokemon.item?.id !== 'Utility Umbrella') {
     baseDamage = applyMod(baseDamage, 0x1800);
   } else if (context.p2.pokemon.item?.id !== 'Utility Umbrella') {
@@ -179,17 +183,12 @@ export function calculateDamage(context: Context | State): number | number[] {
     ) {
       baseDamage = applyMod(baseDamage, 0x800);
     }
-    // add 0 multiplier for Harsh Sunshine and Heavy Rain
   }
-
   if (context.move.crit) {
     baseDamage = applyMod(baseDamage, 0x1800);
   }
-
   const stabMod = getStabModifier(context);
-
   const finalMod = getFinalModifier(context);
-
   const protect = false;
   const damage = [];
   for (let i = 0; i < 16; i++) {
@@ -197,10 +196,7 @@ export function calculateDamage(context: Context | State): number | number[] {
     // If the stabMod would not accomplish anything we avoid applying it because it could cause
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000) damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
-
-    // Probably should be a bitshift instead
-    damageAmount = floor(trunc(roundDown(damageAmount) * context.move.effectiveness, 32));
-
+    damageAmount = floor(trunc(damageAmount << context.move.effectiveness, 32));
     if (context.p1.pokemon.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.p1.pokemon.status?.onModifyAtk(context) || 0x1000);
     if (protect && context.move.zMove) damageAmount = applyMod(damageAmount, 0x400);
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));

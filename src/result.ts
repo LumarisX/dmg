@@ -180,7 +180,7 @@ export class Result {
   }
 
   get damage() {
-    return this.range[0];
+    return this.hits.flatMap(h => h.damage);
   }
 
   recoil(relevant?: Relevancy) {
@@ -210,20 +210,14 @@ export class Result {
     } else if (move.struggleRecoil) {
       const round = gen.num === 4 ? math.roundDown : math.round;
       for (let i = 0; i < this.hits.length; i++) {
-        recoil = math.min(
-          p1.pokemon.maxhp,
-          ((recoil as number) || 0) + round(p1.pokemon.maxhp / 4)
-        );
+        recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + round(p1.pokemon.maxhp / 4));
       }
     } else if (move.mindBlownRecoil) {
       if (is(p1.pokemon.ability?.id, 'magicguard')) {
         if (relevant) relevant.p1.pokemon.ability = true;
       } else {
         for (let i = 0; i < this.hits.length; i++) {
-          recoil = math.min(
-            p1.pokemon.maxhp,
-            ((recoil as number) || 0) + math.round(p1.pokemon.maxhp / 2)
-          );
+          recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + math.round(p1.pokemon.maxhp / 2));
         }
       }
     }
@@ -258,10 +252,7 @@ export class Result {
           }
         } else {
           for (let i = 0; i < this.hits.length; i++) {
-            crash = math.min(
-              p1.pokemon.maxhp,
-              ((crash as number) || 0) + math.round(p1.pokemon.maxhp / 2)
-            );
+            crash = math.min(p1.pokemon.maxhp, ((crash as number) || 0) + math.round(p1.pokemon.maxhp / 2));
           }
         }
       }
@@ -289,10 +280,7 @@ export class Result {
           r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
           r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
         } else {
-          recovery = math.min(
-            max,
-            ((recovery || 0) as number) + math.max(math.roundDown(hit.damage / 8), 1)
-          );
+          recovery = math.min(max, ((recovery || 0) as number) + math.max(math.roundDown(hit.damage / 8), 1));
         }
       }
     }
@@ -342,11 +330,7 @@ export class Result {
   }
 
   recoilText(notation: Notation = '%', relevant?: Relevancy) {
-    return this.describe(
-      notation,
-      this.recoil(relevant),
-      `${this.state.move.struggleRecoil ? 'struggle' : 'recoil'} damage`
-    );
+    return this.describe(notation, this.recoil(relevant), `${this.state.move.struggleRecoil ? 'struggle' : 'recoil'} damage`);
   }
 
   crashText(notation: Notation = '%', relevant?: Relevancy) {
@@ -361,10 +345,7 @@ export class Result {
     const recoil = this.recoilText(notation, relevant);
     const crash = this.crashText(notation, relevant);
 
-    return (
-      `${min} - ${max}${notation}` +
-      `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`
-    );
+    return `${min} - ${max}${notation}` + `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`;
   }
 
   text(type: KOType = 'both', notation: Notation = '%', relevant?: Relevancy) {
@@ -390,12 +371,8 @@ export class Result {
     const recovery = this.recoveryText('%', relevant);
     const recoil = this.recoilText('%', relevant);
     const crash = this.crashText('%', relevant);
-    const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${
-      crash && ` (${crash})`
-    }`;
-    const rolls = this.hits
-      .map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.join(', ')}]`)
-      .join(', ');
+    const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`;
+    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.join(', ')}]`).join(', ');
     return `${this.text('both', '%', relevant)}${end}\n${rolls}`;
   }
 
@@ -416,8 +393,7 @@ export class Result {
   private display(notation: Notation, a: number, b: number, f = 1) {
     if (notation === '%') return Math.floor((a * (1000 / f)) / b) / 10;
     const g = this.state.gen.num;
-    const px =
-      notation === '/48' ? 48 : notation === 'px' ? (g < 7 ? 48 : g < 8 ? 86 : 400) : notation;
+    const px = notation === '/48' ? 48 : notation === 'px' ? (g < 7 ? 48 : g < 8 ? 86 : 400) : notation;
     return Math.floor((a * (px / f)) / b);
   }
 }
@@ -437,11 +413,7 @@ export class HitResult {
 
   private cached: [number, number] | undefined;
 
-  constructor(
-    state: DeepReadonly<State>,
-    handlers: Handlers = HANDLERS,
-    relevant = new Relevancy()
-  ) {
+  constructor(state: DeepReadonly<State>, handlers: Handlers = HANDLERS, relevant = new Relevancy()) {
     this.state = state;
     this.handlers = handlers;
     this.context = new Context(state, handlers, relevant);
@@ -594,11 +566,7 @@ function simplifySide(gen: Generation, state: DeepReadonly<State.Side>, relevant
   return side;
 }
 
-function simplifyPokemon(
-  gen: Generation,
-  state: DeepReadonly<State.Pokemon>,
-  relevant: Relevancy.Pokemon
-) {
+function simplifyPokemon(gen: Generation, state: DeepReadonly<State.Pokemon>, relevant: Relevancy.Pokemon) {
   const pokemon: State.Pokemon = {
     species: state.species as Specie,
     level: state.level,

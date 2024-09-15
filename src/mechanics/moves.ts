@@ -1397,9 +1397,9 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //   },
   },
   flyingpress: {
-    //   onEffectiveness(typeMod, target, type, move) {
-    //     return typeMod + this.dex.getEffectiveness('Flying', type);
-    //   },
+    onEffectiveness(context: Context) {
+      return context.move.effectiveness + context.gen.dex.getEffectiveness('Flying', context.p2.pokemon);
+    },
   },
   focusenergy: {
     //   effect: {

@@ -440,10 +440,11 @@ export namespace Context {
     onModifySpe?(pokemon: Context): number | undefined;
     onModifyWeight?(pokemon: Context): number | undefined;
     onResidual?(pokemon: Context): number | undefined;
+    onEffectiveness?(context: Context): number | undefined;
 
     readonly relevant: Relevancy.Move;
 
-    effectiveness: number = 1;
+    effectiveness: number = 0;
 
     constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers) {
       extend(this, state);
@@ -451,7 +452,29 @@ export namespace Context {
       reify(this, this.id, handlers.Moves);
     }
 
+    private EFFECTIVENESSBIT: {[key: number]: number} = {
+      0: -5,
+      0.125: -3,
+      0.25: -2,
+      0.5: -1,
+      1: 0,
+      2: 1,
+      4: 2,
+      8: 3,
+    };
+
     updateData(context: Context) {
+      this.effectiveness =
+        this.EFFECTIVENESSBIT[context.gen.types.totalEffectiveness(this.type, context.p2.pokemon) as keyof typeof this.EFFECTIVENESSBIT];
+      if (context.p2.pokemon.move?.onEffectiveness) {
+        let effectiveness = context.p2.pokemon.move.onEffectiveness(context);
+        if (effectiveness !== undefined) this.effectiveness = effectiveness;
+      }
+      if (context.p2.pokemon.item?.onEffectiveness) {
+        let effectiveness = context.p2.pokemon.item.onEffectiveness(context.p2.pokemon);
+        if (effectiveness !== undefined) this.effectiveness = effectiveness;
+      }
+
       if (this.basePowerCallback) this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
@@ -466,7 +489,6 @@ export namespace Context {
       if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(context));
 
       this.basePower = apply(this.basePower, basePowerMod);
-      this.effectiveness = context.gen.types.totalEffectiveness(this.type, context.p2.pokemon);
     }
 
     toState(): State.Move {
