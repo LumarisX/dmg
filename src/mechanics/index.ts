@@ -11,7 +11,7 @@ import {Conditions} from './conditions';
 import {Items} from './items';
 import {Moves} from './moves';
 
-import {abs, apply, applyMod, chain, clamp, floor, max, min, roundDown, trunc} from '../math';
+import {abs, apply, applyMod, chain, clamp, floor, max, min, roundDown, shift, trunc} from '../math';
 
 export interface Applier {
   apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
@@ -137,7 +137,7 @@ export function calculate(...args: any[]) {
   return result;
 }
 
-export function calculateDamage(context: Context | State): number | [number, number][] {
+export function calculateDamage(context: Context | State): number | number[] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
   if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
@@ -156,7 +156,6 @@ export function calculateDamage(context: Context | State): number | [number, num
   }
 
   let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
-
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
   if (isSpread) {
     baseDamage = applyMod(baseDamage, 0xc00);
@@ -189,22 +188,23 @@ export function calculateDamage(context: Context | State): number | [number, num
   const finalMod = getFinalModifier(context);
   const protect = false;
   const damage = [];
+
   for (let i = 0; i < 16; i++) {
     let damageAmount = floor(trunc(baseDamage * (85 + i), 32) / 100);
     // If the stabMod would not accomplish anything we avoid applying it because it could cause
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000) damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
-    damageAmount = floor(trunc(damageAmount << context.move.effectiveness, 32));
+    damageAmount = floor(trunc(shift(damageAmount, context.move.effectiveness), 32));
     if (context.p1.pokemon.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.p1.pokemon.status?.onModifyAtk(context) || 0x1000);
     if (protect && context.move.zMove) damageAmount = applyMod(damageAmount, 0x400);
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));
   }
 
-  let rolls: {[key: number]: number} = {};
-  damage.forEach(num => {
-    rolls[num] = (rolls[num] || 0) + 1;
-  });
-  return Object.entries(rolls).map(([num, count]) => [parseInt(num), count]);
+  // let rolls: {[key: number]: number} = {};
+  // damage.forEach(num => {
+  //   rolls[num] = (rolls[num] || 0) + 1;
+  // });
+  return damage;
 }
 
 function getBaseDamage(level: number, basePower: number, attack: number, defense: number) {

@@ -123,7 +123,7 @@ export class Result {
     this.hits = [new HitResult(state as DeepReadonly<State>, handlers)];
     if (state.move.hits && state.move.hits > 1) {
       for (let h = 1; h < state.move.hits; h++) {
-        this.chainHits(this.hits[0], new HitResult(state as DeepReadonly<State>, handlers));
+        this.hits.push(new HitResult(state as DeepReadonly<State>, handlers));
       }
     }
     this.appliers = new Appliers(this.handlers);
@@ -132,38 +132,38 @@ export class Result {
     console.log(Array.isArray(this.hits[0].damage) ? this.hits[0].damage.length : 1);
   }
 
-  chainHits(hit1: HitResult, hit2: HitResult) {
-    const dmg1 = hit1.damage;
-    const dmg2 = hit2.damage;
+  // chainHits(hit1: HitResult, hit2: HitResult) {
+  //   const dmg1 = hit1.damage;
+  //   const dmg2 = hit2.damage;
 
-    if (typeof dmg1 === 'number' && typeof dmg2 === 'number') {
-      return dmg1 + dmg2;
-    }
+  //   if (typeof dmg1 === 'number' && typeof dmg2 === 'number') {
+  //     return dmg1 + dmg2;
+  //   }
 
-    const dmgArr1 = Array.isArray(dmg1) ? dmg1 : [[dmg1, 1]];
-    const dmgArr2 = Array.isArray(dmg2) ? dmg2 : [[dmg2, 1]];
+  //   const dmgArr1 = Array.isArray(dmg1) ? dmg1 : [[dmg1, 1]];
+  //   const dmgArr2 = Array.isArray(dmg2) ? dmg2 : [[dmg2, 1]];
 
-    const combinedDamage = dmgArr1.reduce(
-      (acc, [key1, value1]) => {
-        return dmgArr2.reduce((innerAcc, [key2, value2]) => {
-          const newValue: number = key1 + key2;
-          const newQuantity = value1 * value2;
+  //   const combinedDamage = dmgArr1.reduce(
+  //     (acc, [key1, value1]) => {
+  //       return dmgArr2.reduce((innerAcc, [key2, value2]) => {
+  //         const newValue: number = key1 + key2;
+  //         const newQuantity = value1 * value2;
 
-          const existingEntry = innerAcc.find(([key]) => key === newValue);
-          if (existingEntry) {
-            existingEntry[1] += newQuantity;
-          } else {
-            innerAcc.push([newValue, newQuantity]);
-          }
+  //         const existingEntry = innerAcc.find(([key]) => key === newValue);
+  //         if (existingEntry) {
+  //           existingEntry[1] += newQuantity;
+  //         } else {
+  //           innerAcc.push([newValue, newQuantity]);
+  //         }
 
-          return innerAcc;
-        }, acc);
-      },
-      [] as [number, number][]
-    );
+  //         return innerAcc;
+  //       }, acc);
+  //     },
+  //     [] as [number, number][]
+  //   );
 
-    hit1.damage = combinedDamage.length === 1 ? combinedDamage[0][0] : combinedDamage;
-  }
+  //   hit1.damage = combinedDamage.length === 1 ? combinedDamage[0][0] : combinedDamage;
+  // }
 
   chain() {
     const prev = this.hits[this.hits.length - 1];
@@ -219,8 +219,32 @@ export class Result {
     return (this.cache.range = [min, max]);
   }
 
-  get damage(): [number, number][] {
-    return Array.isArray(this.hits[0].damage) ? this.hits[0].damage : [[this.hits[0].damage, 1]];
+  get damage() {
+    return this.hits.reduce(
+      (acc, hit) => {
+        if (typeof acc === 'number' && typeof hit.damage === 'number') {
+          return acc + hit.damage;
+        }
+
+        if (typeof acc === 'number' && Array.isArray(hit.damage)) {
+          return hit.damage.map(value => value + acc);
+        }
+
+        if (Array.isArray(acc) && typeof hit.damage === 'number') {
+          return acc.map(value => value + (hit.damage as number));
+        }
+
+        if (Array.isArray(acc) && Array.isArray(hit.damage)) {
+          if (acc.length !== hit.damage.length) {
+            throw new Error('Array lengths must match for element-wise addition');
+          }
+          return acc.map((value, index) => value + (hit.damage as number[])[index]);
+        }
+
+        return acc;
+      },
+      0 as number | number[]
+    );
   }
 
   recoil(relevant?: Relevancy) {
@@ -412,7 +436,7 @@ export class Result {
     const recoil = this.recoilText('%', relevant);
     const crash = this.crashText('%', relevant);
     const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`;
-    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.range.join(', ')}]`).join(', ');
+    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.join(', ')}]`).join(', ');
     return `${this.text('both', '%', relevant)}${end}\n${rolls}`;
   }
 
@@ -449,7 +473,7 @@ export class HitResult {
 
   readonly context: Context;
 
-  damage: number | [number, number][];
+  damage: number | number[];
 
   private cached: [number, number] | undefined;
 
@@ -464,13 +488,13 @@ export class HitResult {
   get range() {
     if (this.cached) return this.cached;
     if (!Array.isArray(this.damage)) return (this.cached = [this.damage, this.damage]);
-    let min = this.damage[0][0];
+    let min = this.damage[0];
     let max = min;
     for (let i = 1; i < this.damage.length; i++) {
-      if (this.damage[i][0] < min) {
-        min = this.damage[i][0];
-      } else if (this.damage[i][0] > max) {
-        max = this.damage[i][0];
+      if (this.damage[i] < min) {
+        min = this.damage[i];
+      } else if (this.damage[i] > max) {
+        max = this.damage[i];
       }
     }
     return (this.cached = [min, max]);
