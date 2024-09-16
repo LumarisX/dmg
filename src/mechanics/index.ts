@@ -132,14 +132,12 @@ export function calculate(...args: any[]) {
 
   // Admittedly, somewhat odd to be creating a result and then letting it get mutated, but
   // this means we don't need to plumb state/handlers/context/relevancy in separately
-  const hit = new HitResult(state as DeepReadonly<State>, handlers);
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
-  const result = new Result(hit); // TODO handle multihit / parental bond etc
-
+  const result = new Result(state as DeepReadonly<State>, handlers); // TODO handle multihit / parental bond etc
   return result;
 }
 
-export function calculateDamage(context: Context | State): number | number[] {
+export function calculateDamage(context: Context | State): number | [number, number][] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
   if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
@@ -202,7 +200,11 @@ export function calculateDamage(context: Context | State): number | number[] {
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));
   }
 
-  return damage;
+  let rolls: {[key: number]: number} = {};
+  damage.forEach(num => {
+    rolls[num] = (rolls[num] || 0) + 1;
+  });
+  return Object.entries(rolls).map(([num, count]) => [parseInt(num), count]);
 }
 
 function getBaseDamage(level: number, basePower: number, attack: number, defense: number) {
