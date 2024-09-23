@@ -1,6 +1,6 @@
 import {Applier, Handler} from '.';
 import {Context} from '../context';
-import {floor} from '../math';
+import {floor, random} from '../math';
 import {has, is} from '../utils';
 
 export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
@@ -374,9 +374,11 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //   },
   },
   blizzard: {
-    //   onModifyMove(move) {
-    //     if (this.field.isWeather('hail')) { move.accuracy = true; }
-    //   },
+    onModifyMove(context) {
+      if (is(context.field.weather?.name, 'hail')) {
+        context.move.accuracy = true;
+      }
+    },
   },
   block: {
     //   onHit(target, source, move) {
@@ -2405,18 +2407,14 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //   },
   },
   hurricane: {
-    //   onModifyMove(move, pokemon, target) {
-    //     switch (target.effectiveWeather()) {
-    //     case 'raindance':
-    //     case 'primordialsea':
-    //       move.accuracy = true;
-    //       break;
-    //     case 'sunnyday':
-    //     case 'desolateland':
-    //       move.accuracy = 50;
-    //       break;
-    //     }
-    //   },
+    onModifyMove(context: Context) {
+      if (is(context.field.weather?.name, 'Rain', 'Heavy Rain')) {
+        context.move.accuracy = true;
+      }
+      if (is(context.field.weather?.name, 'Rain', 'Heavy Rain')) {
+        context.move.accuracy = 50;
+      }
+    },
   },
   hyperspacefury: {
     //   onTry(pokemon) {
@@ -3825,18 +3823,18 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //   },
   },
   present: {
-    //   onModifyMove(move, pokemon, target) {
-    //     const rand = this.random(10);
-    //     if (rand < 2) {
-    //       move.heal = [1, 4];
-    //     } else if (rand < 6) {
-    //       move.basePower = 40;
-    //     } else if (rand < 9) {
-    //       move.basePower = 80;
-    //     } else {
-    //       move.basePower = 120;
-    //     }
-    //   },
+    onModifyMove(context) {
+      const rand = random(10);
+      if (rand < 2) {
+        context.move.heal = [1, 4];
+      } else if (rand < 6) {
+        context.move.basePower = 40;
+      } else if (rand < 9) {
+        context.move.basePower = 80;
+      } else {
+        context.move.basePower = 120;
+      }
+    },
   },
   protect: {
     //   onPrepareHit(pokemon) {
@@ -5431,18 +5429,14 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //   },
   },
   thunder: {
-    //   onModifyMove(move, pokemon, target) {
-    //     switch (target.effectiveWeather()) {
-    //     case 'raindance':
-    //     case 'primordialsea':
-    //       move.accuracy = true;
-    //       break;
-    //     case 'sunnyday':
-    //     case 'desolateland':
-    //       move.accuracy = 50;
-    //       break;
-    //     }
-    //   },
+    onModifyMove(context: Context) {
+      if (is(context.field.weather?.name, 'Rain', 'Heavy Rain')) {
+        context.move.accuracy = true;
+      }
+      if (is(context.field.weather?.name, 'Sun', 'Harsh Sunshine')) {
+        context.move.accuracy = 50;
+      }
+    },
   },
   topsyturvy: {
     //   onHit(target) {
@@ -5776,24 +5770,21 @@ export const Moves: {[id: string]: Partial<Applier & Handler<Context>>} = {
     //       break;
     //     }
     //   },
-    //   onModifyMove(move, pokemon) {
-    //     switch (pokemon.effectiveWeather()) {
-    //     case 'sunnyday':
-    //     case 'desolateland':
-    //       move.basePower *= 2;
-    //       break;
-    //     case 'raindance':
-    //     case 'primordialsea':
-    //       move.basePower *= 2;
-    //       break;
-    //     case 'sandstorm':
-    //       move.basePower *= 2;
-    //       break;
-    //     case 'hail':
-    //       move.basePower *= 2;
-    //       break;
-    //     }
-    //   },
+    onModifyMove(context) {
+      if (is(context.field.weather?.name, 'Sun', 'Harsh Sunshine')) {
+        context.move.basePower = 100;
+        context.move.type = 'Fire';
+      } else if (is(context.field.weather?.name, 'Rain', 'Heavy Rain')) {
+        context.move.basePower = 100;
+        context.move.type = 'Water';
+      } else if (is(context.field.weather?.name, 'Sand')) {
+        context.move.basePower = 100;
+        context.move.type = 'Rock';
+      } else if (is(context.field.weather?.name, 'Hail', 'Snow')) {
+        context.move.basePower = 100;
+        context.move.type = 'Ice';
+      }
+    },
   },
   wideguard: {
     //   onTryHitSide(side, source) {

@@ -1,4 +1,5 @@
 import type {
+  BoostID,
   BoostsTable,
   ConditionData,
   Move as DMove,
@@ -300,7 +301,7 @@ export namespace Context {
         ability: this.ability?.id,
         gender: this.gender,
         teraType: this.teraType,
-        happiness: this.hp,
+        happiness: this.happiness,
         status: this.status?.name,
         statusState: this.statusData && extend({}, this.statusData),
         volatiles,
@@ -318,6 +319,12 @@ export namespace Context {
         moveLastTurnResult: this.moveLastTurnResult,
         hurtThisTurn: this.hurtThisTurn,
       };
+    }
+
+    addBoost(stat: BoostID, stage: number) {
+      this.boosts[stat] = this.boosts[stat] += stage;
+      if (this.boosts[stat] > 6) this.boosts[stat] = 6;
+      if (this.boosts[stat] < -6) this.boosts[stat] = -6;
     }
   }
 
@@ -433,14 +440,16 @@ export namespace Context {
     damageCallback?(context: Context): number;
     onTryImmunity?(context: Context): boolean;
     onBasePower?(context: Context): number | undefined;
-    onModifyAtk?(pokemon: Context): number | undefined;
-    onModifySpA?(pokemon: Context): number | undefined;
-    onModifyDef?(pokemon: Context): number | undefined;
-    onModifySpD?(pokemon: Context): number | undefined;
-    onModifySpe?(pokemon: Context): number | undefined;
-    onModifyWeight?(pokemon: Context): number | undefined;
-    onResidual?(pokemon: Context): number | undefined;
+    onModifyAtk?(context: Context): number | undefined;
+    onModifySpA?(context: Context): number | undefined;
+    onModifyDef?(context: Context): number | undefined;
+    onModifySpD?(context: Context): number | undefined;
+    onModifySpe?(context: Context): number | undefined;
+    onModifyWeight?(context: Context): number | undefined;
+    onResidual?(context: Context): number | undefined;
     onEffectiveness?(context: Context): number | undefined;
+
+    onModifyMove?(context: Context): void;
 
     readonly relevant: Relevancy.Move;
 
@@ -450,6 +459,11 @@ export namespace Context {
       extend(this, state);
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
+    }
+
+    get effectivePower() {
+      if (this.accuracy === true) return this.basePower;
+      return (this.basePower * this.accuracy) / 100;
     }
 
     private EFFECTIVENESSBIT: {[key: number]: number} = {
@@ -475,6 +489,7 @@ export namespace Context {
         if (effectiveness !== undefined) this.effectiveness = effectiveness;
       }
 
+      if (this.onModifyMove) this.onModifyMove(context);
       if (this.basePowerCallback) this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
@@ -513,4 +528,34 @@ function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon>>, id: ID, 
     }
   }
   return obj;
+}
+
+export class HPRange {
+  rolls: {[key: number]: number} = {};
+  totalRolls: number;
+  constructor(hp: number | number[]) {
+    this.totalRolls = 0;
+    if (Array.isArray(hp)) {
+      hp.forEach(value => this.incrementRoll(value));
+    } else {
+      this.incrementRoll(hp);
+    }
+  }
+
+  get range(): [number, number] {
+    const result = Object.keys(this.rolls).reduce<[number | null, number | null]>(
+      (acc, value) => {
+        const numValue = Number(value);
+        return [acc[0] === null ? numValue : Math.min(acc[0], numValue), acc[1] === null ? numValue : Math.max(acc[1], numValue)];
+      },
+      [null, null]
+    );
+
+    return [result[0] || -1, result[1] || -1];
+  }
+
+  private incrementRoll(value: number) {
+    this.rolls[value] = value in this.rolls ? this.rolls[value] : 0 + 1;
+    this.totalRolls++;
+  }
 }

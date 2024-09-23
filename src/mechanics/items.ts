@@ -1,5 +1,6 @@
 import {Applier, Handler} from '.';
 import {Context} from '../context';
+import {floor, max, min} from '../math';
 import {has, is} from '../utils';
 
 export const Items: {
@@ -621,20 +622,21 @@ export const Items: {
     //   },
   },
   figyberry: {
-    //   onUpdate(pokemon) {
-    //     if (pokemon.hp <= pokemon.maxhp / 4 || (pokemon.hp <= pokemon.maxhp / 2 && pokemon.hasAbility('gluttony'))) {
-    //       pokemon.eatItem();
-    //     }
-    //   },
+    onUpdate(pokemon) {
+      if ((pokemon.hp <= pokemon.maxhp / 4 || (pokemon.hp <= pokemon.maxhp / 2 && is(pokemon.ability?.id, 'gluttony'))) && pokemon.item?.onEat) {
+        pokemon.item.onEat(pokemon);
+      }
+    },
     //   onTryEatItem(item, pokemon) {
     //     if (!this.runEvent('TryHeal', pokemon)) { return false; }
     //   },
-    //   onEat(pokemon) {
-    //     this.heal(pokemon.baseMaxhp * 0.33);
-    //     if (pokemon.getNature().minus === 'atk') {
-    //       pokemon.addVolatile('confusion');
-    //     }
-    //   },
+    onEat(pokemon) {
+      pokemon.hp = min(pokemon.hp + floor(pokemon.maxhp / 3), pokemon.maxhp);
+      // if (pokemon.nature.minus === 'atk') {
+      //   pokemon.volatiles['confusion'] = {};
+      // }
+      pokemon.item = undefined;
+    },
   },
   firegem: {
     //   onSourceTryPrimaryHit(target, source, move) {
@@ -1813,17 +1815,18 @@ export const Items: {
     },
   },
   sitrusberry: {
-    //   onUpdate(pokemon) {
-    //     if (pokemon.hp <= pokemon.maxhp / 2) {
-    //       pokemon.eatItem();
-    //     }
-    //   },
+    onUpdate(pokemon) {
+      if (pokemon.hp <= pokemon.maxhp / 2 && pokemon.item?.onEat) {
+        pokemon.item.onEat(pokemon);
+      }
+    },
     //   onTryEatItem(item, pokemon) {
     //     if (!this.runEvent('TryHeal', pokemon)) { return false; }
     //   },
-    //   onEat(pokemon) {
-    //     this.heal(pokemon.baseMaxhp / 4);
-    //   },
+    onEat(pokemon) {
+      pokemon.hp = min(pokemon.hp + floor(pokemon.maxhp / 4), pokemon.maxhp);
+      pokemon.item = undefined;
+    },
   },
   skyplate: {
     onBasePower(pokemon: Context.Pokemon) {
@@ -2162,11 +2165,11 @@ export const Items: {
     //   },
   },
   berserkgene: {
-    //   onUpdate(pokemon) {
-    //     this.boost({atk: 2});
-    //     pokemon.addVolatile('confusion');
-    //     pokemon.setItem('');
-    //   },
+    onUpdate(pokemon) {
+      pokemon.addBoost('atk', 2);
+      pokemon.volatiles['confusion'] = {};
+      pokemon.item = undefined;
+    },
   },
   berry: {
     //   onResidual(pokemon) {

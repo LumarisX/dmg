@@ -198,7 +198,7 @@ export class Result {
 
   get context(): Context {
     // Each hit has its own context, but the last hit's context reflects the final state
-    return this.hits[this.hits.length - 1].context;
+    return this.hits[0].context;
   }
 
   get range() {
@@ -214,31 +214,7 @@ export class Result {
   }
 
   get damage() {
-    return this.hits.reduce(
-      (acc, hit) => {
-        if (typeof acc === 'number' && typeof hit.damage === 'number') {
-          return acc + hit.damage;
-        }
-
-        if (typeof acc === 'number' && Array.isArray(hit.damage)) {
-          return hit.damage.map(value => value + acc);
-        }
-
-        // if (Array.isArray(acc) && typeof hit.damage === 'number') {
-        //   return acc.map(value => value + (hit.damage as number));
-        // }
-
-        if (Array.isArray(acc) && Array.isArray(hit.damage)) {
-          if (acc.length !== hit.damage.length) {
-            throw new Error('Array lengths must match for element-wise addition');
-          }
-          return acc.map((value, index) => value + (hit.damage.toArray() as number[])[index]);
-        }
-
-        return acc;
-      },
-      0 as number | number[]
-    );
+    return this.hits[0].damage.toArray();
   }
 
   recoil(relevant?: Relevancy) {
@@ -457,16 +433,15 @@ export class HitResult {
 
   readonly damage: HPRange;
 
-  constructor(
-    public context: Context,
-    handlers: Handlers = HANDLERS
-  ) {
+  constructor(public context: Context, handlers: Handlers = HANDLERS) {
     this.handlers = handlers;
-    this.damage = new HPRange(calculateDamage(context));
-    for (let h = 1; context.move.hits && h < context.move.hits; h++) {
-      this.damage.chain(calculateDamage(context));
+    this.damage = new HPRange([0]);
+    for (let h = 0; h < (context.move.hits || 1); h++) {
+      const hitDamage = calculateDamage(context);
+      context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
+      this.damage.chain(hitDamage);
+      if (this.context.p2.pokemon.item?.onUpdate) this.context.p2.pokemon.item.onUpdate(this.context.p2.pokemon);
     }
-    context.p2.pokemon.hp = context.p2.pokemon.hp - this.damage.range[0];
   }
 
   // PRECONDITION: this.damage has been finalized

@@ -35,3 +35,6 @@ export const applyMod = (n: number, m: number) => roundDown(trunc(n * m) / 0x100
 
 /** Apply the mod `m` to the number `n` if `m` is not undefined. */
 export const apply = (n: number, m?: number) => (m !== undefined ? applyMod(n, m) : n);
+
+/** Returns a random integer between [1,max] */
+export const random = (max: number) => Math.ceil(Math.random() * max);

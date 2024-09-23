@@ -4,7 +4,7 @@ import {Context} from '../context';
 import {parse} from '../parse';
 import {Result} from '../result';
 import {State} from '../state';
-import {has} from '../utils';
+import {has, is} from '../utils';
 
 import {Abilities} from './abilities';
 import {Conditions} from './conditions';
@@ -17,30 +17,35 @@ export interface Applier {
   apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
 }
 
-export interface Handler<C> {
-  basePowerCallback(context: C): number;
-  damageCallback(context: C): number;
-  onAnyBasePower(context: C): number | undefined;
-  onBasePower(context: C): number | undefined;
+export interface Handler<S> {
+  basePowerCallback(scope: S): number;
+  damageCallback(scope: S): number;
+  onAnyBasePower(scope: S): number | undefined;
+  onBasePower(scope: S): number | undefined;
 
-  onModifyAtk(pokemon: C): number | undefined;
-  onModifySpA(pokemon: C): number | undefined;
-  onModifyDef(pokemon: C): number | undefined;
-  onModifySpD(pokemon: C): number | undefined;
-  onModifySpe(pokemon: C): number | undefined;
-  onModifyWeight(pokemon: C): number | undefined;
+  onModifyMove(context: Context): void;
 
-  onResidual(pokemon: C): number | undefined;
+  onModifyAtk(scope: S): number | undefined;
+  onModifySpA(scope: S): number | undefined;
+  onModifyDef(scope: S): number | undefined;
+  onModifySpD(scope: S): number | undefined;
+  onModifySpe(scope: S): number | undefined;
+  onModifyWeight(scope: S): number | undefined;
 
-  onModifyDamageAttacker(context: C): number | undefined;
-  onModifyDamageDefender(context: C): number | undefined;
+  onResidual(scope: S): number | undefined;
 
-  onModifySTAB(context: C): number | undefined;
+  onModifyDamageAttacker(scope: S): number | undefined;
+  onModifyDamageDefender(scope: S): number | undefined;
+  onUpdate(scope: S): void;
 
-  onEffectiveness(context: C): number | undefined;
+  onModifySTAB(scope: S): number | undefined;
+
+  onEffectiveness(scope: S): number | undefined;
 
   /** Returns true if the target is immune. */
   onTryImmunity(context: Context): boolean;
+
+  onEat(pokemon: Context.Pokemon): void;
 }
 
 export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
@@ -144,16 +149,16 @@ export function calculateDamage(context: Context | State): number | number[] {
   if (context.move.effectiveness === -5) return 0;
   if (context.move.damageCallback) return context.move.damageCallback(context);
 
-  let attackStat = 0;
-  let defenseStat = 0;
-
-  if (context.move.category === 'Physical') {
-    attackStat = context.p1.pokemon.stats?.atk;
-    defenseStat = context.p2.pokemon.stats?.def;
-  } else if (context.move.category === 'Special') {
-    attackStat = context.p1.pokemon.stats?.spa;
-    defenseStat = context.p2.pokemon.stats?.spd;
-  }
+  const attackStat = is(context.move.category, 'Physical')
+    ? context.p1.pokemon.stats.atk
+    : is(context.move.category, 'Special')
+    ? context.p1.pokemon.stats.spa
+    : 0;
+  const defenseStat = is(context.move.category, 'Physical')
+    ? context.p2.pokemon.stats.def
+    : is(context.move.category, 'Special')
+    ? context.p2.pokemon.stats.spd
+    : 0;
 
   let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
@@ -412,68 +417,75 @@ export function getMaxMovename(
   return MAX_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
 }
 
-export class HPRange {
-  rolls: {[key: number]: number} = {};
-  cache: {totalRolls?: number} = {};
-
-  constructor(damageAmounts: number | number[]) {
-    if (Array.isArray(damageAmounts)) {
-      this.rolls = damageAmounts.reduce(
-        (acc, value) => {
-          acc[value] = value in acc ? acc[value] + 1 : 1;
-          return acc;
-        },
-        {} as {[key: number]: number}
-      );
+export class StatRange<T> {
+  rolls: {data: T; count: number}[] = [];
+  constructor(datas: T | T[]) {
+    if (Array.isArray(datas)) {
+      this.rolls = datas.reduce((acc, value) => {
+        const v = acc.find(acc => (acc.data = value));
+        if (!v) acc.push({data: value, count: 1});
+        else v.count++;
+        return acc;
+      }, [] as {data: T; count: number}[]);
     } else {
-      this.rolls[damageAmounts] = 1;
+      this.rolls = [{data: datas, count: 1}];
     }
   }
 
+  get totalRolls(): number {
+    return this.rolls.reduce((sum, value) => sum + value.count, 0);
+  }
+
+  toArray(): T[] {
+    return this.rolls.flatMap(entry => Array(entry.count).fill(entry.data));
+  }
+}
+
+export class HPRange extends StatRange<number> {
+  cache: {totalRolls?: number} = {};
+
+  constructor(damageAmounts: number | number[]) {
+    super(damageAmounts);
+  }
+
   get range(): [number, number] {
-    const keys = Object.keys(this.rolls).map(Number);
+    const keys = this.rolls.map(value => value.data);
     const min = Math.min(...keys);
     const max = Math.max(...keys);
     return [min, max];
   }
 
-  get totalRolls(): number {
-    if (this.cache.totalRolls) return this.cache.totalRolls;
-    return (this.cache.totalRolls = Object.values(this.rolls).reduce((sum, count) => sum + count, 0));
-  }
+  // toArray(): number[] {
+  //   const result: number[] = [];
+  //   for (const key in this.rolls) {
+  //     const count = this.rolls[key];
+  //     for (let i = 0; i < count; i++) {
+  //       result.push(Number(key));
+  //     }
+  //   }
 
-  toArray(): number[] {
-    const result: number[] = [];
-
-    for (const key in this.rolls) {
-      const count = this.rolls[key];
-      for (let i = 0; i < count; i++) {
-        result.push(Number(key));
-      }
-    }
-
-    return result;
-  }
+  //   return result;
+  // }
 
   toString(): string {
     return Object.entries(this.rolls)
-      .map(([key, value]) => `${key}: ${Math.round((value / this.totalRolls) * 1000) / 10}%`)
+      .map(([key, value]) => `${key}: ${Math.round((value.data / this.totalRolls) * 1000) / 10}%`)
       .join(', ');
   }
 
-  chain(values: number | number[]): {[key: number]: number} {
+  chain(values: number | number[]) {
     if (!Array.isArray(values)) values = [values];
-    const newRolls: {[key: number]: number} = {};
-    for (const key in this.rolls) {
-      const currentCount = this.rolls[key];
-      for (const value of values) {
-        const newKey = Number(key) + value;
-        newRolls[newKey] = (newRolls[newKey] || 0) + currentCount;
-      }
-    }
+    const newRolls: {data: number; count: number}[] = [];
 
-    this.rolls = newRolls;
-    return this.rolls;
+    this.rolls.forEach(roll =>
+      values.forEach(v => {
+        const newEntry = {data: v + roll.data, count: roll.count};
+        const existingEntry = newRolls.find(value => (value.data = newEntry.data));
+        if (existingEntry) existingEntry.count += newEntry.count;
+        else newRolls.push(newEntry);
+      })
+    );
+    return newRolls;
   }
 }
 
