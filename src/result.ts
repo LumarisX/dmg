@@ -4,10 +4,10 @@ import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from 
 
 import {Context} from './context';
 import {encode} from './encode';
-import {Appliers, HANDLERS, Handlers, calculateDamage} from './mechanics';
+import * as math from './math';
+import {Appliers, HANDLERS, HPRange, Handlers, calculateDamage} from './mechanics';
 import {State} from './state';
 import {DeepReadonly, extend, is} from './utils';
-import * as math from './math';
 
 export class Relevancy {
   gameType: boolean;
@@ -119,17 +119,11 @@ export class Result {
     crash?: number | [number, number];
   };
 
-  constructor(state: DeepReadonly<State>, handlers?: Handlers, relevant?: Relevancy) {
-    this.hits = [new HitResult(state as DeepReadonly<State>, handlers)];
-    if (state.move.hits && state.move.hits > 1) {
-      for (let h = 1; h < state.move.hits; h++) {
-        this.hits.push(new HitResult(state as DeepReadonly<State>, handlers));
-      }
-    }
+  constructor(state: State, handlers?: Handlers, relevant?: Relevancy) {
+    this.hits = [new HitResult(Context.fromState(state), handlers)];
+
     this.appliers = new Appliers(this.handlers);
     this.cache = {};
-
-    console.log(Array.isArray(this.hits[0].damage) ? this.hits[0].damage.length : 1);
   }
 
   // chainHits(hit1: HitResult, hit2: HitResult) {
@@ -171,13 +165,13 @@ export class Result {
 
     // Assume at least the minimum damage from the previous hit has occured. This is important
     // as it might place the defender in range to cause an effect to activate.
-    const min = prev.range[0];
+    const min = prev.damage.range[0];
     state.p2.pokemon.hp -= min;
     if (min > 0) state.p2.pokemon.hurtThisTurn = true;
 
     apply(this.appliers, state);
 
-    const hit = new HitResult(state as DeepReadonly<State>, prev.handlers);
+    const hit = new HitResult(Context.fromState(state), prev.handlers);
     this.hits.push(hit);
     this.cache = {};
     return hit;
@@ -185,7 +179,7 @@ export class Result {
 
   get state(): DeepReadonly<State> {
     // Since state is immutable the state from any hit can be returned
-    return this.hits[0].state;
+    return this.hits[0].context.toState() as DeepReadonly<State>;
   }
 
   get handlers(): Handlers {
@@ -212,7 +206,7 @@ export class Result {
     let min = 0;
     let max = 0;
     for (const hit of this.hits) {
-      const range = hit.range;
+      const range = hit.damage.range;
       min += range[0];
       max += range[1];
     }
@@ -230,15 +224,15 @@ export class Result {
           return hit.damage.map(value => value + acc);
         }
 
-        if (Array.isArray(acc) && typeof hit.damage === 'number') {
-          return acc.map(value => value + (hit.damage as number));
-        }
+        // if (Array.isArray(acc) && typeof hit.damage === 'number') {
+        //   return acc.map(value => value + (hit.damage as number));
+        // }
 
         if (Array.isArray(acc) && Array.isArray(hit.damage)) {
           if (acc.length !== hit.damage.length) {
             throw new Error('Array lengths must match for element-wise addition');
           }
-          return acc.map((value, index) => value + (hit.damage as number[])[index]);
+          return acc.map((value, index) => value + (hit.damage.toArray() as number[])[index]);
         }
 
         return acc;
@@ -260,15 +254,11 @@ export class Result {
         const damage = move.recoil[0] / move.recoil[1];
         const max = p2.pokemon.hp * damage;
         for (const hit of this.hits) {
-          if (Array.isArray(hit.damage)) {
-            if (!recoil) recoil = [0, 0];
-            const range = hit.range;
-            const r = recoil as [number, number];
-            r[0] = math.min(max, r[0] + math.round(range[0] * damage));
-            r[1] = math.min(max, r[1] + math.round(range[1] * damage));
-          } else {
-            recoil = math.min(max, ((recoil || 0) as number) + math.round(hit.damage * damage));
-          }
+          if (!recoil) recoil = [0, 0];
+          const range = hit.damage.range;
+          const r = recoil as [number, number];
+          r[0] = math.min(max, r[0] + math.round(range[0] * damage));
+          r[1] = math.min(max, r[1] + math.round(range[1] * damage));
         }
       }
     } else if (move.struggleRecoil) {
@@ -309,7 +299,7 @@ export class Result {
             // NOTE: No Parental Bond before Gen 6 means we are guaranteed to have only one hit.
             // Similarly, we know damage must be a range because only Jump Kick and HJK can crash.
             const hit = this.hits[0];
-            const range = hit.range;
+            const range = hit.damage.range;
             const c = crash as [number, number];
             c[0] = math.min(max, c[0] + math.max(math.roundDown(range[0] / denominator), 1));
             c[1] = math.min(max, c[1] + math.max(math.roundDown(range[1] / denominator), 1));
@@ -337,15 +327,11 @@ export class Result {
 
       const max = math.roundDown(p2.pokemon.hp / 8);
       for (const hit of this.hits) {
-        if (Array.isArray(hit.damage)) {
-          if (!recovery) recovery = [0, 0];
-          const range = hit.range;
-          const r = recovery as [number, number];
-          r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
-          r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
-        } else {
-          recovery = math.min(max, ((recovery || 0) as number) + math.max(math.roundDown(hit.damage / 8), 1));
-        }
+        if (!recovery) recovery = [0, 0];
+        const range = hit.damage.range;
+        const r = recovery as [number, number];
+        r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
+        r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
       }
     }
 
@@ -366,15 +352,11 @@ export class Result {
       const healed = math.apply(move.drain[0] / move.drain[1], mod);
       const max = math.round(p2.pokemon.maxhp * healed);
       for (const hit of this.hits) {
-        if (Array.isArray(hit.damage)) {
-          if (!recovery) recovery = [0, 0];
-          const range = hit.range;
-          const r = recovery as [number, number];
-          r[0] = math.min(max, r[0] + math.round(range[0] * healed));
-          r[1] = math.min(max, r[1] + math.round(range[1] * healed));
-        } else {
-          recovery = math.min(max, ((recovery || 0) as number) + math.round(hit.damage * healed));
-        }
+        if (!recovery) recovery = [0, 0];
+        const range = hit.damage.range;
+        const r = recovery as [number, number];
+        r[0] = math.min(max, r[0] + math.round(range[0] * healed));
+        r[1] = math.min(max, r[1] + math.round(range[1] * healed));
       }
     }
 
@@ -436,7 +418,7 @@ export class Result {
     const recoil = this.recoilText('%', relevant);
     const crash = this.crashText('%', relevant);
     const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`;
-    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.join(', ')}]`).join(', ');
+    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.toString()}]`).join(', ');
     return `${this.text('both', '%', relevant)}${end}\n${rolls}`;
   }
 
@@ -468,45 +450,48 @@ export class Result {
  * damage array may not reflect the damage range, use `HitResult#range`.
  */
 export class HitResult {
-  readonly state: DeepReadonly<State>;
   readonly handlers: Handlers;
+  private cache: {
+    range?: [number, number];
+  } = {};
 
-  readonly context: Context;
+  readonly damage: HPRange;
 
-  damage: number | number[];
-
-  private cached: [number, number] | undefined;
-
-  constructor(state: DeepReadonly<State>, handlers: Handlers = HANDLERS, relevant = new Relevancy()) {
-    this.state = state;
+  constructor(
+    public context: Context,
+    handlers: Handlers = HANDLERS
+  ) {
     this.handlers = handlers;
-    this.context = new Context(state, handlers, relevant);
-    this.damage = calculateDamage(this.context);
+    this.damage = new HPRange(calculateDamage(context));
+    for (let h = 1; context.move.hits && h < context.move.hits; h++) {
+      this.damage.chain(calculateDamage(context));
+    }
+    context.p2.pokemon.hp = context.p2.pokemon.hp - this.damage.range[0];
   }
 
   // PRECONDITION: this.damage has been finalized
-  get range() {
-    if (this.cached) return this.cached;
-    if (!Array.isArray(this.damage)) return (this.cached = [this.damage, this.damage]);
-    let min = this.damage[0];
-    let max = min;
-    for (let i = 1; i < this.damage.length; i++) {
-      if (this.damage[i] < min) {
-        min = this.damage[i];
-      } else if (this.damage[i] > max) {
-        max = this.damage[i];
-      }
-    }
-    return (this.cached = [min, max]);
-  }
+  // get range(): [number, number] {
+  //   if (this.cache.range) return this.cache.range;
+  //   if (!Array.isArray(this.damage)) return (this.cache.range = [this.damage, this.damage]);
+  //   let min = this.damage[0];
+  //   let max = min;
+  //   for (let i = 1; i < this.damage.length; i++) {
+  //     if (this.damage[i] < min) {
+  //       min = this.damage[i];
+  //     } else if (this.damage[i] > max) {
+  //       max = this.damage[i];
+  //     }
+  //   }
+  //   return (this.cache.range = [min, max]);
+  // }
 
   get relevant() {
     return this.context.relevant;
   }
 
   toString() {
-    const state = encode(Relevancy.simplify(this.state, this.relevant));
-    const rolls = typeof this.damage === 'number' ? this.damage : this.damage.join(', ');
+    const state = encode(Relevancy.simplify(this.context.toState() as DeepReadonly<State>, this.relevant));
+    const rolls = typeof this.damage === 'number' ? this.damage : this.damage.toString();
     return `${state}: [${rolls}]`;
   }
 }

@@ -21,6 +21,7 @@ export const clamp = (a: number, n: number, b: number) => min(max(floor(n), a), 
  */
 export const trunc = (n: number, bits = 0) => (bits ? (n >>> 0) % 2 ** bits : n >>> 0);
 
+/** Shift a number `n` bits to the left (+) or right (-) */
 export const shift = (n: number, bits: number = 0) => (bits > 0 ? n << bits : n >> (bits * -1));
 
 /** Chain the original mod `m` to the next mod `n` per the cartridge mechanics. */

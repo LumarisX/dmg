@@ -2,9 +2,9 @@ import type {GameType, Generation, Generations, ID, MoveName, StatsTable, TypeNa
 
 import {Context} from '../context';
 import {parse} from '../parse';
-import {HitResult, Result} from '../result';
+import {Result} from '../result';
 import {State} from '../state';
-import {DeepReadonly, has} from '../utils';
+import {has} from '../utils';
 
 import {Abilities} from './abilities';
 import {Conditions} from './conditions';
@@ -133,7 +133,7 @@ export function calculate(...args: any[]) {
   // Admittedly, somewhat odd to be creating a result and then letting it get mutated, but
   // this means we don't need to plumb state/handlers/context/relevancy in separately
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
-  const result = new Result(state as DeepReadonly<State>, handlers); // TODO handle multihit / parental bond etc
+  const result = new Result(state, handlers); // TODO handle multihit / parental bond etc
   return result;
 }
 
@@ -410,6 +410,71 @@ export function getMaxMovename(
     if (move.type === gmaxMove.type) return pokemon.species.isGigantamax;
   }
   return MAX_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
+}
+
+export class HPRange {
+  rolls: {[key: number]: number} = {};
+  cache: {totalRolls?: number} = {};
+
+  constructor(damageAmounts: number | number[]) {
+    if (Array.isArray(damageAmounts)) {
+      this.rolls = damageAmounts.reduce(
+        (acc, value) => {
+          acc[value] = value in acc ? acc[value] + 1 : 1;
+          return acc;
+        },
+        {} as {[key: number]: number}
+      );
+    } else {
+      this.rolls[damageAmounts] = 1;
+    }
+  }
+
+  get range(): [number, number] {
+    const keys = Object.keys(this.rolls).map(Number);
+    const min = Math.min(...keys);
+    const max = Math.max(...keys);
+    return [min, max];
+  }
+
+  get totalRolls(): number {
+    if (this.cache.totalRolls) return this.cache.totalRolls;
+    return (this.cache.totalRolls = Object.values(this.rolls).reduce((sum, count) => sum + count, 0));
+  }
+
+  toArray(): number[] {
+    const result: number[] = [];
+
+    for (const key in this.rolls) {
+      const count = this.rolls[key];
+      for (let i = 0; i < count; i++) {
+        result.push(Number(key));
+      }
+    }
+
+    return result;
+  }
+
+  toString(): string {
+    return Object.entries(this.rolls)
+      .map(([key, value]) => `${key}: ${Math.round((value / this.totalRolls) * 1000) / 10}%`)
+      .join(', ');
+  }
+
+  chain(values: number | number[]): {[key: number]: number} {
+    if (!Array.isArray(values)) values = [values];
+    const newRolls: {[key: number]: number} = {};
+    for (const key in this.rolls) {
+      const currentCount = this.rolls[key];
+      for (const value of values) {
+        const newKey = Number(key) + value;
+        newRolls[newKey] = (newRolls[newKey] || 0) + currentCount;
+      }
+    }
+
+    this.rolls = newRolls;
+    return this.rolls;
+  }
 }
 
 // function takeItem(pokemon: State.Pokemon | Context.Pokemon, boost: BoostID, amount: number) {
