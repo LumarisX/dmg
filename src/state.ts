@@ -20,15 +20,7 @@ import {ConditionKind, Conditions, TerrainName, WeatherName} from './conditions'
 import {floor, round} from './math';
 import {DeepPartial, extend, has, is, toID} from './utils';
 
-type OverriddenFields =
-  | 'item'
-  | 'ability'
-  | 'nature'
-  | 'status'
-  | 'volatiles'
-  | 'ivs'
-  | 'evs'
-  | 'boosts';
+type OverriddenFields = 'item' | 'ability' | 'nature' | 'status' | 'volatiles' | 'ivs' | 'evs' | 'boosts';
 
 export interface PokemonOptions extends Partial<Omit<State.Pokemon, OverriddenFields>> {
   name?: string;
@@ -43,6 +35,7 @@ export interface PokemonOptions extends Partial<Omit<State.Pokemon, OverriddenFi
   ivs?: Partial<StatsTable & {spc: number}>;
   dvs?: Partial<StatsTable & {spc: number}>;
   boosts?: Partial<BoostsTable & {spc: number}>;
+  teraType?: TypeName;
 }
 
 export interface MoveOptions {
@@ -170,12 +163,7 @@ export class State {
   }
 
   /** Factory method helper for creating `State.Pokemon`. */
-  static createPokemon(
-    gen: Generation,
-    name: string,
-    options: PokemonOptions = {},
-    move: string | {name?: string} = ''
-  ) {
+  static createPokemon(gen: Generation, name: string, options: PokemonOptions = {}, move: string | {name?: string} = '') {
     const pokemon: Partial<State.Pokemon> = {};
 
     // Species
@@ -194,11 +182,7 @@ export class State {
 
     // Weight
     pokemon.weighthg =
-      typeof options.weighthg === 'number'
-        ? options.weighthg
-        : typeof options.weightkg === 'number'
-          ? options.weightkg * 10
-          : species.weighthg;
+      typeof options.weighthg === 'number' ? options.weighthg : typeof options.weightkg === 'number' ? options.weightkg * 10 : species.weighthg;
     if (pokemon.weighthg < 1) throw new Error(`weighthg of ${pokemon.weighthg} must be at least 1`);
 
     // Item
@@ -210,10 +194,7 @@ export class State {
     setAbility(gen, pokemon as {species: Specie; ability?: ID}, options.ability);
 
     // Happiness
-    pokemon.happiness =
-      typeof options.happiness === 'undefined'
-        ? undefined
-        : bounded('happiness', options.happiness);
+    pokemon.happiness = typeof options.happiness === 'undefined' ? undefined : bounded('happiness', options.happiness);
 
     // Status
     pokemon.status = undefined;
@@ -291,23 +272,12 @@ export class State {
 
     // Gender (depends on DVs)
     const setAtkDV = typeof (options.dvs?.atk ?? options.ivs?.atk) === 'number';
-    setGender(
-      gen,
-      pokemon as {species: Specie; ivs: StatsTable; gender?: GenderName},
-      options.gender,
-      setAtkDV
-    );
+    setGender(gen, pokemon as {species: Specie; ivs: StatsTable; gender?: GenderName}, options.gender, setAtkDV);
 
     // HP (depends on stats)
     const setHPDV = typeof (options.dvs?.hp ?? options.ivs?.hp) === 'number';
     correctHPDV(gen, pokemon as {species: Specie; ivs: StatsTable}, setHPDV);
-    pokemon.maxhp = gen.stats.calc(
-      'hp',
-      species.baseStats.hp,
-      pokemon.ivs!.hp,
-      pokemon.evs!.hp,
-      pokemon.level
-    );
+    pokemon.maxhp = gen.stats.calc('hp', species.baseStats.hp, pokemon.ivs!.hp, pokemon.evs!.hp, pokemon.level);
     if (options.maxhp) {
       if (options.maxhp < pokemon.maxhp) {
         throw new RangeError(`maxhp ${options.maxhp} less than calculated max HP ${pokemon.maxhp}`);
@@ -315,16 +285,12 @@ export class State {
       pokemon.maxhp = options.maxhp;
     }
 
-    const computed =
-      typeof options.hpPercent === 'number'
-        ? round((options.hpPercent * pokemon.maxhp) / 100)
-        : undefined;
-    pokemon.hp =
-      typeof options.hp === 'number'
-        ? options.hp
-        : typeof computed === 'number'
-          ? computed
-          : pokemon.maxhp;
+    //Tera Type
+
+    pokemon.teraType = pokemon.types[0];
+
+    const computed = typeof options.hpPercent === 'number' ? round((options.hpPercent * pokemon.maxhp) / 100) : undefined;
+    pokemon.hp = typeof options.hp === 'number' ? options.hp : typeof computed === 'number' ? computed : pokemon.maxhp;
     if (!(pokemon.hp >= 0 && pokemon.hp <= pokemon.maxhp)) {
       throw new RangeError(`hp ${pokemon.hp} is not within [0,${pokemon.maxhp}]`);
     }
@@ -349,13 +315,13 @@ export class State {
     name: string,
     options: MoveOptions = {},
     pokemon:
-    | string
-    | {
-      species?: string | Specie;
-      item?: string;
-      ability?: string;
-      volatiles?: {[id: string]: object};
-    } = {}
+      | string
+      | {
+          species?: string | Specie;
+          item?: string;
+          ability?: string;
+          volatiles?: {[id: string]: object};
+        } = {}
   ) {
     let base = gen.moves.get(name);
     if (!base) {
@@ -425,10 +391,7 @@ export class State {
         } else if (options.hits) {
           move.hits = options.hits;
         } else {
-          move.hits =
-            pokemon?.ability === 'Skill Link' || pokemon?.item === 'Grip Claw'
-              ? base.multihit[1]
-              : base.multihit[0] + 1;
+          move.hits = pokemon?.ability === 'Skill Link' || pokemon?.item === 'Grip Claw' ? base.multihit[1] : base.multihit[0] + 1;
         }
       } else if (options.hits && options.hits !== 1) {
         throw new Error(`'${options.hits}' hits requested but ${base.name} is not multi-hit`);
@@ -467,12 +430,7 @@ export class State {
   }
 
   /** Mutates `pokemon` by merging in the details from the set from `sets` which best matches. */
-  static mergeSet(
-    gen: Generation,
-    pokemon: State.Pokemon,
-    move: string | DeepPartial<PokemonSet>,
-    ...sets: DeepPartial<PokemonSet>[]
-  ) {
+  static mergeSet(gen: Generation, pokemon: State.Pokemon, move: string | DeepPartial<PokemonSet>, ...sets: DeepPartial<PokemonSet>[]) {
     const set = bestMatch(pokemon, move, ...sets);
 
     pokemon.level = bounded('level', set.level || 100);
@@ -484,12 +442,7 @@ export class State {
 
     if (set.evs) setValues(gen, pokemon, 'evs', gen.stats.fill(set.evs, gen.num <= 2 ? 252 : 0));
     if (set.ivs) setValues(gen, pokemon, 'ivs', gen.stats.fill(set.ivs, 31));
-    setHiddenPowerIVs(
-      gen,
-      pokemon as {level: number; ivs: StatsTable},
-      [typeof move === 'string' ? move : '', ...(set.moves ?? [])],
-      true
-    );
+    setHiddenPowerIVs(gen, pokemon as {level: number; ivs: StatsTable}, [typeof move === 'string' ? move : '', ...(set.moves ?? [])], true);
 
     if (
       // Marowak hack, cribbed from Pokémon Showdown's sim/team-validator.ts
@@ -507,40 +460,17 @@ export class State {
 
     // Shiny
     const dv = (stat: StatID) => gen.stats.toDV(pokemon.ivs![stat]!);
-    const shiny = !!(
-      dv('def') === 10 &&
-      dv('spe') === 10 &&
-      dv('spa') === 10 &&
-      dv('atk') % 4 >= 2
-    );
+    const shiny = !!(dv('def') === 10 && dv('spe') === 10 && dv('spa') === 10 && dv('atk') % 4 >= 2);
     if (gen.num === 2 && shiny !== !!set.shiny) {
-      throw new Error(
-        `${pokemon.species.name} is required to ${shiny ? '' : 'not '}be ` +
-          'shiny in generation 2 given its DVs.'
-      );
+      throw new Error(`${pokemon.species.name} is required to ${shiny ? '' : 'not '}be ` + 'shiny in generation 2 given its DVs.');
     }
-    setGender(
-      gen,
-      pokemon as {species: Specie; ivs: StatsTable; gender?: GenderName},
-      set.gender as GenderName,
-      typeof set.ivs?.atk === 'number'
-    );
+    setGender(gen, pokemon as {species: Specie; ivs: StatsTable; gender?: GenderName}, set.gender as GenderName, typeof set.ivs?.atk === 'number');
 
-    correctHPDV(
-      gen,
-      pokemon as {species: Specie; ivs: StatsTable},
-      typeof set.ivs?.hp === 'number'
-    );
+    correctHPDV(gen, pokemon as {species: Specie; ivs: StatsTable}, typeof set.ivs?.hp === 'number');
 
     // We can't validate HP here, but we can attempt to preserve the same percentage
     // of health while adjusting the HP values to be legal.
-    const maxhp = gen.stats.calc(
-      'hp',
-      pokemon.species.baseStats.hp,
-      pokemon.ivs!.hp,
-      pokemon.evs!.hp,
-      pokemon.level
-    );
+    const maxhp = gen.stats.calc('hp', pokemon.species.baseStats.hp, pokemon.ivs!.hp, pokemon.evs!.hp, pokemon.level);
     pokemon.hp = floor((maxhp * pokemon.hp) / pokemon.maxhp);
     pokemon.maxhp = maxhp;
 
@@ -672,11 +602,7 @@ export function bounded(key: keyof typeof BOUNDS, val: number, die = true) {
 // scoring set, breaking ties by using the ordering of the sets provided. This works well enough
 // in a pinch, but could be improved by valuing certain fields more than others or eg. relying on
 // a set clustering similarity metric.
-function bestMatch(
-  pokemon: State.Pokemon,
-  move: string | DeepPartial<PokemonSet>,
-  ...sets: DeepPartial<PokemonSet>[]
-) {
+function bestMatch(pokemon: State.Pokemon, move: string | DeepPartial<PokemonSet>, ...sets: DeepPartial<PokemonSet>[]) {
   if (typeof move !== 'string') {
     sets.unshift(move);
     move = '';
@@ -751,12 +677,7 @@ function setNature(gen: Generation, pokemon: Partial<State.Pokemon>, name?: stri
   }
 }
 
-function setValues(
-  gen: Generation,
-  pokemon: Partial<State.Pokemon>,
-  type: 'evs' | 'ivs',
-  vals?: Partial<StatsTable & {spc: number}>
-) {
+function setValues(gen: Generation, pokemon: Partial<State.Pokemon>, type: 'evs' | 'ivs', vals?: Partial<StatsTable & {spc: number}>) {
   pokemon[type] = pokemon[type] || {};
   for (const stat of gen.stats) {
     pokemon[type][stat] = pokemon[type][stat] ?? (type === 'evs' ? (gen.num <= 2 ? 252 : 0) : 31);
@@ -789,12 +710,7 @@ function setSpc(
   }
 }
 
-export function setGender(
-  gen: Generation,
-  pokemon: {species: Specie; ivs: StatsTable; gender?: GenderName},
-  name?: GenderName,
-  setAtkDV = false
-) {
+export function setGender(gen: Generation, pokemon: {species: Specie; ivs: StatsTable; gender?: GenderName}, name?: GenderName, setAtkDV = false) {
   const ivs = pokemon.ivs;
   const species = pokemon.species;
   const atkDV = gen.stats.toDV(ivs.atk);
@@ -816,30 +732,18 @@ export function setGender(
   pokemon.gender = name || species.gender || gender;
 }
 
-function correctHPDV(
-  gen: Generation,
-  pokemon: {species: Specie; ivs: StatsTable},
-  setHPDV = false
-) {
+function correctHPDV(gen: Generation, pokemon: {species: Specie; ivs: StatsTable}, setHPDV = false) {
   const expectedHPDV = gen.stats.getHPDV(pokemon.ivs);
   const actualHPDV = gen.stats.toDV(pokemon.ivs.hp);
   if (gen.num <= 2 && expectedHPDV !== actualHPDV) {
     if (setHPDV) {
-      throw new Error(
-        `${pokemon.species.name} is required to have an HP DV of ` +
-          `${expectedHPDV} in generations 1 and 2 but it is ${actualHPDV}`
-      );
+      throw new Error(`${pokemon.species.name} is required to have an HP DV of ` + `${expectedHPDV} in generations 1 and 2 but it is ${actualHPDV}`);
     }
     pokemon.ivs.hp = gen.stats.toIV(expectedHPDV);
   }
 }
 
-function setHiddenPowerIVs(
-  gen: Generation,
-  pokemon: {level: number; ivs: StatsTable},
-  moves: string[],
-  override = false
-) {
+function setHiddenPowerIVs(gen: Generation, pokemon: {level: number; ivs: StatsTable}, moves: string[], override = false) {
   let hpType: Type | 'infer' | undefined = undefined;
   for (const move of moves) {
     const id = toID(move);
@@ -892,11 +796,7 @@ function setHiddenPowerIVs(
   }
 }
 
-function setConditions(
-  gen: Generation,
-  kind: ConditionKind,
-  data: string[] | {[id: string]: unknown} | undefined
-) {
+function setConditions(gen: Generation, kind: ConditionKind, data: string[] | {[id: string]: unknown} | undefined) {
   const obj: {[id: string]: {level?: number}} = {};
   if (data) {
     if (Array.isArray(data)) {

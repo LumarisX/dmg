@@ -20,7 +20,7 @@
     "!src/test"
   ],
   "dependencies": {
-    "@pkmn/data": "^0.9.13"
+    "@pkmn/data": "^0.9.20"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.9",
@@ -49,7 +49,8 @@
     "test:integration": "npm run test && node integration",
     "prepare": "npm run build",
     "pretest": "npm run build",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "lumtest": "nodemon ./src/test/lum.ts"
   },
   "jest": {
     "testEnvironment": "node",
