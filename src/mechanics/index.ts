@@ -149,16 +149,20 @@ export function calculateDamage(context: Context | State): number | number[] {
   if (context.move.effectiveness === -5) return 0;
   if (context.move.damageCallback) return context.move.damageCallback(context);
 
-  const attackStat = is(context.move.category, 'Physical')
-    ? context.p1.pokemon.stats.atk
-    : is(context.move.category, 'Special')
-    ? context.p1.pokemon.stats.spa
-    : 0;
-  const defenseStat = is(context.move.category, 'Physical')
-    ? context.p2.pokemon.stats.def
-    : is(context.move.category, 'Special')
-    ? context.p2.pokemon.stats.spd
-    : 0;
+  const attackStat = context.move.overrideOffensiveStat
+    ? context.p1.pokemon.stats[context.move.overrideOffensiveStat]
+    : is(context.move.category, 'Physical')
+      ? context.p1.pokemon.stats.atk
+      : is(context.move.category, 'Special')
+        ? context.p1.pokemon.stats.spa
+        : 0;
+  const defenseStat = context.move.overrideDefensiveStat
+    ? context.p2.pokemon.stats[context.move.overrideDefensiveStat]
+    : is(context.move.category, 'Physical')
+      ? context.p2.pokemon.stats.def
+      : is(context.move.category, 'Special')
+        ? context.p2.pokemon.stats.spd
+        : 0;
 
   let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
@@ -421,12 +425,15 @@ export class StatRange<T> {
   rolls: {data: T; count: number}[] = [];
   constructor(datas: T | T[]) {
     if (Array.isArray(datas)) {
-      this.rolls = datas.reduce((acc, value) => {
-        const v = acc.find(acc => (acc.data = value));
-        if (!v) acc.push({data: value, count: 1});
-        else v.count++;
-        return acc;
-      }, [] as {data: T; count: number}[]);
+      this.rolls = datas.reduce(
+        (acc, value) => {
+          const v = acc.find(acc => (acc.data = value));
+          if (!v) acc.push({data: value, count: 1});
+          else v.count++;
+          return acc;
+        },
+        [] as {data: T; count: number}[]
+      );
     } else {
       this.rolls = [{data: datas, count: 1}];
     }
@@ -468,9 +475,7 @@ export class HPRange extends StatRange<number> {
   // }
 
   toString(): string {
-    return Object.entries(this.rolls)
-      .map(([key, value]) => `${key}: ${Math.round((value.data / this.totalRolls) * 1000) / 10}%`)
-      .join(', ');
+    return this.rolls.map(value => `${value.data}: ${Math.round((value.count / this.totalRolls) * 1000) / 10}%`).join(', ');
   }
 
   chain(values: number | number[]) {
@@ -480,12 +485,12 @@ export class HPRange extends StatRange<number> {
     this.rolls.forEach(roll =>
       values.forEach(v => {
         const newEntry = {data: v + roll.data, count: roll.count};
-        const existingEntry = newRolls.find(value => (value.data = newEntry.data));
+        const existingEntry = newRolls.find(value => value.data === newEntry.data);
         if (existingEntry) existingEntry.count += newEntry.count;
         else newRolls.push(newEntry);
       })
     );
-    return newRolls;
+    this.rolls = newRolls;
   }
 }
 
