@@ -5,7 +5,7 @@ import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from 
 import {Context} from './context';
 import {encode} from './encode';
 import * as math from './math';
-import {Appliers, HANDLERS, HPRange, Handlers, calculateDamage} from './mechanics';
+import {Appliers, HANDLERS, Handlers, NumberDistribution, calculateDamage} from './mechanics';
 import {State} from './state';
 import {DeepReadonly, extend, is} from './utils';
 
@@ -119,44 +119,49 @@ export class Result {
     crash?: number | [number, number];
   };
 
+  readonly damage: NumberDistribution;
+
   constructor(state: State, handlers?: Handlers, relevant?: Relevancy) {
-    this.hits = [new HitResult(Context.fromState(state), handlers)];
+    const context = Context.fromState(state);
+    this.hits = [new HitResult(context, handlers)];
+    this.damage = this.hits[0].damage;
+    if (context.move.hits) {
+      for (let i = 1; i < context.move.hits; i++) {
+        this.hits.push(new HitResult(context, handlers));
+      }
+    }
+    this.damage = NumberDistribution.chain(...this.hits.map(hit => hit.damage));
 
     this.appliers = new Appliers(this.handlers);
     this.cache = {};
   }
 
-  // chainHits(hit1: HitResult, hit2: HitResult) {
-  //   const dmg1 = hit1.damage;
-  //   const dmg2 = hit2.damage;
-
-  //   if (typeof dmg1 === 'number' && typeof dmg2 === 'number') {
-  //     return dmg1 + dmg2;
-  //   }
-
-  //   const dmgArr1 = Array.isArray(dmg1) ? dmg1 : [[dmg1, 1]];
-  //   const dmgArr2 = Array.isArray(dmg2) ? dmg2 : [[dmg2, 1]];
-
-  //   const combinedDamage = dmgArr1.reduce(
-  //     (acc, [key1, value1]) => {
-  //       return dmgArr2.reduce((innerAcc, [key2, value2]) => {
-  //         const newValue: number = key1 + key2;
-  //         const newQuantity = value1 * value2;
-
-  //         const existingEntry = innerAcc.find(([key]) => key === newValue);
-  //         if (existingEntry) {
-  //           existingEntry[1] += newQuantity;
-  //         } else {
-  //           innerAcc.push([newValue, newQuantity]);
-  //         }
-
-  //         return innerAcc;
-  //       }, acc);
-  //     },
-  //     [] as [number, number][]
-  //   );
-
-  //   hit1.damage = combinedDamage.length === 1 ? combinedDamage[0][0] : combinedDamage;
+  // chainHits(hit: HitResult, ...otherHits: HitResult[]) {
+  //   this.damage = DamageDistribution.chain(...[hit, ...otherHits].map(hit => hit.damage));
+  //   // const dmg1 = hit.damage;
+  //   // const dmg2 = hit2;
+  //   // if (typeof dmg1 === 'number' && typeof dmg2 === 'number') {
+  //   //   return dmg1 + dmg2;
+  //   // }
+  //   // const dmgArr1 = Array.isArray(dmg1) ? dmg1 : [[dmg1, 1]];
+  //   // const dmgArr2 = Array.isArray(dmg2) ? dmg2 : [[dmg2, 1]];
+  //   // const combinedDamage = dmgArr1.reduce(
+  //   //   (acc, [key1, value1]) => {
+  //   //     return dmgArr2.reduce((innerAcc, [key2, value2]) => {
+  //   //       const newValue: number = key1 + key2;
+  //   //       const newQuantity = value1 * value2;
+  //   //       const existingEntry = innerAcc.find(([key]) => key === newValue);
+  //   //       if (existingEntry) {
+  //   //         existingEntry[1] += newQuantity;
+  //   //       } else {
+  //   //         innerAcc.push([newValue, newQuantity]);
+  //   //       }
+  //   //       return innerAcc;
+  //   //     }, acc);
+  //   //   },
+  //   //   [] as [number, number][]
+  //   // );
+  //   // hit1.damage = combinedDamage.length === 1 ? combinedDamage[0][0] : combinedDamage;
   // }
 
   chain() {
@@ -165,7 +170,7 @@ export class Result {
 
     // Assume at least the minimum damage from the previous hit has occured. This is important
     // as it might place the defender in range to cause an effect to activate.
-    const min = prev.damage.range[0];
+    const min = prev.range[0];
     state.p2.pokemon.hp -= min;
     if (min > 0) state.p2.pokemon.hurtThisTurn = true;
 
@@ -206,15 +211,11 @@ export class Result {
     let min = 0;
     let max = 0;
     for (const hit of this.hits) {
-      const range = hit.damage.range;
+      const range = hit.range;
       min += range[0];
       max += range[1];
     }
     return (this.cache.range = [min, max]);
-  }
-
-  get damage() {
-    return this.hits[0].damage.toArray();
   }
 
   recoil(relevant?: Relevancy) {
@@ -231,7 +232,7 @@ export class Result {
         const max = p2.pokemon.hp * damage;
         for (const hit of this.hits) {
           if (!recoil) recoil = [0, 0];
-          const range = hit.damage.range;
+          const range = hit.range;
           const r = recoil as [number, number];
           r[0] = math.min(max, r[0] + math.round(range[0] * damage));
           r[1] = math.min(max, r[1] + math.round(range[1] * damage));
@@ -275,7 +276,7 @@ export class Result {
             // NOTE: No Parental Bond before Gen 6 means we are guaranteed to have only one hit.
             // Similarly, we know damage must be a range because only Jump Kick and HJK can crash.
             const hit = this.hits[0];
-            const range = hit.damage.range;
+            const range = hit.range;
             const c = crash as [number, number];
             c[0] = math.min(max, c[0] + math.max(math.roundDown(range[0] / denominator), 1));
             c[1] = math.min(max, c[1] + math.max(math.roundDown(range[1] / denominator), 1));
@@ -304,7 +305,7 @@ export class Result {
       const max = math.roundDown(p2.pokemon.hp / 8);
       for (const hit of this.hits) {
         if (!recovery) recovery = [0, 0];
-        const range = hit.damage.range;
+        const range = hit.range;
         const r = recovery as [number, number];
         r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
         r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
@@ -329,7 +330,7 @@ export class Result {
       const max = math.round(p2.pokemon.maxhp * healed);
       for (const hit of this.hits) {
         if (!recovery) recovery = [0, 0];
-        const range = hit.damage.range;
+        const range = hit.range;
         const r = recovery as [number, number];
         r[0] = math.min(max, r[0] + math.round(range[0] * healed));
         r[1] = math.min(max, r[1] + math.round(range[1] * healed));
@@ -374,7 +375,8 @@ export class Result {
     const range = this.range;
     const min = this.display(notation, range[0], this.state.p2.pokemon.maxhp);
     const max = this.display(notation, range[1], this.state.p2.pokemon.maxhp);
-    const damage = `${range[0]}-${range[1]} (${min} - ${max}${notation})`;
+    const expected = this.display(notation, this.damage.expected, this.state.p2.pokemon.maxhp);
+    const damage = `${this.damage.expected.toFixed(1)} [${range[0]}-${range[1]}] (${expected}${notation} [${min}-${max}${notation}])`;
 
     relevant = extend({}, relevant ?? this.relevant);
     const ko = this.knockout(type, relevant);
@@ -394,7 +396,7 @@ export class Result {
     const recoil = this.recoilText('%', relevant);
     const crash = this.crashText('%', relevant);
     const end = `${recovery && ` (${recovery})`}${recoil && ` (${recoil})`}${crash && ` (${crash})`}`;
-    const rolls = this.hits.map(h => `[${typeof h.damage === 'number' ? h.damage : h.damage.toString()}]`).join(', ');
+    const rolls = this.damage.toString('%');
     return `${this.text('both', '%', relevant)}${end}\n${rolls}`;
   }
 
@@ -431,17 +433,26 @@ export class HitResult {
     range?: [number, number];
   } = {};
 
-  readonly damage: HPRange;
+  damage: NumberDistribution;
+
+  get range() {
+    return [this.min, this.max];
+  }
+  private get min(): number {
+    return this.damage.min;
+  }
+  private get max(): number {
+    return this.damage.max;
+  }
+  get expected(): number {
+    return this.damage.expected;
+  }
 
   constructor(public context: Context, handlers: Handlers = HANDLERS) {
     this.handlers = handlers;
-    this.damage = new HPRange([0]);
-    for (let h = 0; h < (context.move.hits || 1); h++) {
-      const hitDamage = calculateDamage(context);
-      context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
-      this.damage.chain(hitDamage);
-      if (this.context.p2.pokemon.item?.onUpdate) this.context.p2.pokemon.item.onUpdate(this.context.p2.pokemon);
-    }
+    this.damage = new NumberDistribution(calculateDamage(context));
+    // context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
+    if (this.context.p2.pokemon.item?.onUpdate) this.context.p2.pokemon.item.onUpdate(this.context.p2.pokemon);
   }
 
   // PRECONDITION: this.damage has been finalized
@@ -459,6 +470,10 @@ export class HitResult {
   //   }
   //   return (this.cache.range = [min, max]);
   // }
+
+  chain() {
+    return this.damage;
+  }
 
   get relevant() {
     return this.context.relevant;

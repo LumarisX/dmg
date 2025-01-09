@@ -152,17 +152,17 @@ export function calculateDamage(context: Context | State): number | number[] {
   const attackStat = context.move.overrideOffensiveStat
     ? context.p1.pokemon.stats[context.move.overrideOffensiveStat]
     : is(context.move.category, 'Physical')
-      ? context.p1.pokemon.stats.atk
-      : is(context.move.category, 'Special')
-        ? context.p1.pokemon.stats.spa
-        : 0;
+    ? context.p1.pokemon.stats.atk
+    : is(context.move.category, 'Special')
+    ? context.p1.pokemon.stats.spa
+    : 0;
   const defenseStat = context.move.overrideDefensiveStat
     ? context.p2.pokemon.stats[context.move.overrideDefensiveStat]
     : is(context.move.category, 'Physical')
-      ? context.p2.pokemon.stats.def
-      : is(context.move.category, 'Special')
-        ? context.p2.pokemon.stats.spd
-        : 0;
+    ? context.p2.pokemon.stats.def
+    : is(context.move.category, 'Special')
+    ? context.p2.pokemon.stats.spd
+    : 0;
 
   let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
@@ -421,76 +421,86 @@ export function getMaxMovename(
   return MAX_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
 }
 
-export class StatRange<T> {
-  rolls: {data: T; count: number}[] = [];
-  constructor(datas: T | T[]) {
-    if (Array.isArray(datas)) {
-      this.rolls = datas.reduce(
-        (acc, value) => {
-          const v = acc.find(acc => (acc.data = value));
-          if (!v) acc.push({data: value, count: 1});
-          else v.count++;
-          return acc;
-        },
-        [] as {data: T; count: number}[]
-      );
+export class Distribution<T> {
+  outcomes: {data: T; count: number}[] = [];
+  constructor(data?: T | T[]) {
+    if (data === undefined) return;
+    if (Array.isArray(data)) {
+      this.outcomes = data.reduce((outcome, value) => {
+        const v = outcome.find(acc => acc.data === value);
+        if (!v) outcome.push({data: value, count: 1});
+        else v.count++;
+        return outcome;
+      }, [] as {data: T; count: number}[]);
     } else {
-      this.rolls = [{data: datas, count: 1}];
+      this.outcomes = [{data: data, count: 1}];
     }
   }
 
-  get totalRolls(): number {
-    return this.rolls.reduce((sum, value) => sum + value.count, 0);
+  get totalOutcomes(): number {
+    return this.outcomes.reduce((sum, value) => sum + value.count, 0);
   }
 
   toArray(): T[] {
-    return this.rolls.flatMap(entry => Array(entry.count).fill(entry.data));
+    return this.outcomes.flatMap(entry => Array(entry.count).fill(entry.data));
+  }
+
+  map(mapFunction: (value: T) => T) {
+    this.outcomes = this.outcomes.map(outcome => ({
+      data: mapFunction(outcome.data),
+      count: outcome.count,
+    }));
   }
 }
 
-export class HPRange extends StatRange<number> {
-  cache: {totalRolls?: number} = {};
-
-  constructor(damageAmounts: number | number[]) {
+export class NumberDistribution extends Distribution<number> {
+  constructor(damageAmounts?: number | number[]) {
     super(damageAmounts);
   }
 
+  get min(): number {
+    return this.outcomes.length > 0 ? min(...this.outcomes.map(outcome => outcome.data)) : Infinity;
+  }
+
+  get max(): number {
+    return this.outcomes.length > 0 ? max(...this.outcomes.map(outcome => outcome.data)) : -1;
+  }
+
+  get expected(): number {
+    return this.outcomes.reduce((sum, outcome) => (sum += outcome.data * outcome.count), 0) / this.totalOutcomes;
+  }
+
   get range(): [number, number] {
-    const keys = this.rolls.map(value => value.data);
-    const min = Math.min(...keys);
-    const max = Math.max(...keys);
-    return [min, max];
+    return [this.min, this.max];
   }
 
-  // toArray(): number[] {
-  //   const result: number[] = [];
-  //   for (const key in this.rolls) {
-  //     const count = this.rolls[key];
-  //     for (let i = 0; i < count; i++) {
-  //       result.push(Number(key));
-  //     }
-  //   }
-
-  //   return result;
-  // }
-
-  toString(): string {
-    return this.rolls.map(value => `${value.data}: ${Math.round((value.count / this.totalRolls) * 1000) / 10}%`).join(', ');
+  toString(notation: '%' | '#' | 'e' | '%%' = '%'): string {
+    if (notation === '#') return this.outcomes.map(value => `${value.data}: ${value.count}`).join(', ');
+    if (notation === 'e') return this.outcomes.map(value => `${value.data}, ${value.count}`).join('\n');
+    if (notation === '%%') return this.outcomes.map(value => `${value.data}: ${((value.count / this.totalOutcomes) * 100).toFixed(2)}%`).join(', ');
+    else return this.outcomes.map(value => `${value.data}: ${((value.count / this.totalOutcomes) * 100).toFixed(1)}%`).join(', ');
   }
 
-  chain(values: number | number[]) {
-    if (!Array.isArray(values)) values = [values];
-    const newRolls: {data: number; count: number}[] = [];
-
-    this.rolls.forEach(roll =>
-      values.forEach(v => {
-        const newEntry = {data: v + roll.data, count: roll.count};
-        const existingEntry = newRolls.find(value => value.data === newEntry.data);
-        if (existingEntry) existingEntry.count += newEntry.count;
-        else newRolls.push(newEntry);
-      })
-    );
-    this.rolls = newRolls;
+  static chain(...distributions: NumberDistribution[]): NumberDistribution {
+    const result = new NumberDistribution();
+    if (distributions.length === 0) return result;
+    let combinedOutcomes = distributions[0].outcomes;
+    for (let i = 1; i < distributions.length; i++) {
+      const nextOutcomes = distributions[i].outcomes;
+      combinedOutcomes = combinedOutcomes.flatMap(outcome =>
+        nextOutcomes.map(nextOutcome => ({
+          data: outcome.data + nextOutcome.data,
+          count: outcome.count * nextOutcome.count,
+        }))
+      );
+      const aggregated = combinedOutcomes.reduce((acc, roll) => {
+        acc.set(roll.data, (acc.get(roll.data) || 0) + roll.count);
+        return acc;
+      }, new Map<number, number>());
+      combinedOutcomes = Array.from(aggregated, ([data, count]) => ({data, count}));
+    }
+    result.outcomes = combinedOutcomes;
+    return result;
   }
 }
 
