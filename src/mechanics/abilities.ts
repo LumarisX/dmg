@@ -2117,11 +2117,11 @@ export const Abilities: {
     // },
   },
   rivalry: {
-    onBasePower(pokemon: Context.Pokemon) {
-      if (pokemon.gender && pokemon.gender) {
-        return is(pokemon.gender, pokemon.gender) ? 1400 : 0xc00;
-      }
-    },
+    // onBasePower(pokemon: Context.Pokemon) {
+    //   if (pokemon.gender && opponent.gender) {
+    //     return is(pokemon.gender, pokemon.gender) ? 1400 : 0xc00;
+    //   }
+    // },
   },
   rockhead: {
     //   onDamage(damage, target, source, effect) {
@@ -2298,18 +2298,29 @@ export const Abilities: {
     //   },
   },
   sheerforce: {
-    //   onModifyMove(move, pokemon) {
-    //     if (move.secondaries) {
-    //       delete move.secondaries;
-    //           Technically not a secondary effect, but it is negated
-    //       if (is(move.id,'clangoroussoulblaze')) { delete move.selfBoost; }
-    //           Actual negation of `AfterMoveSecondary` effects implemented in scripts.js
-    //       move.hasSheerForce = true;
-    //     }
-    //   },
-    //   onBasePower(basePower, pokemon, target, move) {
-    //     if (move.hasSheerForce) { return this.chainModify([0x14CD, 0x1000]); }
-    //   },
+    onModifyMove(pokemon): void {
+      const move = pokemon.move;
+      if (!move) return;
+      if (move.secondaries || move.secondary) {
+        move.secondaries = [];
+        delete move.secondary;
+        if (move.id === 'clangoroussoulblaze') {
+          delete move.selfBoost;
+        }
+        move.hasSheerForce = true;
+      }
+
+      if (move.mindBlownRecoil) {
+        delete move.mindBlownRecoil;
+        move.hasSheerForce = true;
+      }
+    },
+
+    onBasePower(pokemon): number | undefined {
+      if (pokemon.move?.hasSheerForce) {
+        return 0x14cd;
+      }
+    },
   },
   shielddust: {
     //   onModifySecondaries(secondaries) {
@@ -2367,14 +2378,15 @@ export const Abilities: {
     //   },
   },
   skilllink: {
-    //   onModifyMove(move) {
-    //     if (move.multihit && Array.isArray(move.multihit) && move.multihit.length) {
-    //       move.multihit = move.multihit[1];
-    //     }
-    //     if (move.multiaccuracy) {
-    //       delete move.multiaccuracy;
-    //     }
-    //   },
+    onModifyMove(pokemon) {
+      if (!pokemon.move) return;
+      if (pokemon.move.multihit && Array.isArray(pokemon.move.multihit) && pokemon.move.multihit.length) {
+        pokemon.move.multihit = pokemon.move.multihit[1];
+      }
+      if (pokemon.move.multiaccuracy) {
+        delete pokemon.move.multiaccuracy;
+      }
+    },
   },
   slowstart: {
     // onStart(pokemon: Context.Pokemon) {

@@ -30,6 +30,14 @@ import {Relevancy} from './result';
 import {State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
 
+interface TestData {
+  gen: Generation;
+  attacker?: Context.Pokemon;
+  target?: Context.Pokemon;
+  move: Context.Move;
+  field?: Context.Field;
+}
+
 export class Context {
   gameType: GameType;
   gen: Generation;
@@ -133,13 +141,13 @@ export namespace Context {
     readonly relevant: Relevancy.Side;
     readonly field?: Context.Field;
 
-    constructor(context: Context, state: DeepReadonly<State.Side>, relevant: Relevancy.Side, handlers: Handlers) {
+    constructor(context: Context, side: DeepReadonly<State.Side>, relevant: Relevancy.Side, handlers: Handlers) {
       this.relevant = relevant;
       this.field = context.field;
-      this.pokemon = new Pokemon(context, this, state.pokemon, relevant.pokemon, handlers);
+      this.pokemon = new Pokemon(context.gen, side.pokemon, relevant.pokemon, {handlers, move: context.move, side: this});
       this.sideConditions = {};
-      for (const sc in state.sideConditions) {
-        this.sideConditions[sc] = reify(extend({}, state.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
+      for (const sc in side.sideConditions) {
+        this.sideConditions[sc] = reify(extend({}, side.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
           this.relevant.sideConditions[sc] = true;
         });
       }
@@ -201,15 +209,25 @@ export namespace Context {
     private evs?: Partial<StatsTable>;
     private ivs?: Partial<StatsTable>;
 
-    constructor(context: Context, side: Context.Side, state: DeepReadonly<State.Pokemon>, relevant: Relevancy.Pokemon, handlers: Handlers) {
+    constructor(
+      gen: Generation,
+      state: DeepReadonly<State.Pokemon>,
+      relevant: Relevancy.Pokemon,
+      options: {
+        handlers?: Handlers;
+        move?: Context.Move;
+        side?: Context.Side;
+      } = {}
+    ) {
       this.relevant = relevant;
-      this.side = side;
-      this.move = context.move;
-      this.gen = context.gen;
+      this.side = options.side;
+      this.move = options.move;
+      this.gen = gen;
       this.species = state.species as Specie;
       this.level = state.level;
       this.weighthg = state.weighthg;
       this.teraType = state.teraType || state.types[0];
+      const handlers = options.handlers || HANDLERS;
 
       if (state.item) {
         this.item = reify({id: state.item}, state.item, handlers.Items, () => {
@@ -251,13 +269,13 @@ export namespace Context {
         this.stats = extend({}, state.stats);
       } else {
         this.stats = {} as StatsTable;
-        const nature = state.nature && context.gen.natures.get(state.nature);
-        for (const stat of context.gen.stats) {
-          this.stats[stat] = context.gen.stats.calc(
+        const nature = state.nature && gen.natures.get(state.nature);
+        for (const stat of gen.stats) {
+          this.stats[stat] = gen.stats.calc(
             stat,
             this.species.baseStats[stat],
             state.ivs?.[stat] ?? 31,
-            state.evs?.[stat] ?? (context.gen.num <= 2 ? 252 : 0),
+            state.evs?.[stat] ?? (gen.num <= 2 ? 252 : 0),
             state.level,
             nature
           );
@@ -326,9 +344,13 @@ export namespace Context {
       if (this.boosts[stat] > 6) this.boosts[stat] = 6;
       if (this.boosts[stat] < -6) this.boosts[stat] = -6;
     }
+
+    static pdzFromState(gen: Generation, pokemon: DeepReadonly<State.Pokemon>, relevancy: Relevancy.Pokemon, move: Context.Move): Pokemon {
+      return new Pokemon(gen, pokemon, relevancy, {move});
+    }
   }
 
-  export class Move implements State.Move, Partial<Handler<Context>> {
+  export class Move implements State.Move, DMove, Partial<Handler<Context>> {
     id!: ID;
     name!: MoveName;
     fullname!: string;
@@ -423,8 +445,8 @@ export namespace Context {
     spreadModifier?: number;
     tracksTarget?: boolean;
     willCrit?: boolean;
-
     hasCrashDamage?: boolean;
+    hasSheerForce?: boolean;
     isConfusionSelfHit?: boolean;
     isFutureMove?: boolean;
     noSketch?: boolean;
@@ -436,26 +458,26 @@ export namespace Context {
     spread?: boolean;
     consecutive?: number; // Metronome
 
-    basePowerCallback?(context: Context): number;
-    damageCallback?(context: Context): number;
-    onTryImmunity?(context: Context): boolean;
-    onBasePower?(context: Context): number | undefined;
-    onModifyAtk?(context: Context): number | undefined;
-    onModifySpA?(context: Context): number | undefined;
-    onModifyDef?(context: Context): number | undefined;
-    onModifySpD?(context: Context): number | undefined;
-    onModifySpe?(context: Context): number | undefined;
-    onModifyWeight?(context: Context): number | undefined;
-    onResidual?(context: Context): number | undefined;
-    onEffectiveness?(context: Context): number | undefined;
-
-    onModifyMove?(context: Context): void;
+    basePowerCallback?(data: TestData): number;
+    damageCallback?(context: TestData): number;
+    onTryImmunity?(context: TestData): boolean;
+    onBasePower?(context: TestData): number | undefined;
+    onModifyAtk?(context: TestData): number | undefined;
+    onModifySpA?(context: TestData): number | undefined;
+    onModifyDef?(context: TestData): number | undefined;
+    onModifySpD?(context: TestData): number | undefined;
+    onModifySpe?(context: TestData): number | undefined;
+    onModifyWeight?(context: TestData): number | undefined;
+    onResidual?(context: TestData): number | undefined;
+    onEffectiveness?(context: TestData): number | undefined;
+    onModifyMove?(context: TestData): void;
 
     readonly relevant: Relevancy.Move;
 
     effectiveness: number = 0;
 
-    constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers) {
+    //Lumaris draftzone addition
+    constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers = HANDLERS) {
       extend(this, state);
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
@@ -506,17 +528,39 @@ export namespace Context {
       this.basePower = apply(this.basePower, basePowerMod);
     }
 
+    pdzUpdateData(gen: Generation, pokemon: Context.Pokemon) {
+      const testData = {attacker: pokemon, move: this, gen};
+      if (this.onModifyMove) this.onModifyMove(testData);
+      if (this.basePowerCallback) this.basePower = this.basePowerCallback(testData);
+
+      let basePowerMod = 0x1000;
+      if (pokemon.ability?.onModifyMove) pokemon.ability.onModifyMove(pokemon);
+      if (pokemon.ability?.onBasePower) {
+        const onBasePower = pokemon.ability.onBasePower(pokemon);
+        if (onBasePower && pokemon.move) pokemon.move.relevant.modified.basePower = true;
+        basePowerMod = chain(basePowerMod, onBasePower);
+      }
+
+      if (pokemon.item?.onBasePower) {
+        basePowerMod = chain(basePowerMod, pokemon.item.onBasePower(pokemon));
+      }
+
+      if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(testData));
+
+      this.basePower = apply(this.basePower, basePowerMod);
+    }
+
     toState(): State.Move {
       return extend({}, this);
     }
   }
 }
 
-function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon>>, id: ID, handlers: Handlers[HandlerKind], cbfn?: () => void) {
+function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon | TestData>>, id: ID, handlers: Handlers[HandlerKind], cbfn?: () => void) {
   const handler = handlers[id];
   if (handler) {
     for (const n in handler) {
-      const k = n as keyof Handler<Context | Context.Pokemon>; // not really, but HANDLER_FNS is checked below
+      const k = n as keyof Handler<Context | Context.Pokemon | TestData>; // not really, but HANDLER_FNS is checked below
       const fn = handler[k];
       if (fn && typeof fn === 'function') {
         obj[k] = (x: Context | Context.Pokemon) => {

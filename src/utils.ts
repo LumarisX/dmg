@@ -47,68 +47,68 @@ export type Builtin = Primitive | Function | Date | Error | RegExp;
 export type DeepReadonly<T> = T extends Builtin
   ? T
   : T extends Map<infer K, infer V>
-    ? ReadonlyMap<DeepReadonly<K>, DeepReadonly<V>>
-    : T extends ReadonlyMap<infer K, infer V>
-      ? ReadonlyMap<DeepReadonly<K>, DeepReadonly<V>>
-      : T extends Set<infer U>
-        ? ReadonlySet<DeepReadonly<U>>
-        : T extends ReadonlySet<infer U>
-          ? ReadonlySet<DeepReadonly<U>>
-          : T extends Promise<infer U>
-            ? Promise<DeepReadonly<U>>
-            : T extends {}
-              ? {readonly [K in keyof T]: DeepReadonly<T[K]>}
-              : Readonly<T>;
+  ? ReadonlyMap<DeepReadonly<K>, DeepReadonly<V>>
+  : T extends ReadonlyMap<infer K, infer V>
+  ? ReadonlyMap<DeepReadonly<K>, DeepReadonly<V>>
+  : T extends Set<infer U>
+  ? ReadonlySet<DeepReadonly<U>>
+  : T extends ReadonlySet<infer U>
+  ? ReadonlySet<DeepReadonly<U>>
+  : T extends Promise<infer U>
+  ? Promise<DeepReadonly<U>>
+  : T extends {}
+  ? {readonly [K in keyof T]: DeepReadonly<T[K]>}
+  : Readonly<T>;
 
 export type Writable<T> = {-readonly [P in keyof T]: T[P]};
 
 export type DeepWritable<T> = T extends Builtin
   ? T
   : T extends Map<infer K, infer V>
-    ? Map<DeepWritable<K>, DeepWritable<V>>
-    : T extends ReadonlyMap<infer K, infer V>
-      ? Map<DeepWritable<K>, DeepWritable<V>>
-      : T extends Set<infer U>
-        ? Set<DeepWritable<U>>
-        : T extends ReadonlySet<infer U>
-          ? Set<DeepWritable<U>>
-          : T extends Promise<infer U>
-            ? Promise<DeepWritable<U>>
-            : T extends {}
-              ? {-readonly [K in keyof T]: DeepWritable<T[K]>}
-              : T;
+  ? Map<DeepWritable<K>, DeepWritable<V>>
+  : T extends ReadonlyMap<infer K, infer V>
+  ? Map<DeepWritable<K>, DeepWritable<V>>
+  : T extends Set<infer U>
+  ? Set<DeepWritable<U>>
+  : T extends ReadonlySet<infer U>
+  ? Set<DeepWritable<U>>
+  : T extends Promise<infer U>
+  ? Promise<DeepWritable<U>>
+  : T extends {}
+  ? {-readonly [K in keyof T]: DeepWritable<T[K]>}
+  : T;
 
 export type IsTuple<T> = T extends [infer A]
   ? T
   : T extends [infer A, infer B]
-    ? T
-    : T extends [infer A, infer B, infer C]
-      ? T
-      : T extends [infer A, infer B, infer C, infer D]
-        ? T
-        : T extends [infer A, infer B, infer C, infer D, infer E]
-          ? T
-          : never;
+  ? T
+  : T extends [infer A, infer B, infer C]
+  ? T
+  : T extends [infer A, infer B, infer C, infer D]
+  ? T
+  : T extends [infer A, infer B, infer C, infer D, infer E]
+  ? T
+  : never;
 
 export type DeepPartial<T> = T extends Builtin
   ? T
   : T extends Map<infer K, infer V>
-    ? Map<DeepPartial<K>, DeepPartial<V>>
-    : T extends ReadonlyMap<infer K, infer V>
-      ? ReadonlyMap<DeepPartial<K>, DeepPartial<V>>
-      : T extends Set<infer U>
-        ? Set<DeepPartial<U>>
-        : T extends ReadonlySet<infer U>
-          ? ReadonlySet<DeepPartial<U>>
-          : T extends Array<infer U>
-            ? T extends IsTuple<T>
-              ? {[K in keyof T]?: DeepPartial<T[K]>}
-              : Array<DeepPartial<U>>
-            : T extends Promise<infer U>
-              ? Promise<DeepPartial<U>>
-              : T extends {}
-                ? {[K in keyof T]?: DeepPartial<T[K]>}
-                : Partial<T>;
+  ? Map<DeepPartial<K>, DeepPartial<V>>
+  : T extends ReadonlyMap<infer K, infer V>
+  ? ReadonlyMap<DeepPartial<K>, DeepPartial<V>>
+  : T extends Set<infer U>
+  ? Set<DeepPartial<U>>
+  : T extends ReadonlySet<infer U>
+  ? ReadonlySet<DeepPartial<U>>
+  : T extends Array<infer U>
+  ? T extends IsTuple<T>
+    ? {[K in keyof T]?: DeepPartial<T[K]>}
+    : Array<DeepPartial<U>>
+  : T extends Promise<infer U>
+  ? Promise<DeepPartial<U>>
+  : T extends {}
+  ? {[K in keyof T]?: DeepPartial<T[K]>}
+  : Partial<T>;
 
 export type Buildable<T> = DeepPartial<DeepWritable<T>>;
 /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -143,9 +143,7 @@ function getType(obj: any) {
   if (obj == null) {
     return String(obj);
   }
-  return typeof obj === 'object' || typeof obj === 'function'
-    ? class2Type[coreToString.call(obj)] || 'object'
-    : typeof obj;
+  return typeof obj === 'object' || typeof obj === 'function' ? class2Type[coreToString.call(obj)] || 'object' : typeof obj;
 }
 
 function isPlainObject(obj: any) {

@@ -1,32 +1,8 @@
-import {
-  BoostID,
-  GameType,
-  Generation,
-  GenerationNum,
-  Generations,
-  Specie,
-  StatsTable,
-  toID,
-} from '@pkmn/data';
+import {BoostID, GameType, Generation, GenerationNum, Generations, Specie, StatsTable, toID} from '@pkmn/data';
 import {PRNG} from '@pkmn/sim';
 
-import {
-  Conditions,
-  PseudoWeathers,
-  SideConditions,
-  Statuses,
-  Terrains,
-  Volatiles,
-  Weathers,
-} from '../../conditions';
-import {
-  FieldOptions,
-  MoveOptions,
-  PokemonOptions,
-  SideOptions,
-  State,
-  setGender,
-} from '../../state';
+import {Conditions, PseudoWeathers, SideConditions, Statuses, Terrains, Volatiles, Weathers} from '../../conditions';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State, setGender} from '../../state';
 import {is} from '../../utils';
 import * as math from '../../math';
 
@@ -107,7 +83,7 @@ function generatePokemon(gen: Generation, prng: PRNG) {
   const species = sample(prng, Array.from(gen.species));
   options.level = prng.randomChance(1, 20) ? range(prng, 1, 100) : 100;
   if (prng.randomChance(1, 100)) {
-    options.weighthg = math.round(species.weighthg * prng.next() * 2) + 1;
+    options.weighthg = math.round(species.weighthg * prng.random() * 2) + 1;
   }
 
   if (gen.num >= 2 && prng.randomChance(99, 100)) {
@@ -126,9 +102,7 @@ function generatePokemon(gen: Generation, prng: PRNG) {
     if (options.status === 'tox') options.statusState = {toxicTurns: range(prng, 0, 15)};
   }
 
-  const volatiles = Object.values(Volatiles).filter(
-    v => Conditions.get(gen, v[0])?.[1] === 'Volatile Status' && v[0] !== 'Dynamax'
-  );
+  const volatiles = Object.values(Volatiles).filter(v => Conditions.get(gen, v[0])?.[1] === 'Volatile Status' && v[0] !== 'Dynamax');
   options.volatiles = {};
   // Special case Dynamax to proc more often than other volatiles
   if (gen.num === 8 && prng.randomChance(1, 4)) options.volatiles.dynamax = {};
@@ -168,36 +142,25 @@ function generatePokemon(gen: Generation, prng: PRNG) {
       }
     }
     options.ivs[stat] =
-      stat === 'hp' && gen.num < 3
-        ? gen.stats.toIV(gen.stats.getHPDV(options.ivs))
-        : prng.randomChance(1, 10)
-          ? range(prng, 0, 31)
-          : 31;
-    if (gen.num < 3) options.ivs[stat] = gen.stats.toIV(gen.stats.toDV(options.ivs[stat]));
+      stat === 'hp' && gen.num < 3 ? gen.stats.toIV(gen.stats.getHPDV(options.ivs)) : prng.randomChance(1, 10) ? range(prng, 0, 31) : 31;
+    if (gen.num < 3 && options.ivs[stat]) options.ivs[stat] = gen.stats.toIV(gen.stats.toDV(options.ivs[stat]));
     options.evs[stat] =
       gen.num >= 3
         ? prng.randomChance(1, 2)
           ? range(prng, 0, math.min(total, 252))
           : math.min(total, 252)
         : prng.randomChance(1, 20)
-          ? range(prng, 0, 252)
-          : 252;
-    total -= options.evs[stat];
-    stats[stat] = gen.stats.calc(
-      stat,
-      species.baseStats[stat],
-      options.ivs[stat],
-      options.evs[stat],
-      options.level,
-      nature
-    );
+        ? range(prng, 0, 252)
+        : 252;
+    total -= options.evs[stat] ?? 0;
+    stats[stat] = gen.stats.calc(stat, species.baseStats[stat], options.ivs[stat], options.evs[stat], options.level, nature);
   }
 
   if (options.volatiles.dynamax || options.ability === 'powerconstruct') {
-    const mod = 0.5 * (options.volatiles.dynamax && prng.randomChance(1, 10) ? prng.next() : 1);
+    const mod = 0.5 * (options.volatiles.dynamax && prng.randomChance(1, 10) ? prng.random() : 1);
     options.maxhp = math.round(stats.hp! * (1 + mod));
   }
-  if (prng.randomChance(1, 10)) options.hp = math.round(stats.hp! * prng.next());
+  if (prng.randomChance(1, 10)) options.hp = math.round(stats.hp! * prng.random());
 
   options.boosts = {};
   const boosts = BOOSTS.slice() as BoostID[];
@@ -227,9 +190,9 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
   let move = item?.zMoveFrom
     ? gen.moves.get(item.zMoveFrom)!
     : sample(
-      prng,
-      Array.from(gen.moves).filter(m => (status ? m.status : !m.status))
-    );
+        prng,
+        Array.from(gen.moves).filter(m => (status ? m.status : !m.status))
+      );
 
   if (move.id === 'hiddenpower' && move.name !== 'Hidden Power') {
     // Change our IVs to match our Hidden Power or change the Hidden Power type to match our IVs
@@ -246,13 +209,7 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
           pokemon.ivs[stat] = type.HPivs[stat] ?? 31;
         }
       }
-      const maxhp = gen.stats.calc(
-        'hp',
-        pokemon.species.baseStats.hp,
-        pokemon.ivs.hp,
-        pokemon.evs?.hp ?? 252,
-        pokemon.level
-      );
+      const maxhp = gen.stats.calc('hp', pokemon.species.baseStats.hp, pokemon.ivs.hp, pokemon.evs?.hp ?? 252, pokemon.level);
       const fraction = pokemon.hp / pokemon.maxhp;
       pokemon.maxhp = maxhp;
       pokemon.hp = math.round(fraction * maxhp);
@@ -267,20 +224,11 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
     options.hits = range(prng, move.multihit[0], move.multihit[1]);
   }
 
-  if (
-    gen.num >= 3 &&
-    gameType === 'doubles' &&
-    is(move.target, 'allAdjacent', 'allAdjacentFoes') &&
-    prng.randomChance(4, 5)
-  ) {
+  if (gen.num >= 3 && gameType === 'doubles' && is(move.target, 'allAdjacent', 'allAdjacentFoes') && prng.randomChance(4, 5)) {
     options.spread = true;
   }
   if (pokemon.item === 'metronome') options.consecutive = range(prng, 1, 10);
-  if (
-    gen.num === 7 &&
-    !move.isZ &&
-    (item?.zMove ? prng.randomChance(4, 5) : prng.randomChance(1, 100))
-  ) {
+  if (gen.num === 7 && !move.isZ && (item?.zMove ? prng.randomChance(4, 5) : prng.randomChance(1, 100))) {
     options.useZ = true;
     options.hits = undefined;
   }
@@ -308,12 +256,12 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
 }
 
 function range(prng: PRNG, min: number, max: number) {
-  return prng.next(min, max + 1);
+  return prng.random(min, max + 1);
 }
 
 function sample<T>(prng: PRNG, arr: T[], remove = false) {
   if (arr.length === 0) throw new RangeError('Cannot sample an empty array');
-  const index = prng.next(arr.length);
+  const index = prng.random(arr.length);
   const val = arr[index];
   if (remove) {
     arr[index] = arr[arr.length - 1];

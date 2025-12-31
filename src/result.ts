@@ -27,7 +27,7 @@ export class Relevancy {
       sideConditions: {},
     };
     this.field = {pseudoWeather: {}};
-    this.move = {};
+    this.move = {modified: {}};
   }
 
   static simplify(state: DeepReadonly<State>, relevant: Relevancy): State {
@@ -90,6 +90,11 @@ export namespace Relevancy {
   }
 
   export interface Move {
+    modified: {
+      basePower?: boolean;
+      accuracy?: boolean;
+      type?: boolean;
+    };
     crit?: boolean;
     hits?: boolean;
     magnitude?: boolean;
@@ -201,7 +206,7 @@ export class Result {
     return (this.cache.relevant = relevant);
   }
 
-  get context(): Context {
+  private get context(): Context {
     // Each hit has its own context, but the last hit's context reflects the final state
     return this.hits[0].context;
   }
@@ -342,10 +347,30 @@ export class Result {
 
   // chain (if same turn, wont be taking hazards), if second term just nothing / residual
   knockout(type: KOType = 'both', relevant = extend({}, this.relevant)) {
-    // FIXME
+    const n = this.damage.max > 0 ? math.ceil(this.context.p2.pokemon.hp / this.damage.max) : Infinity;
+    if (n === Infinity || n < 1) {
+      return {
+        n: Infinity,
+        chance: 0,
+        exact: true,
+      };
+    } else if (n === 1) {
+      const chance = this.damage.probabilityOfAtLeast(this.context.p2.pokemon.hp);
+      return {
+        n: 1,
+        chance,
+        exact: true,
+      };
+    }
+    const distributions = new Array(n).fill(this.damage);
+    const d = NumberDistribution.chain(...distributions);
+    const chance = d.probabilityOfAtLeast(this.context.p2.pokemon.hp);
 
-    // TODO: how does onresidual work, depends on state of mon.. (when does berry proc?)
-    return {n: 0, chance: 0, exact: true};
+    return {
+      n,
+      chance,
+      exact: true, // TODO: Set to false when hazards/residual are approximated
+    };
   }
 
   recoveryText(notation: Notation = '%', relevant?: Relevancy) {
@@ -514,25 +539,25 @@ export class Results {
   next(turn = true): DeepReadonly<State> {
     const t = this.turns[this.turns.length - 1];
     const prev = t[t.length - 1];
-    const state = prev.context.toState();
+    const state = prev.state;
 
-    if (turn) {
-      const min = prev.range[0];
-      state.p2.pokemon.hp -= min;
-      // TODO update p1 for recoil/guaranteed crash (if ghost)/recovery
-      // TODO update both p1 and p2 for residual damage and recovery
+    // if (turn) {
+    //   const min = prev.range[0];
+    //   state.p2.pokemon.hp -= min;
+    //   // TODO update p1 for recoil/guaranteed crash (if ghost)/recovery
+    //   // TODO update both p1 and p2 for residual damage and recovery
 
-      // Since next() returns the state for a new turn
-      state.p1.pokemon.hurtThisTurn = false;
-      state.p2.pokemon.hurtThisTurn = false;
-    } else {
-      // Just like with Result.chain() we update the min range
-      const min = prev.range[0];
-      state.p2.pokemon.hp -= min;
-      if (min > 0) state.p2.pokemon.hurtThisTurn = true;
-    }
+    //   // Since next() returns the state for a new turn
+    //   state.p1.pokemon.hurtThisTurn = false;
+    //   state.p2.pokemon.hurtThisTurn = false;
+    // } else {
+    //   // Just like with Result.chain() we update the min range
+    //   const min = prev.range[0];
+    //   state.p2.pokemon.hp -= min;
+    //   if (min > 0) state.p2.pokemon.hurtThisTurn = true;
+    // }
 
-    apply(this.appliers, state);
+    // apply(this.appliers, state);
 
     return state as DeepReadonly<State>;
   }

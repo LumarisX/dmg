@@ -13,12 +13,12 @@ try {
   stringify = require('json-stringify-pretty-compact');
 } catch {}
 
-export function run(seed: PRNGSeed = [1, 2, 3, 4], N = 10000) {
+export function run(seed: PRNGSeed = `1, 2, 3, 4`, N = 10000) {
   const gens = new Generations(Dex as any);
   const prng = new PRNG(seed);
 
   for (let i = 0; i < N; i++) {
-    seed = prng.seed;
+    seed = prng.getSeed();
     let encoded = '';
     let reencoded = '';
     const original: {state?: State; result?: Result} = {};

@@ -6,7 +6,7 @@ import {State} from '../../state';
 import {Result} from '../../result';
 
 const N = 1000;
-const SEED = [0x09917, 0x06924, 0x0e1c8, 0x06af0] as PRNGSeed;
+const SEED = `gen5,[0x09917, 0x06924, 0x0e1c8, 0x06af0]` as PRNGSeed;
 
 export function verify(state: State, result: Result, num = N, seed = SEED) {
   if (!isSupported(state)) return false;
@@ -15,8 +15,8 @@ export function verify(state: State, result: Result, num = N, seed = SEED) {
     const prng = new PRNG(seed);
     const gameType = state.gameType === 'singles' ? '' : state.gameType;
     const format = Dex.formats.get(`gen${state.gen.num}${gameType}customgame`);
-    for (let i = 0; i < num; i++, prng.next()) {
-      const battle = new Battle({format, formatid: format.id, seed: prng.seed});
+    for (let i = 0; i < num; i++, prng.random()) {
+      const battle = new Battle({format, formatid: format.id, seed: prng.getSeed()});
       battle.trunc = Dex.trunc.bind(Dex); // Custom Game formats don't use proper truncation...
 
       const players = {
@@ -30,10 +30,7 @@ export function verify(state: State, result: Result, num = N, seed = SEED) {
       const ranges = undefined! as {p1: [number, number]; p2: [number, number]};
       for (const p in ranges) {
         const player = p as 'p1' | 'p2';
-        if (
-          players[player].pokemon.hp < ranges[player][0] ||
-          players[player].pokemon.hp > ranges[player][1]
-        ) {
+        if (players[player].pokemon.hp < ranges[player][0] || players[player].pokemon.hp > ranges[player][1]) {
           throw new Error(
             `Expected ${player}'s ${players[player].pokemon.species.name} HP to be within` +
               `[${ranges[player][0]},${ranges[player][1]}] but it was ${players[player].pokemon.hp}`
@@ -150,8 +147,7 @@ function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
   if (p.moveLastTurnResult === false) pokemon.moveLastTurnResult = false;
   pokemon.hurtThisTurn = p.hurtThisTurn ? 1 : null;
 
-  const choice =
-    player === 'p1' ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}` : 'move splash';
+  const choice = player === 'p1' ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}` : 'move splash';
 
   return {pokemon, choice};
 }

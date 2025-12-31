@@ -4,13 +4,7 @@ import {is, toID} from './utils';
 
 export type Player = 'p1' | 'p2';
 
-export type ConditionName =
-  | WeatherName
-  | TerrainName
-  | PseudoWeatherName
-  | SideConditionName
-  | VolatileStatusName
-  | StatusName;
+export type ConditionName = WeatherName | TerrainName | PseudoWeatherName | SideConditionName | VolatileStatusName | StatusName;
 
 export type ConditionKind =
   | 'Weather'
@@ -109,19 +103,13 @@ export const Conditions = new (class {
    * present in the provided generation. Like with other data-getters, this function also handles
    * resolving aliases.
    */
-  get(
-    gen: Generation,
-    name: string
-  ): [ConditionName, ConditionKind, (Player | 'field')?] | undefined {
+  get(gen: Generation, name: string): [ConditionName, ConditionKind, (Player | 'field')?] | undefined {
     let id = toID(name);
     id = (ALIASES[id] as ID) || id;
 
     let condition: [ConditionName, GenerationNum, Player?];
 
-    if (
-      (is(id, 'mudsport', 'watersport') && gen.num <= 5) ||
-      (is(id, 'reflect', 'lightscreen') && gen.num === 1)
-    ) {
+    if ((is(id, 'mudsport', 'watersport') && gen.num <= 5) || (is(id, 'reflect', 'lightscreen') && gen.num === 1)) {
       condition = Volatiles[id];
       return [condition[0], 'Volatile Status', condition[2]!];
     }
@@ -159,15 +147,7 @@ export const Conditions = new (class {
 
 // Weather
 
-export type WeatherName =
-  | 'Sand'
-  | 'Sun'
-  | 'Rain'
-  | 'Hail'
-  | 'Snow'
-  | 'Harsh Sunshine'
-  | 'Heavy Rain'
-  | 'Strong Winds';
+export type WeatherName = 'Sand' | 'Sun' | 'Rain' | 'Hail' | 'Snow' | 'Harsh Sunshine' | 'Heavy Rain' | 'Strong Winds';
 
 export const Weathers: {[id: string]: [WeatherName, GenerationNum]} = {
   sand: ['Sand', 2],
@@ -240,7 +220,10 @@ export type SideConditionName =
   | 'Crafty Shield'
   | 'Lucky Chant'
   | 'Mist'
-  | 'Sticky Web';
+  | 'Sticky Web'
+  | 'Flower Gift'
+  | 'Power Spot'
+  | 'Battery';
 
 export const SideConditions: {
   [id: string]: [SideConditionName, GenerationNum, Player?];
@@ -265,6 +248,9 @@ export const SideConditions: {
   quickguard: ['Quick Guard', 5, 'p2'],
   craftyshield: ['Crafty Shield', 6],
   mist: ['Mist', 6],
+  flowergift: ['Flower Gift', 4],
+  powerspot: ['Power Spot', 8],
+  battery: ['Battery', 7],
 };
 
 // Volatile Status

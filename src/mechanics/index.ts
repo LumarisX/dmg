@@ -2,16 +2,16 @@ import type {GameType, Generation, Generations, ID, MoveName, StatsTable, TypeNa
 
 import {Context} from '../context';
 import {parse} from '../parse';
-import {Result} from '../result';
+import {Relevancy, Result} from '../result';
 import {State} from '../state';
-import {has, is} from '../utils';
+import {DeepReadonly, has, is} from '../utils';
 
 import {Abilities} from './abilities';
 import {Conditions} from './conditions';
 import {Items} from './items';
 import {Moves} from './moves';
 
-import {abs, apply, applyMod, chain, clamp, floor, max, min, roundDown, shift, trunc} from '../math';
+import {abs, apply, applyMod, chain, clamp, floor, max, min, round, roundDown, shift, trunc} from '../math';
 
 export interface Applier {
   apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
@@ -22,30 +22,22 @@ export interface Handler<S> {
   damageCallback(scope: S): number;
   onAnyBasePower(scope: S): number | undefined;
   onBasePower(scope: S): number | undefined;
-
-  onModifyMove(context: Context): void;
-
+  onModifyMove(scope: S): void;
   onModifyAtk(scope: S): number | undefined;
   onModifySpA(scope: S): number | undefined;
   onModifyDef(scope: S): number | undefined;
   onModifySpD(scope: S): number | undefined;
   onModifySpe(scope: S): number | undefined;
   onModifyWeight(scope: S): number | undefined;
-
   onResidual(scope: S): number | undefined;
-
   onModifyDamageAttacker(scope: S): number | undefined;
   onModifyDamageDefender(scope: S): number | undefined;
   onUpdate(scope: S): void;
-
+  onModifyMoveStat(scope: S): number | undefined;
   onModifySTAB(scope: S): number | undefined;
-
   onEffectiveness(scope: S): number | undefined;
-
-  /** Returns true if the target is immune. */
-  onTryImmunity(context: Context): boolean;
-
-  onEat(pokemon: Context.Pokemon): void;
+  onTryImmunity(scope: S): boolean;
+  onEat(scope: S): void;
 }
 
 export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
@@ -95,25 +87,10 @@ export class Appliers {
 
 export const APPLIERS = new Appliers(HANDLERS);
 
-// Unnecessary?
-// export const HANDLER_FNS: Set<keyof Handler<Context>> = new Set([
-//   "basePowerCallback",
-//   "damageCallback",
-//   "onBasePower",
-//   "onModifyAtk",
-//   "onModifySpA",
-//   "onModifyDef",
-//   "onModifySpD",
-//   "onModifySpe",
-//   "onModifyWeight",
-//   "onModifyDamageAttacker",
-//   "onResidual",
-// ]);
-
 // Convenience overload for most programs
 export function calculate(
   gen: Generation,
-  attacker: State.Side | State.Pokemon,
+  attacker: State.Pokemon,
   defender: State.Side | State.Pokemon,
   move: State.Move,
   field?: State.Field,
@@ -140,6 +117,67 @@ export function calculate(...args: any[]) {
   // TODO mutate result and actually do calculations - should this part be in mechanics/index?
   const result = new Result(state, handlers); // TODO handle multihit / parental bond etc
   return result;
+}
+
+//Added by lumaris for testing with draftzone
+export function pdzCalculateMove(gen: Generation, p: State.Pokemon, m: State.Move) {
+  const relevancy = new Relevancy();
+  const move = new Context.Move(m, relevancy.move);
+  const pokemon = new Context.Pokemon(gen, p as DeepReadonly<State.Pokemon>, relevancy.p1.pokemon, {move});
+  move.pdzUpdateData(gen, pokemon);
+  const strength = pdzCalculateStrength(pokemon);
+  return {move, pokemon, strength};
+}
+
+const CRIT_KEY: number[] = [0, 1, 3, 12] as const;
+const situationalMoves = ['steelroller', 'dreameater'];
+
+export function pdzEffectivePowerModifier(move: Context.Move) {
+  let value = 1;
+  if (move.accuracy !== true && move.accuracy < 100) value *= move.accuracy / 100;
+  value *= !move.willCrit && move.critRatio && move.critRatio < CRIT_KEY.length ? 1 + (1.5 * CRIT_KEY[move.critRatio]) / 24 : 1.5;
+  if (Array.isArray(move.multihit)) {
+    if (move.multihit[0] === 2 && move.multihit[1] === 5) value *= 3.3;
+    else value *= (move.multihit[0] + move.multihit[1]) / 2;
+  } else if (typeof move.multihit === 'number' && move.multihit > 1) value *= move.multihit;
+  if (move.condition?.duration) value /= move.condition.duration === 1 ? 4 : 2;
+  if ('charge' in move.flags || 'recharge' in move.flags) value *= 0.5;
+  if (move.self?.volatileStatus === 'lockedmove') value *= 0.5;
+  if (move.mindBlownRecoil) value *= 0.5;
+  if (move.id in situationalMoves) value *= 0.1;
+  if (move.selfdestruct) value *= 0.01;
+  return value;
+}
+
+function pdzGetStabModifier(pokemon: Context.Pokemon) {
+  let mod = 0x1000;
+  if (!pokemon.move) return mod;
+  if (pokemon.ability?.onModifySTAB) {
+    mod = chain(mod, pokemon.ability.onModifySTAB(pokemon));
+  } else if (pokemon.types.includes(pokemon.move?.type)) {
+    mod = chain(mod, 0x1800);
+  }
+  return mod;
+}
+
+export function pdzCalculateStrength(pokemon: Context.Pokemon): number {
+  const move = pokemon.move;
+  if (!move) return 0;
+  const attackStat = pokemon.move.overrideOffensiveStat
+    ? pokemon.species.baseStats[pokemon.move.overrideOffensiveStat]
+    : is(pokemon.move.category, 'Physical')
+    ? pokemon.species.baseStats.atk
+    : is(pokemon.move.category, 'Special')
+    ? pokemon.species.baseStats.spa
+    : 0;
+  const baseDamage = move.basePower * attackStat;
+  const stabMod = pdzGetStabModifier(pokemon);
+  let damageAmount = baseDamage;
+  if (stabMod !== 0x1000) damageAmount = (damageAmount * stabMod) / 0x1000;
+  damageAmount = shift(damageAmount, move.effectiveness);
+  const epMod = pdzEffectivePowerModifier(move);
+  damageAmount = damageAmount * epMod;
+  return round((damageAmount * 10) / 2048) / 10;
 }
 
 export function calculateDamage(context: Context | State): number | number[] {
@@ -426,12 +464,11 @@ export class Distribution<T> {
   constructor(data?: T | T[]) {
     if (data === undefined) return;
     if (Array.isArray(data)) {
-      this.outcomes = data.reduce((outcome, value) => {
-        const v = outcome.find(acc => acc.data === value);
-        if (!v) outcome.push({data: value, count: 1});
-        else v.count++;
-        return outcome;
-      }, [] as {data: T; count: number}[]);
+      const map = new Map<T, number>();
+      for (const value of data) {
+        map.set(value, (map.get(value) || 0) + 1);
+      }
+      this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
     } else {
       this.outcomes = [{data: data, count: 1}];
     }
@@ -441,15 +478,91 @@ export class Distribution<T> {
     return this.outcomes.reduce((sum, value) => sum + value.count, 0);
   }
 
+  isEmpty(): boolean {
+    return this.outcomes.length === 0;
+  }
+
+  size(): number {
+    return this.outcomes.length;
+  }
+
   toArray(): T[] {
     return this.outcomes.flatMap(entry => Array(entry.count).fill(entry.data));
   }
 
-  map(mapFunction: (value: T) => T) {
-    this.outcomes = this.outcomes.map(outcome => ({
-      data: mapFunction(outcome.data),
-      count: outcome.count,
-    }));
+  map(mapFunction: (value: T) => T): this {
+    const map = new Map<T, number>();
+    for (const outcome of this.outcomes) {
+      const mappedValue = mapFunction(outcome.data);
+      map.set(mappedValue, (map.get(mappedValue) || 0) + outcome.count);
+    }
+    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return this;
+  }
+
+  mapped(mapFunction: (value: T) => T): Distribution<T> {
+    const result = new Distribution<T>();
+    const map = new Map<T, number>();
+    for (const outcome of this.outcomes) {
+      const mappedValue = mapFunction(outcome.data);
+      map.set(mappedValue, (map.get(mappedValue) || 0) + outcome.count);
+    }
+    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return result;
+  }
+
+  filter(predicate: (value: T) => boolean): this {
+    this.outcomes = this.outcomes.filter(outcome => predicate(outcome.data));
+    return this;
+  }
+
+  filtered(predicate: (value: T) => boolean): Distribution<T> {
+    const result = new Distribution<T>();
+    result.outcomes = this.outcomes.filter(outcome => predicate(outcome.data));
+    return result;
+  }
+
+  forEach(callback: (data: T, count: number) => void): void {
+    this.outcomes.forEach(outcome => callback(outcome.data, outcome.count));
+  }
+
+  reduce<U>(callback: (acc: U, data: T, count: number) => U, initial: U): U {
+    return this.outcomes.reduce((acc, outcome) => callback(acc, outcome.data, outcome.count), initial);
+  }
+
+  clone(): Distribution<T> {
+    const result = new Distribution<T>();
+    result.outcomes = this.outcomes.map(o => ({...o}));
+    return result;
+  }
+
+  equals(other: Distribution<T>): boolean {
+    if (this.outcomes.length !== other.outcomes.length) return false;
+    const thisMap = new Map(this.outcomes.map(o => [o.data, o.count]));
+    for (const outcome of other.outcomes) {
+      if (thisMap.get(outcome.data) !== outcome.count) return false;
+    }
+    return true;
+  }
+
+  probabilityOf(value: T): number {
+    const outcome = this.outcomes.find(o => o.data === value);
+    return outcome ? outcome.count / this.totalOutcomes : 0;
+  }
+
+  probabilityOfAtLeast(value: T): number {
+    const count = this.outcomes.filter(o => o.data >= value).reduce((sum, o) => sum + o.count, 0);
+    return count / this.totalOutcomes;
+  }
+
+  toJSON(): {outcomes: {data: T; count: number}[]} {
+    return {outcomes: this.outcomes};
+  }
+
+  static fromJSON<T>(json: {outcomes: {data: T; count: number}[]}): Distribution<T> {
+    const dist = new Distribution<T>();
+    dist.outcomes = json.outcomes;
+    return dist;
   }
 }
 
@@ -458,20 +571,165 @@ export class NumberDistribution extends Distribution<number> {
     super(damageAmounts);
   }
 
+  assertNotEmpty(): asserts this is NumberDistribution & {outcomes: [{data: number; count: number}, ...{data: number; count: number}[]]} {
+    if (this.outcomes.length === 0) {
+      throw new Error('Distribution is empty');
+    }
+  }
+
   get min(): number {
-    return this.outcomes.length > 0 ? min(...this.outcomes.map(outcome => outcome.data)) : Infinity;
+    return this.outcomes.length > 0 ? min(...this.outcomes.map(outcome => outcome.data)) : NaN;
   }
 
   get max(): number {
-    return this.outcomes.length > 0 ? max(...this.outcomes.map(outcome => outcome.data)) : -1;
+    return this.outcomes.length > 0 ? max(...this.outcomes.map(outcome => outcome.data)) : NaN;
   }
 
   get expected(): number {
+    if (this.outcomes.length === 0) return NaN;
     return this.outcomes.reduce((sum, outcome) => (sum += outcome.data * outcome.count), 0) / this.totalOutcomes;
   }
 
   get range(): [number, number] {
     return [this.min, this.max];
+  }
+
+  get median(): number {
+    if (this.outcomes.length === 0) return NaN;
+    const sorted = [...this.outcomes].sort((a, b) => a.data - b.data);
+    const total = this.totalOutcomes;
+    let cumulative = 0;
+    for (const outcome of sorted) {
+      cumulative += outcome.count;
+      if (cumulative >= total / 2) {
+        return outcome.data;
+      }
+    }
+    return sorted[sorted.length - 1].data;
+  }
+
+  get mode(): number {
+    if (this.outcomes.length === 0) return NaN;
+    let maxCount = 0;
+    let modeValue = this.outcomes[0].data;
+    for (const outcome of this.outcomes) {
+      if (outcome.count > maxCount) {
+        maxCount = outcome.count;
+        modeValue = outcome.data;
+      }
+    }
+    return modeValue;
+  }
+
+  get variance(): number {
+    if (this.outcomes.length === 0) return NaN;
+    const mean = this.expected;
+    const sumSquaredDiff = this.outcomes.reduce((sum, outcome) => sum + outcome.count * (outcome.data - mean) ** 2, 0);
+    return sumSquaredDiff / this.totalOutcomes;
+  }
+
+  get standardDeviation(): number {
+    return Math.sqrt(this.variance);
+  }
+
+  percentile(p: number): number {
+    if (this.outcomes.length === 0) return NaN;
+    if (p < 0 || p > 100) throw new Error('Percentile must be between 0 and 100');
+    const sorted = [...this.outcomes].sort((a, b) => a.data - b.data);
+    const targetCount = (p / 100) * this.totalOutcomes;
+    let cumulative = 0;
+    for (const outcome of sorted) {
+      cumulative += outcome.count;
+      if (cumulative >= targetCount) {
+        return outcome.data;
+      }
+    }
+    return sorted[sorted.length - 1].data;
+  }
+
+  cumulativeProbability(value: number): number {
+    if (this.outcomes.length === 0) return 0;
+    let cumulative = 0;
+    for (const outcome of this.outcomes) {
+      if (outcome.data <= value) {
+        cumulative += outcome.count;
+      }
+    }
+    return cumulative / this.totalOutcomes;
+  }
+
+  multiply(scalar: number): this {
+    const map = new Map<number, number>();
+    for (const outcome of this.outcomes) {
+      const newValue = outcome.data * scalar;
+      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
+    }
+    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return this;
+  }
+
+  multiplied(scalar: number): NumberDistribution {
+    const result = new NumberDistribution();
+    const map = new Map<number, number>();
+    for (const outcome of this.outcomes) {
+      const newValue = outcome.data * scalar;
+      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
+    }
+    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return result;
+  }
+
+  add(scalar: number): this {
+    const map = new Map<number, number>();
+    for (const outcome of this.outcomes) {
+      const newValue = outcome.data + scalar;
+      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
+    }
+    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return this;
+  }
+
+  added(scalar: number): NumberDistribution {
+    const result = new NumberDistribution();
+    const map = new Map<number, number>();
+    for (const outcome of this.outcomes) {
+      const newValue = outcome.data + scalar;
+      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
+    }
+    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return result;
+  }
+
+  subtract(other: number): NumberDistribution {
+    const result = new NumberDistribution();
+    const map = new Map<number, number>();
+    for (const outcome1 of this.outcomes) {
+      for (const outcome2 of other.outcomes) {
+        const diff = outcome1.data - outcome2.data;
+        map.set(diff, (map.get(diff) || 0) + outcome1.count * outcome2.count);
+      }
+    }
+    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return result;
+  }
+
+  combine(other: NumberDistribution, operation: (a: number, b: number) => number): NumberDistribution {
+    const result = new NumberDistribution();
+    const map = new Map<number, number>();
+    for (const outcome1 of this.outcomes) {
+      for (const outcome2 of other.outcomes) {
+        const value = operation(outcome1.data, outcome2.data);
+        map.set(value, (map.get(value) || 0) + outcome1.count * outcome2.count);
+      }
+    }
+    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
+    return result;
+  }
+
+  clone(): NumberDistribution {
+    const result = new NumberDistribution();
+    result.outcomes = this.outcomes.map(o => ({...o}));
+    return result;
   }
 
   toString(notation: '%' | '#' | 'e' | '%%' = '%'): string {
@@ -484,22 +742,26 @@ export class NumberDistribution extends Distribution<number> {
   static chain(...distributions: NumberDistribution[]): NumberDistribution {
     const result = new NumberDistribution();
     if (distributions.length === 0) return result;
-    let combinedOutcomes = distributions[0].outcomes;
-    for (let i = 1; i < distributions.length; i++) {
-      const nextOutcomes = distributions[i].outcomes;
-      combinedOutcomes = combinedOutcomes.flatMap(outcome =>
-        nextOutcomes.map(nextOutcome => ({
-          data: outcome.data + nextOutcome.data,
-          count: outcome.count * nextOutcome.count,
-        }))
-      );
-      const aggregated = combinedOutcomes.reduce((acc, roll) => {
-        acc.set(roll.data, (acc.get(roll.data) || 0) + roll.count);
-        return acc;
-      }, new Map<number, number>());
-      combinedOutcomes = Array.from(aggregated, ([data, count]) => ({data, count}));
+
+    // Optimized chain using single Map accumulator
+    let aggregated = new Map<number, number>();
+    for (const outcome of distributions[0].outcomes) {
+      aggregated.set(outcome.data, outcome.count);
     }
-    result.outcomes = combinedOutcomes;
+
+    for (let i = 1; i < distributions.length; i++) {
+      const nextAggregated = new Map<number, number>();
+      for (const [value1, count1] of aggregated) {
+        for (const outcome2 of distributions[i].outcomes) {
+          const sum = value1 + outcome2.data;
+          const count = count1 * outcome2.count;
+          nextAggregated.set(sum, (nextAggregated.get(sum) || 0) + count);
+        }
+      }
+      aggregated = nextAggregated;
+    }
+
+    result.outcomes = Array.from(aggregated, ([data, count]) => ({data, count}));
     return result;
   }
 }
