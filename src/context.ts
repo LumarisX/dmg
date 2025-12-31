@@ -25,7 +25,7 @@ import type {
 
 import {TerrainName, WeatherName} from './conditions';
 import {apply, chain} from './math';
-import {HANDLERS, Handler, HandlerKind, Handlers} from './mechanics';
+import {Distribution, HANDLERS, Handler, HandlerKind, Handlers} from './mechanics';
 import {Relevancy} from './result';
 import {State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
@@ -169,36 +169,31 @@ export namespace Context {
     }
   }
 
-  export class Pokemon {
-    species: Specie;
-    level: number;
-    weighthg: number;
-
-    item?: {id: ID} & Partial<Handler<Context.Pokemon>>;
-    ability?: {id: ID} & Partial<Handler<Context.Pokemon>>;
-    gender?: GenderName;
-    happiness?: number;
-
+  type PokemonPossibility = {
     status?: {name: StatusName} & Partial<Handler<Context>>;
     statusData?: {toxicTurns: number};
-    volatiles: {[id: string]: {level?: number} & Partial<Handler<Context>>};
-
-    types: [TypeName] | [TypeName, TypeName];
-    addedType?: TypeName;
-    teraType: TypeName;
-
-    maxhp: number;
-    hp: number;
-
-    // The stored stats based simply on spread and base stats.
-    stats: StatsTable;
-    boosts: BoostsTable;
-
+    item?: {id: ID} & Partial<Handler<Context.Pokemon>>;
     position?: number;
     transformed?: boolean;
+    hp: number;
+    types: [TypeName] | [TypeName, TypeName];
+    addedType?: TypeName;
     switching?: 'in' | 'out';
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
+    weighthg: number;
+    stats: StatsTable;
+    boosts: BoostsTable;
+    ability?: {id: ID} & Partial<Handler<Context.Pokemon>>;
+  };
+
+  export class Pokemon {
+    species: Specie;
+    level: number;
+    teraType: TypeName;
+    maxhp: number;
+    gender?: GenderName;
+    happiness?: number;
 
     readonly relevant: Relevancy.Pokemon;
     readonly side?: Context.Side;
@@ -208,6 +203,8 @@ export namespace Context {
     private nature?: NatureName;
     private evs?: Partial<StatsTable>;
     private ivs?: Partial<StatsTable>;
+
+    possibilities: Distribution<PokemonPossibility>;
 
     constructor(
       gen: Generation,
@@ -225,125 +222,79 @@ export namespace Context {
       this.gen = gen;
       this.species = state.species as Specie;
       this.level = state.level;
-      this.weighthg = state.weighthg;
       this.teraType = state.teraType || state.types[0];
       const handlers = options.handlers || HANDLERS;
 
-      if (state.item) {
-        this.item = reify({id: state.item}, state.item, handlers.Items, () => {
-          this.relevant.item = true;
-        });
-      }
-      if (state.ability) {
-        this.ability = reify({id: state.ability}, state.ability, handlers.Abilities, () => {
-          this.relevant.ability = true;
-        });
-      }
-      this.gender = state.gender;
-      this.happiness = state.happiness;
-
-      if (state.status) {
-        this.status = reify({name: state.status}, state.status as ID, handlers.Conditions, () => {
-          this.relevant.status = true;
-        });
-      }
-      this.statusData = this.statusData && extend({}, state.statusState);
-      this.volatiles = {};
-      for (const v in state.volatiles) {
-        this.volatiles[v] = reify(extend({}, state.volatiles[v]), v as ID, handlers.Conditions, () => {
-          this.relevant.volatiles[v] = true;
-        });
-      }
-
-      this.types = state.types.slice() as Pokemon['types'];
-      this.addedType = state.addedType;
-
       this.maxhp = state.maxhp;
-      this.hp = state.hp;
-
       this.nature = state.nature;
       this.evs = state.evs;
       this.ivs = state.ivs;
 
-      if (state.stats) {
-        this.stats = extend({}, state.stats);
-      } else {
-        this.stats = {} as StatsTable;
-        const nature = state.nature && gen.natures.get(state.nature);
-        for (const stat of gen.stats) {
-          this.stats[stat] = gen.stats.calc(
-            stat,
-            this.species.baseStats[stat],
-            state.ivs?.[stat] ?? 31,
-            state.evs?.[stat] ?? (gen.num <= 2 ? 252 : 0),
-            state.level,
-            nature
-          );
-          let statMod = 0x1000;
-          if (stat === 'atk' && this.item?.onModifyAtk) {
-            statMod = chain(statMod, this.item.onModifyAtk(this));
-          }
-          if (stat === 'spa' && this.item?.onModifySpA) {
-            statMod = chain(statMod, this.item.onModifySpA(this));
-          }
-          if (stat === 'def' && this.item?.onModifyDef) {
-            statMod = chain(statMod, this.item.onModifyDef(this));
-          }
-          if (stat === 'spd' && this.item?.onModifySpD) {
-            statMod = chain(statMod, this.item.onModifySpD(this));
-          }
-          if (stat === 'spe' && this.item?.onModifySpe) {
-            statMod = chain(statMod, this.item.onModifySpe(this));
-          }
-          this.stats[stat] = apply(this.stats[stat], statMod);
-        }
-      }
-      this.boosts = extend({}, state.boosts);
-
-      this.position = state.position;
-      this.switching = state.switching;
-      this.moveLastTurnResult = state.moveLastTurnResult;
-      this.hurtThisTurn = state.hurtThisTurn;
+      this.possibilities = new Distribution<Possibility>({
+        weighthg: state.weighthg,
+        status: state.status
+          ? reify({name: state.status}, state.status as ID, handlers.Conditions, () => {
+              this.relevant.status = true;
+            })
+          : undefined,
+        statusData: state.statusState ? extend({}, state.statusState) : undefined,
+        item: state.item
+          ? reify({id: state.item}, state.item, handlers.Items, () => {
+              this.relevant.item = true;
+            })
+          : undefined,
+        position: state.position,
+        hp: state.hp,
+        types: state.types.slice() as Possibility['types'],
+        addedType: state.addedType,
+        switching: state.switching,
+        moveLastTurnResult: state.moveLastTurnResult,
+        hurtThisTurn: state.hurtThisTurn,
+        stats: state.stats ? extend({}, state.stats) : ({} as StatsTable),
+        boosts: state.boosts ? extend({}, state.boosts) : ({} as BoostsTable),
+      });
     }
 
     toState(): State.Pokemon {
-      const volatiles: {[id: string]: {level?: number}} = {};
-      for (const v in this.volatiles) {
-        volatiles[v] = 'level' in this.volatiles[v] ? {level: this.volatiles[v].level} : {};
-      }
+      //TODO: handle multiple possibilities
+      const temp = this.possibilities.reduce<Possibility | null>((acc, val) => {
+        if (!acc || val.hp < acc.hp) return val;
+        return acc;
+      }, null)!;
       return {
         species: this.species,
         level: this.level,
-        weighthg: this.weighthg,
-        item: this.item?.id,
-        ability: this.ability?.id,
+        weighthg: temp.weighthg,
+        item: temp.item?.id,
+        ability: temp.ability?.id,
         gender: this.gender,
         teraType: this.teraType,
         happiness: this.happiness,
-        status: this.status?.name,
-        statusState: this.statusData && extend({}, this.statusData),
-        volatiles,
-        types: this.types.slice() as Pokemon['types'],
-        addedType: this.addedType,
+        status: temp.status?.name,
+        statusState: temp.statusData && extend({}, temp.statusData),
+        volatiles: {},
+        types: temp.types.slice() as [TypeName] | [TypeName, TypeName],
+        addedType: temp.addedType,
         maxhp: this.maxhp,
-        hp: this.hp,
+        hp: temp.hp,
         nature: this.nature,
         evs: this.evs && extend({}, this.evs),
         ivs: this.ivs && extend({}, this.ivs),
-        stats: extend({}, this.stats),
-        boosts: extend({}, this.boosts),
-        position: this.position,
-        switching: this.switching,
-        moveLastTurnResult: this.moveLastTurnResult,
-        hurtThisTurn: this.hurtThisTurn,
+        stats: extend({}, temp.stats),
+        boosts: extend({}, temp.boosts),
+        position: temp.position,
+        switching: temp.switching,
+        moveLastTurnResult: temp.moveLastTurnResult,
+        hurtThisTurn: temp.hurtThisTurn,
       };
     }
 
-    addBoost(stat: BoostID, stage: number) {
-      this.boosts[stat] = this.boosts[stat] += stage;
-      if (this.boosts[stat] > 6) this.boosts[stat] = 6;
-      if (this.boosts[stat] < -6) this.boosts[stat] = -6;
-    }
+    //TODO: Reimplement boosts when we handle multiple possibilities
+    // addBoost(stat: BoostID, stage: number) {
+    //   this.boosts[stat] = this.boosts[stat] += stage;
+    //   if (this.boosts[stat] > 6) this.boosts[stat] = 6;
+    //   if (this.boosts[stat] < -6) this.boosts[stat] = -6;
+    // }
 
     static pdzFromState(gen: Generation, pokemon: DeepReadonly<State.Pokemon>, relevancy: Relevancy.Pokemon, move: Context.Move): Pokemon {
       return new Pokemon(gen, pokemon, relevancy, {move});
@@ -473,7 +424,6 @@ export namespace Context {
     onModifyMove?(context: TestData): void;
 
     readonly relevant: Relevancy.Move;
-
     effectiveness: number = 0;
 
     //Lumaris draftzone addition

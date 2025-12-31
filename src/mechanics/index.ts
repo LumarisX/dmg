@@ -700,7 +700,7 @@ export class NumberDistribution extends Distribution<number> {
     return result;
   }
 
-  subtract(other: number): NumberDistribution {
+  subtract(other: NumberDistribution): NumberDistribution {
     const result = new NumberDistribution();
     const map = new Map<number, number>();
     for (const outcome1 of this.outcomes) {
