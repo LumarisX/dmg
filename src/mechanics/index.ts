@@ -1,17 +1,17 @@
 import type {GameType, Generation, Generations, ID, MoveName, StatsTable, TypeName} from '@pkmn/data';
-
 import {Context} from '../context';
 import {parse} from '../parse';
-import {Relevancy, Result} from '../result';
+import {Result} from '../result';
 import {State} from '../state';
-import {DeepReadonly, has, is} from '../utils';
-
+import {has, is} from '../utils';
 import {Abilities} from './abilities';
 import {Conditions} from './conditions';
 import {Items} from './items';
 import {Moves} from './moves';
+import {Distribution, NumberDistribution} from '../new-mechanics/distribution';
+import {abs, apply, applyMod, chain, clamp, floor, max, min, roundDown, shift, trunc} from '../math';
 
-import {abs, apply, applyMod, chain, clamp, floor, max, min, round, roundDown, shift, trunc} from '../math';
+export {Distribution, NumberDistribution};
 
 export interface Applier {
   apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
@@ -91,7 +91,7 @@ export const APPLIERS = new Appliers(HANDLERS);
 export function calculate(
   gen: Generation,
   attacker: State.Pokemon,
-  defender: State.Side | State.Pokemon,
+  target: State.Side | State.Pokemon,
   move: State.Move,
   field?: State.Field,
   gameType?: GameType
@@ -120,102 +120,102 @@ export function calculate(...args: any[]) {
 }
 
 //Added by lumaris for testing with draftzone
-export function pdzCalculateMove(gen: Generation, p: State.Pokemon, m: State.Move) {
-  const relevancy = new Relevancy();
-  const move = new Context.Move(m, relevancy.move);
-  const pokemon = new Context.Pokemon(gen, p as DeepReadonly<State.Pokemon>, relevancy.p1.pokemon, {move});
-  move.pdzUpdateData(gen, pokemon);
-  const strength = pdzCalculateStrength(pokemon);
-  return {move, pokemon, strength};
-}
+// export function pdzCalculateMove(gen: Generation, p: State.Pokemon, m: State.Move) {
+//   const relevancy = new Relevancy();
+//   const move = new Context.Move(m, relevancy.move);
+//   const pokemon = new Context.Pokemon(gen, p as DeepReadonly<State.Pokemon>, relevancy.p1.pokemon, {move});
+//   move.pdzUpdateData(gen, pokemon);
+//   const strength = pdzCalculateStrength(pokemon);
+//   return {move, pokemon, strength};
+// }
 
 const CRIT_KEY: number[] = [0, 1, 3, 12] as const;
 const situationalMoves = ['steelroller', 'dreameater'];
 
-export function pdzEffectivePowerModifier(move: Context.Move) {
-  let value = 1;
-  if (move.accuracy !== true && move.accuracy < 100) value *= move.accuracy / 100;
-  value *= !move.willCrit && move.critRatio && move.critRatio < CRIT_KEY.length ? 1 + (1.5 * CRIT_KEY[move.critRatio]) / 24 : 1.5;
-  if (Array.isArray(move.multihit)) {
-    if (move.multihit[0] === 2 && move.multihit[1] === 5) value *= 3.3;
-    else value *= (move.multihit[0] + move.multihit[1]) / 2;
-  } else if (typeof move.multihit === 'number' && move.multihit > 1) value *= move.multihit;
-  if (move.condition?.duration) value /= move.condition.duration === 1 ? 4 : 2;
-  if ('charge' in move.flags || 'recharge' in move.flags) value *= 0.5;
-  if (move.self?.volatileStatus === 'lockedmove') value *= 0.5;
-  if (move.mindBlownRecoil) value *= 0.5;
-  if (move.id in situationalMoves) value *= 0.1;
-  if (move.selfdestruct) value *= 0.01;
-  return value;
-}
+// export function pdzEffectivePowerModifier(move: Context.Move) {
+//   let value = 1;
+//   if (move.accuracy !== true && move.accuracy < 100) value *= move.accuracy / 100;
+//   value *= !move.willCrit && move.critRatio && move.critRatio < CRIT_KEY.length ? 1 + (1.5 * CRIT_KEY[move.critRatio]) / 24 : 1.5;
+//   if (Array.isArray(move.multihit)) {
+//     if (move.multihit[0] === 2 && move.multihit[1] === 5) value *= 3.3;
+//     else value *= (move.multihit[0] + move.multihit[1]) / 2;
+//   } else if (typeof move.multihit === 'number' && move.multihit > 1) value *= move.multihit;
+//   if (move.condition?.duration) value /= move.condition.duration === 1 ? 4 : 2;
+//   if ('charge' in move.flags || 'recharge' in move.flags) value *= 0.5;
+//   if (move.self?.volatileStatus === 'lockedmove') value *= 0.5;
+//   if (move.mindBlownRecoil) value *= 0.5;
+//   if (move.id in situationalMoves) value *= 0.1;
+//   if (move.selfdestruct) value *= 0.01;
+//   return value;
+// }
 
-function pdzGetStabModifier(pokemon: Context.Pokemon) {
-  let mod = 0x1000;
-  if (!pokemon.move) return mod;
-  if (pokemon.ability?.onModifySTAB) {
-    mod = chain(mod, pokemon.ability.onModifySTAB(pokemon));
-  } else if (pokemon.types.includes(pokemon.move?.type)) {
-    mod = chain(mod, 0x1800);
-  }
-  return mod;
-}
+// function pdzGetStabModifier(pokemon: Context.Pokemon) {
+//   let mod = 0x1000;
+//   if (!pokemon.move) return mod;
+//   if (pokemon.ability?.onModifySTAB) {
+//     mod = chain(mod, pokemon.ability.onModifySTAB(pokemon));
+//   } else if (pokemon.types.includes(pokemon.move?.type)) {
+//     mod = chain(mod, 0x1800);
+//   }
+//   return mod;
+// }
 
-export function pdzCalculateStrength(pokemon: Context.Pokemon): number {
-  const move = pokemon.move;
-  if (!move) return 0;
-  const attackStat = pokemon.move.overrideOffensiveStat
-    ? pokemon.species.baseStats[pokemon.move.overrideOffensiveStat]
-    : is(pokemon.move.category, 'Physical')
-    ? pokemon.species.baseStats.atk
-    : is(pokemon.move.category, 'Special')
-    ? pokemon.species.baseStats.spa
-    : 0;
-  const baseDamage = move.basePower * attackStat;
-  const stabMod = pdzGetStabModifier(pokemon);
-  let damageAmount = baseDamage;
-  if (stabMod !== 0x1000) damageAmount = (damageAmount * stabMod) / 0x1000;
-  damageAmount = shift(damageAmount, move.effectiveness);
-  const epMod = pdzEffectivePowerModifier(move);
-  damageAmount = damageAmount * epMod;
-  return round((damageAmount * 10) / 2048) / 10;
-}
+// export function pdzCalculateStrength(pokemon: Context.Pokemon): number {
+//   const move = pokemon.move;
+//   if (!move) return 0;
+//   const attackStat = pokemon.move.overrideOffensiveStat
+//     ? pokemon.species.baseStats[pokemon.move.overrideOffensiveStat]
+//     : is(pokemon.move.category, 'Physical')
+//     ? pokemon.species.baseStats.atk
+//     : is(pokemon.move.category, 'Special')
+//     ? pokemon.species.baseStats.spa
+//     : 0;
+//   const baseDamage = move.basePower * attackStat;
+//   const stabMod = pdzGetStabModifier(pokemon);
+//   let damageAmount = baseDamage;
+//   if (stabMod !== 0x1000) damageAmount = (damageAmount * stabMod) / 0x1000;
+//   damageAmount = shift(damageAmount, move.effectiveness);
+//   const epMod = pdzEffectivePowerModifier(move);
+//   damageAmount = damageAmount * epMod;
+//   return round((damageAmount * 10) / 2048) / 10;
+// }
 
-export function calculateDamage(context: Context | State): number | number[] {
+export function calculateDamage(attacker: Context.Pokemon, target: Context.Pokemon, context: Context | State): number[] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
-  if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
-  if (context.move.effectiveness === -5) return 0;
-  if (context.move.damageCallback) return context.move.damageCallback(context);
+  if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return [0];
+  if (context.move.effectiveness === -5) return [0];
+  if (context.move.damageCallback) return [context.move.damageCallback(context)];
 
   const attackStat = context.move.overrideOffensiveStat
-    ? context.p1.pokemon.stats[context.move.overrideOffensiveStat]
+    ? attacker.stats[context.move.overrideOffensiveStat]
     : is(context.move.category, 'Physical')
-    ? context.p1.pokemon.stats.atk
+    ? attacker.stats.atk
     : is(context.move.category, 'Special')
-    ? context.p1.pokemon.stats.spa
+    ? attacker.stats.spa
     : 0;
   const defenseStat = context.move.overrideDefensiveStat
-    ? context.p2.pokemon.stats[context.move.overrideDefensiveStat]
+    ? target.stats[context.move.overrideDefensiveStat]
     : is(context.move.category, 'Physical')
-    ? context.p2.pokemon.stats.def
+    ? target.stats.def
     : is(context.move.category, 'Special')
-    ? context.p2.pokemon.stats.spd
+    ? target.stats.spd
     : 0;
 
-  let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
+  let baseDamage = getBaseDamage(attacker.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
   if (isSpread) {
     baseDamage = applyMod(baseDamage, 0xc00);
   }
 
-  // if (context.p1.pokemon.ability?.id === "Parental Bond (Child)") {
+  // if (attacker.ability?.id === "Parental Bond (Child)") {
   //   baseDamage = applyMod(baseDamage, 0x400);
   // }
 
   // Convert to weather handler
-  if (context.field.weather?.name === 'Sun' && context.move.name === 'Hydro Steam' && context.p1.pokemon.item?.id !== 'Utility Umbrella') {
+  if (context.field.weather?.name === 'Sun' && context.move.name === 'Hydro Steam' && attacker.item?.id !== 'Utility Umbrella') {
     baseDamage = applyMod(baseDamage, 0x1800);
-  } else if (context.p2.pokemon.item?.id !== 'Utility Umbrella') {
+  } else if (target.item?.id !== 'Utility Umbrella') {
     if (
       (['Sun', 'Harsh Sunshine'].includes(context.field.weather?.name || '') && context.move.type === 'Fire') ||
       (['Rain', 'Heavy Rain'].includes(context.field.weather?.name || '') && context.move.type === 'Water')
@@ -231,8 +231,8 @@ export function calculateDamage(context: Context | State): number | number[] {
   if (context.move.crit) {
     baseDamage = applyMod(baseDamage, 0x1800);
   }
-  const stabMod = getStabModifier(context);
-  const finalMod = getFinalModifier(context);
+  const stabMod = getStabModifier(attacker, context.move);
+  const finalMod = getFinalModifier(attacker, target, context);
   const protect = false;
   const damage = [];
 
@@ -242,7 +242,7 @@ export function calculateDamage(context: Context | State): number | number[] {
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000) damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
     damageAmount = floor(trunc(shift(damageAmount, context.move.effectiveness), 32));
-    if (context.p1.pokemon.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.p1.pokemon.status?.onModifyAtk(context) || 0x1000);
+    if (attacker.status?.onModifyAtk) damageAmount = applyMod(damageAmount, attacker.status?.onModifyAtk(context) || 0x1000);
     if (protect && context.move.zMove) damageAmount = applyMod(damageAmount, 0x400);
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));
   }
@@ -258,11 +258,11 @@ function getBaseDamage(level: number, basePower: number, attack: number, defense
   return floor(trunc(floor(trunc(trunc(floor((2 * level) / 5 + 2) * basePower, 32) * attack, 32) / defense) / 50 + 2, 32));
 }
 
-function getStabModifier(context: Context) {
+function getStabModifier(pokemon: Context.Pokemon, move: Context.Move): number {
   let mod = 0x1000;
-  if (context.p1.pokemon.ability?.onModifySTAB) {
-    mod = chain(mod, context.p1.pokemon.ability.onModifySTAB(context.p1.pokemon));
-  } else if (context.p1.pokemon.types.includes(context.move.type)) {
+  if (pokemon.ability?.onModifySTAB) {
+    mod = chain(mod, pokemon.ability.onModifySTAB(pokemon));
+  } else if (pokemon.types.includes(move.type)) {
     mod = chain(mod, 0x1800);
   }
   // else if (context.p1.pokemon.hasAbility('Protean', 'Libero') && !pokemon.teraType) {
@@ -277,11 +277,11 @@ function getStabModifier(context: Context) {
   return mod;
 }
 
-function getFinalModifier(context: Context): number {
+function getFinalModifier(attacker: Context.Pokemon, target: Context.Pokemon, context: Context): number {
   let mod = 0x1000;
   if (
     !context.move.crit &&
-    context.p1.pokemon.ability?.id !== 'infiltrator' &&
+    attacker.ability?.id !== 'infiltrator' &&
     ('Aurora Veil' in context.p2.sideConditions ||
       (context.move.category === 'Physical' && 'Reflect' in context.p2.sideConditions) ||
       (context.move.category === 'Special' && 'Light Screen' in context.p2.sideConditions))
@@ -289,26 +289,26 @@ function getFinalModifier(context: Context): number {
     mod = chain(mod, context.gameType === 'singles' ? 0x800 : 0xaac);
   }
 
-  if (context.p1.pokemon.ability?.onModifyDamageAttacker) {
-    mod = chain(mod, context.p1.pokemon.ability.onModifyDamageAttacker(context.p1.pokemon));
+  if (attacker.ability?.onModifyDamageAttacker) {
+    mod = chain(mod, attacker.ability.onModifyDamageAttacker(attacker));
   }
 
-  if (context.p2.pokemon.volatiles.dynamax && ['Dynamax Cannon', 'Behemoth Blade', 'Behemoth Bash'].includes(context.move.name)) {
+  if (target.volatiles.dynamax && ['Dynamax Cannon', 'Behemoth Blade', 'Behemoth Bash'].includes(context.move.name)) {
     mod = chain(mod, 0x2000);
   }
 
-  if (context.p2.pokemon.ability?.onModifyDamageDefender) {
-    mod = chain(mod, context.p2.pokemon.ability.onModifyDamageDefender(context.p1.pokemon));
+  if (target.ability?.onModifyDamageDefender) {
+    mod = chain(mod, target.ability.onModifyDamageDefender(attacker));
   }
 
   if (context.p2.active?.some(active => active?.ability === 'friendguard')) mod = chain(mod, 0xc00);
 
-  if (context.p1.pokemon.item?.onModifyDamageAttacker) {
-    mod = chain(mod, context.p1.pokemon.item.onModifyDamageAttacker(context.p1.pokemon));
+  if (attacker.item?.onModifyDamageAttacker) {
+    mod = chain(mod, attacker.item.onModifyDamageAttacker(attacker));
   }
 
-  if (context.p2.pokemon.item?.onModifyDamageDefender) {
-    mod = chain(mod, context.p2.pokemon.item.onModifyDamageDefender(context.p1.pokemon));
+  if (target.item?.onModifyDamageDefender) {
+    mod = chain(mod, target.item.onModifyDamageDefender(attacker));
   }
 
   // double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
@@ -350,17 +350,16 @@ function computeBoostedStat(stat: number, mod: number, gen?: Generation) {
   return floor(trunc(stat * (mod >= 0 ? 2 + mod : 2), 16) / (mod >= 0 ? 2 : abs(mod) + 2));
 }
 
-export function computeModifiedSpeed(context: Context | State) {
+export function computeModifiedSpeed(pokemon: Context.Pokemon, context: Context | State) {
   context = 'relevant' in context ? context : Context.fromState(context);
-  const {p1} = context;
-  let spe = computeBoostedStat(p1.pokemon.stats?.spe || 0, p1.pokemon.boosts.spe || 0, context.gen);
+  let spe = computeBoostedStat(pokemon.stats?.spe || 0, pokemon.boosts.spe || 0, context.gen);
   let mod = 0x1000;
-  const ability = p1.pokemon.ability && Abilities[p1.pokemon.ability.id];
-  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(p1.pokemon));
-  const item = p1.pokemon.item && Items[p1.pokemon.item.id];
-  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(p1.pokemon));
-  if (p1.sideConditions['tailwind']) mod = chain(mod, 0x2000);
-  if (p1.sideConditions['grasspledge']) mod = chain(mod, 0x400);
+  const ability = pokemon.ability && Abilities[pokemon.ability.id];
+  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(pokemon));
+  const item = pokemon.item && Items[pokemon.item.id];
+  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(pokemon));
+  // if (sideConditions['tailwind']) mod = chain(mod, 0x2000);
+  // if (sideConditions['grasspledge']) mod = chain(mod, 0x400);
   spe = trunc(apply(spe, mod), 16);
   return context.gen.num <= 2 ? min(max(spe, 1), 999) : min(spe, 10000);
 }
@@ -457,313 +456,6 @@ export function getMaxMovename(
     if (move.type === gmaxMove.type) return pokemon.species.isGigantamax;
   }
   return MAX_MOVES[move.type as Exclude<TypeName, '???' | 'Stellar'>];
-}
-
-export class Distribution<T> {
-  outcomes: {data: T; count: number}[] = [];
-  constructor(data?: T | T[]) {
-    if (data === undefined) return;
-    if (Array.isArray(data)) {
-      const map = new Map<T, number>();
-      for (const value of data) {
-        map.set(value, (map.get(value) || 0) + 1);
-      }
-      this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    } else {
-      this.outcomes = [{data: data, count: 1}];
-    }
-  }
-
-  get totalOutcomes(): number {
-    return this.outcomes.reduce((sum, value) => sum + value.count, 0);
-  }
-
-  isEmpty(): boolean {
-    return this.outcomes.length === 0;
-  }
-
-  size(): number {
-    return this.outcomes.length;
-  }
-
-  toArray(): T[] {
-    return this.outcomes.flatMap(entry => Array(entry.count).fill(entry.data));
-  }
-
-  map(mapFunction: (value: T) => T): this {
-    const map = new Map<T, number>();
-    for (const outcome of this.outcomes) {
-      const mappedValue = mapFunction(outcome.data);
-      map.set(mappedValue, (map.get(mappedValue) || 0) + outcome.count);
-    }
-    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return this;
-  }
-
-  mapped(mapFunction: (value: T) => T): Distribution<T> {
-    const result = new Distribution<T>();
-    const map = new Map<T, number>();
-    for (const outcome of this.outcomes) {
-      const mappedValue = mapFunction(outcome.data);
-      map.set(mappedValue, (map.get(mappedValue) || 0) + outcome.count);
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
-  }
-
-  filter(predicate: (value: T) => boolean): this {
-    this.outcomes = this.outcomes.filter(outcome => predicate(outcome.data));
-    return this;
-  }
-
-  filtered(predicate: (value: T) => boolean): Distribution<T> {
-    const result = new Distribution<T>();
-    result.outcomes = this.outcomes.filter(outcome => predicate(outcome.data));
-    return result;
-  }
-
-  forEach(callback: (data: T, count: number) => void): void {
-    this.outcomes.forEach(outcome => callback(outcome.data, outcome.count));
-  }
-
-  reduce<U>(callback: (acc: U, data: T, count: number) => U, initial: U): U {
-    return this.outcomes.reduce((acc, outcome) => callback(acc, outcome.data, outcome.count), initial);
-  }
-
-  clone(): Distribution<T> {
-    const result = new Distribution<T>();
-    result.outcomes = this.outcomes.map(o => ({...o}));
-    return result;
-  }
-
-  equals(other: Distribution<T>): boolean {
-    if (this.outcomes.length !== other.outcomes.length) return false;
-    const thisMap = new Map(this.outcomes.map(o => [o.data, o.count]));
-    for (const outcome of other.outcomes) {
-      if (thisMap.get(outcome.data) !== outcome.count) return false;
-    }
-    return true;
-  }
-
-  probabilityOf(value: T): number {
-    const outcome = this.outcomes.find(o => o.data === value);
-    return outcome ? outcome.count / this.totalOutcomes : 0;
-  }
-
-  probabilityOfAtLeast(value: T): number {
-    const count = this.outcomes.filter(o => o.data >= value).reduce((sum, o) => sum + o.count, 0);
-    return count / this.totalOutcomes;
-  }
-
-  toJSON(): {outcomes: {data: T; count: number}[]} {
-    return {outcomes: this.outcomes};
-  }
-
-  static fromJSON<T>(json: {outcomes: {data: T; count: number}[]}): Distribution<T> {
-    const dist = new Distribution<T>();
-    dist.outcomes = json.outcomes;
-    return dist;
-  }
-}
-
-export class NumberDistribution extends Distribution<number> {
-  constructor(damageAmounts?: number | number[]) {
-    super(damageAmounts);
-  }
-
-  assertNotEmpty(): asserts this is NumberDistribution & {outcomes: [{data: number; count: number}, ...{data: number; count: number}[]]} {
-    if (this.outcomes.length === 0) {
-      throw new Error('Distribution is empty');
-    }
-  }
-
-  get min(): number {
-    return this.outcomes.length > 0 ? min(...this.outcomes.map(outcome => outcome.data)) : NaN;
-  }
-
-  get max(): number {
-    return this.outcomes.length > 0 ? max(...this.outcomes.map(outcome => outcome.data)) : NaN;
-  }
-
-  get expected(): number {
-    if (this.outcomes.length === 0) return NaN;
-    return this.outcomes.reduce((sum, outcome) => (sum += outcome.data * outcome.count), 0) / this.totalOutcomes;
-  }
-
-  get range(): [number, number] {
-    return [this.min, this.max];
-  }
-
-  get median(): number {
-    if (this.outcomes.length === 0) return NaN;
-    const sorted = [...this.outcomes].sort((a, b) => a.data - b.data);
-    const total = this.totalOutcomes;
-    let cumulative = 0;
-    for (const outcome of sorted) {
-      cumulative += outcome.count;
-      if (cumulative >= total / 2) {
-        return outcome.data;
-      }
-    }
-    return sorted[sorted.length - 1].data;
-  }
-
-  get mode(): number {
-    if (this.outcomes.length === 0) return NaN;
-    let maxCount = 0;
-    let modeValue = this.outcomes[0].data;
-    for (const outcome of this.outcomes) {
-      if (outcome.count > maxCount) {
-        maxCount = outcome.count;
-        modeValue = outcome.data;
-      }
-    }
-    return modeValue;
-  }
-
-  get variance(): number {
-    if (this.outcomes.length === 0) return NaN;
-    const mean = this.expected;
-    const sumSquaredDiff = this.outcomes.reduce((sum, outcome) => sum + outcome.count * (outcome.data - mean) ** 2, 0);
-    return sumSquaredDiff / this.totalOutcomes;
-  }
-
-  get standardDeviation(): number {
-    return Math.sqrt(this.variance);
-  }
-
-  percentile(p: number): number {
-    if (this.outcomes.length === 0) return NaN;
-    if (p < 0 || p > 100) throw new Error('Percentile must be between 0 and 100');
-    const sorted = [...this.outcomes].sort((a, b) => a.data - b.data);
-    const targetCount = (p / 100) * this.totalOutcomes;
-    let cumulative = 0;
-    for (const outcome of sorted) {
-      cumulative += outcome.count;
-      if (cumulative >= targetCount) {
-        return outcome.data;
-      }
-    }
-    return sorted[sorted.length - 1].data;
-  }
-
-  cumulativeProbability(value: number): number {
-    if (this.outcomes.length === 0) return 0;
-    let cumulative = 0;
-    for (const outcome of this.outcomes) {
-      if (outcome.data <= value) {
-        cumulative += outcome.count;
-      }
-    }
-    return cumulative / this.totalOutcomes;
-  }
-
-  multiply(scalar: number): this {
-    const map = new Map<number, number>();
-    for (const outcome of this.outcomes) {
-      const newValue = outcome.data * scalar;
-      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
-    }
-    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return this;
-  }
-
-  multiplied(scalar: number): NumberDistribution {
-    const result = new NumberDistribution();
-    const map = new Map<number, number>();
-    for (const outcome of this.outcomes) {
-      const newValue = outcome.data * scalar;
-      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
-  }
-
-  add(scalar: number): this {
-    const map = new Map<number, number>();
-    for (const outcome of this.outcomes) {
-      const newValue = outcome.data + scalar;
-      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
-    }
-    this.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return this;
-  }
-
-  added(scalar: number): NumberDistribution {
-    const result = new NumberDistribution();
-    const map = new Map<number, number>();
-    for (const outcome of this.outcomes) {
-      const newValue = outcome.data + scalar;
-      map.set(newValue, (map.get(newValue) || 0) + outcome.count);
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
-  }
-
-  subtract(other: NumberDistribution): NumberDistribution {
-    const result = new NumberDistribution();
-    const map = new Map<number, number>();
-    for (const outcome1 of this.outcomes) {
-      for (const outcome2 of other.outcomes) {
-        const diff = outcome1.data - outcome2.data;
-        map.set(diff, (map.get(diff) || 0) + outcome1.count * outcome2.count);
-      }
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
-  }
-
-  combine(other: NumberDistribution, operation: (a: number, b: number) => number): NumberDistribution {
-    const result = new NumberDistribution();
-    const map = new Map<number, number>();
-    for (const outcome1 of this.outcomes) {
-      for (const outcome2 of other.outcomes) {
-        const value = operation(outcome1.data, outcome2.data);
-        map.set(value, (map.get(value) || 0) + outcome1.count * outcome2.count);
-      }
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
-  }
-
-  clone(): NumberDistribution {
-    const result = new NumberDistribution();
-    result.outcomes = this.outcomes.map(o => ({...o}));
-    return result;
-  }
-
-  toString(notation: '%' | '#' | 'e' | '%%' = '%'): string {
-    if (notation === '#') return this.outcomes.map(value => `${value.data}: ${value.count}`).join(', ');
-    if (notation === 'e') return this.outcomes.map(value => `${value.data}, ${value.count}`).join('\n');
-    if (notation === '%%') return this.outcomes.map(value => `${value.data}: ${((value.count / this.totalOutcomes) * 100).toFixed(2)}%`).join(', ');
-    else return this.outcomes.map(value => `${value.data}: ${((value.count / this.totalOutcomes) * 100).toFixed(1)}%`).join(', ');
-  }
-
-  static chain(...distributions: NumberDistribution[]): NumberDistribution {
-    const result = new NumberDistribution();
-    if (distributions.length === 0) return result;
-
-    // Optimized chain using single Map accumulator
-    let aggregated = new Map<number, number>();
-    for (const outcome of distributions[0].outcomes) {
-      aggregated.set(outcome.data, outcome.count);
-    }
-
-    for (let i = 1; i < distributions.length; i++) {
-      const nextAggregated = new Map<number, number>();
-      for (const [value1, count1] of aggregated) {
-        for (const outcome2 of distributions[i].outcomes) {
-          const sum = value1 + outcome2.data;
-          const count = count1 * outcome2.count;
-          nextAggregated.set(sum, (nextAggregated.get(sum) || 0) + count);
-        }
-      }
-      aggregated = nextAggregated;
-    }
-
-    result.outcomes = Array.from(aggregated, ([data, count]) => ({data, count}));
-    return result;
-  }
 }
 
 // function takeItem(pokemon: State.Pokemon | Context.Pokemon, boost: BoostID, amount: number) {

@@ -4,10 +4,10 @@ import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from 
 
 import {Context} from './context';
 import {encode} from './encode';
-import * as math from './math';
-import {Appliers, HANDLERS, Handlers, NumberDistribution, calculateDamage} from './mechanics';
+import {Appliers, HANDLERS, Handlers, calculateDamage} from './mechanics';
 import {State} from './state';
-import {DeepReadonly, extend, is} from './utils';
+import {DeepReadonly, extend} from './utils';
+import {Distribution, NumberDistribution} from './new-mechanics/distribution';
 
 export class Relevancy {
   gameType: boolean;
@@ -224,152 +224,160 @@ export class Result {
   }
 
   recoil(relevant?: Relevancy) {
-    if (this.cache.recoil && !relevant) return this.cache.recoil;
-    const {gen, p1, p2, move} = this.context;
+    // if (this.cache.recoil && !relevant) return this.cache.recoil;
+    // const {gen, p1, p2, move} = this.context;
 
-    let recoil: number | [number, number] | undefined;
+    // let recoil: number | [number, number] | undefined;
 
-    if (move.recoil) {
-      if (is(p1.pokemon.ability?.id, 'rockhead', 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
-      } else {
-        const damage = move.recoil[0] / move.recoil[1];
-        const max = p2.pokemon.hp * damage;
-        for (const hit of this.hits) {
-          if (!recoil) recoil = [0, 0];
-          const range = hit.range;
-          const r = recoil as [number, number];
-          r[0] = math.min(max, r[0] + math.round(range[0] * damage));
-          r[1] = math.min(max, r[1] + math.round(range[1] * damage));
-        }
-      }
-    } else if (move.struggleRecoil) {
-      const round = gen.num === 4 ? math.roundDown : math.round;
-      for (let i = 0; i < this.hits.length; i++) {
-        recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + round(p1.pokemon.maxhp / 4));
-      }
-    } else if (move.mindBlownRecoil) {
-      if (is(p1.pokemon.ability?.id, 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
-      } else {
-        for (let i = 0; i < this.hits.length; i++) {
-          recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + math.round(p1.pokemon.maxhp / 2));
-        }
-      }
-    }
+    // if (move.recoil) {
+    //   if (is(p1.pokemon.ability?.id, 'rockhead', 'magicguard')) {
+    //     if (relevant) relevant.p1.pokemon.ability = true;
+    //   } else {
+    //     const damage = move.recoil[0] / move.recoil[1];
+    //     const max = p2.pokemon.hp * damage;
+    //     for (const hit of this.hits) {
+    //       if (!recoil) recoil = [0, 0];
+    //       const range = hit.range;
+    //       const r = recoil as [number, number];
+    //       r[0] = math.min(max, r[0] + math.round(range[0] * damage));
+    //       r[1] = math.min(max, r[1] + math.round(range[1] * damage));
+    //     }
+    //   }
+    // } else if (move.struggleRecoil) {
+    //   const round = gen.num === 4 ? math.roundDown : math.round;
+    //   for (let i = 0; i < this.hits.length; i++) {
+    //     recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + round(p1.pokemon.maxhp / 4));
+    //   }
+    // } else if (move.mindBlownRecoil) {
+    //   if (is(p1.pokemon.ability?.id, 'magicguard')) {
+    //     if (relevant) relevant.p1.pokemon.ability = true;
+    //   } else {
+    //     for (let i = 0; i < this.hits.length; i++) {
+    //       recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + math.round(p1.pokemon.maxhp / 2));
+    //     }
+    //   }
+    // }
 
-    return (this.cache.recoil = recoil);
+    // return (this.cache.recoil = recoil);
+    return 0;
   }
 
   crash(relevant?: Relevancy) {
-    if (this.cache.crash && !relevant) return this.cache.crash;
-    const {gen, p1, p2, move} = this.context;
+    // if (this.cache.crash && !relevant) return this.cache.crash;
+    // const {gen, p1, p2, move} = this.context;
 
-    let crash: number | [number, number] | undefined;
+    // let crash: number | [number, number] | undefined;
 
-    if (move.hasCrashDamage) {
-      if (is(p1.pokemon.ability?.id, 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
-      } else {
-        if (gen.num === 1) {
-          crash = 1;
-        } else if (gen.num <= 4) {
-          // Gen 2 and 3 inflict no crash damage if the move failed due to type immunity
-          if (gen.num === 4 || !gen.types.canDamage(move, p2.pokemon.types)) {
-            const denominator = gen.num === 2 ? 8 : 2;
-            const max = math.roundDown(p2.pokemon.hp / denominator);
-            // NOTE: No Parental Bond before Gen 6 means we are guaranteed to have only one hit.
-            // Similarly, we know damage must be a range because only Jump Kick and HJK can crash.
-            const hit = this.hits[0];
-            const range = hit.range;
-            const c = crash as [number, number];
-            c[0] = math.min(max, c[0] + math.max(math.roundDown(range[0] / denominator), 1));
-            c[1] = math.min(max, c[1] + math.max(math.roundDown(range[1] / denominator), 1));
-          }
-        } else {
-          for (let i = 0; i < this.hits.length; i++) {
-            crash = math.min(p1.pokemon.maxhp, ((crash as number) || 0) + math.round(p1.pokemon.maxhp / 2));
-          }
-        }
-      }
-    }
+    // if (move.hasCrashDamage) {
+    //   if (is(p1.pokemon.ability?.id, 'magicguard')) {
+    //     if (relevant) relevant.p1.pokemon.ability = true;
+    //   } else {
+    //     if (gen.num === 1) {
+    //       crash = 1;
+    //     } else if (gen.num <= 4) {
+    //       // Gen 2 and 3 inflict no crash damage if the move failed due to type immunity
+    //       if (gen.num === 4 || !gen.types.canDamage(move, p2.pokemon.types)) {
+    //         const denominator = gen.num === 2 ? 8 : 2;
+    //         const max = math.roundDown(p2.pokemon.hp / denominator);
+    //         // NOTE: No Parental Bond before Gen 6 means we are guaranteed to have only one hit.
+    //         // Similarly, we know damage must be a range because only Jump Kick and HJK can crash.
+    //         const hit = this.hits[0];
+    //         const range = hit.range;
+    //         const c = crash as [number, number];
+    //         c[0] = math.min(max, c[0] + math.max(math.roundDown(range[0] / denominator), 1));
+    //         c[1] = math.min(max, c[1] + math.max(math.roundDown(range[1] / denominator), 1));
+    //       }
+    //     } else {
+    //       for (let i = 0; i < this.hits.length; i++) {
+    //         crash = math.min(p1.pokemon.maxhp, ((crash as number) || 0) + math.round(p1.pokemon.maxhp / 2));
+    //       }
+    //     }
+    //   }
+    // }
 
-    return (this.cache.crash = crash);
+    // return (this.cache.crash = crash);
+    return 0;
   }
 
   recovery(relevant?: Relevancy) {
-    if (this.cache.recovery && !relevant) return this.cache.recovery;
-    const {gen, p1, p2, move} = this.context;
+    // if (this.cache.recovery && !relevant) return this.cache.recovery;
+    // const {gen, p1, p2, move} = this.context;
 
-    let recovery: number | [number, number] | undefined;
+    // let recovery: number | [number, number] | undefined;
 
-    const ignored = gen.num === 3 && is(move.id, 'doomdesire', 'futuresight');
-    if (is(p1.pokemon.item?.id, 'shellbell') && !ignored) {
-      if (relevant) relevant.p1.pokemon.item = true;
+    // const ignored = gen.num === 3 && is(move.id, 'doomdesire', 'futuresight');
+    // if (is(p1.pokemon.item?.id, 'shellbell') && !ignored) {
+    //   if (relevant) relevant.p1.pokemon.item = true;
 
-      const max = math.roundDown(p2.pokemon.hp / 8);
-      for (const hit of this.hits) {
-        if (!recovery) recovery = [0, 0];
-        const range = hit.range;
-        const r = recovery as [number, number];
-        r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
-        r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
-      }
-    }
+    //   const max = math.roundDown(p2.pokemon.hp / 8);
+    //   for (const hit of this.hits) {
+    //     if (!recovery) recovery = [0, 0];
+    //     const range = hit.range;
+    //     const r = recovery as [number, number];
+    //     r[0] = math.min(max, r[0] + math.max(math.roundDown(range[0] / 8), 1));
+    //     r[1] = math.min(max, r[1] + math.max(math.roundDown(range[1] / 8), 1));
+    //   }
+    // }
 
-    if (is(move.id, 'gmaxfinale')) {
-      const healed = math.round(p1.pokemon.maxhp / 6);
-      if (Array.isArray(recovery)) {
-        recovery[0] += healed;
-        recovery[1] += healed;
-      } else {
-        recovery = (recovery || 0) + healed;
-      }
-    } else if (move.drain) {
-      let mod: number | undefined;
-      if (is(p1.pokemon.item?.id, 'bigroot')) {
-        if (relevant) relevant.p1.pokemon.item = true;
-        mod = 0x14cc;
-      }
-      const healed = math.apply(move.drain[0] / move.drain[1], mod);
-      const max = math.round(p2.pokemon.maxhp * healed);
-      for (const hit of this.hits) {
-        if (!recovery) recovery = [0, 0];
-        const range = hit.range;
-        const r = recovery as [number, number];
-        r[0] = math.min(max, r[0] + math.round(range[0] * healed));
-        r[1] = math.min(max, r[1] + math.round(range[1] * healed));
-      }
-    }
+    // if (is(move.id, 'gmaxfinale')) {
+    //   const healed = math.round(p1.pokemon.maxhp / 6);
+    //   if (Array.isArray(recovery)) {
+    //     recovery[0] += healed;
+    //     recovery[1] += healed;
+    //   } else {
+    //     recovery = (recovery || 0) + healed;
+    //   }
+    // } else if (move.drain) {
+    //   let mod: number | undefined;
+    //   if (is(p1.pokemon.item?.id, 'bigroot')) {
+    //     if (relevant) relevant.p1.pokemon.item = true;
+    //     mod = 0x14cc;
+    //   }
+    //   const healed = math.apply(move.drain[0] / move.drain[1], mod);
+    //   const max = math.round(p2.pokemon.maxhp * healed);
+    //   for (const hit of this.hits) {
+    //     if (!recovery) recovery = [0, 0];
+    //     const range = hit.range;
+    //     const r = recovery as [number, number];
+    //     r[0] = math.min(max, r[0] + math.round(range[0] * healed));
+    //     r[1] = math.min(max, r[1] + math.round(range[1] * healed));
+    //   }
+    // }
 
-    return (this.cache.recovery = recovery);
+    // return (this.cache.recovery = recovery);
+    return 0;
   }
 
   // chain (if same turn, wont be taking hazards), if second term just nothing / residual
   knockout(type: KOType = 'both', relevant = extend({}, this.relevant)) {
-    const n = this.damage.max > 0 ? math.ceil(this.context.p2.pokemon.hp / this.damage.max) : Infinity;
-    if (n === Infinity || n < 1) {
-      return {
-        n: Infinity,
-        chance: 0,
-        exact: true,
-      };
-    } else if (n === 1) {
-      const chance = this.damage.probabilityOfAtLeast(this.context.p2.pokemon.hp);
-      return {
-        n: 1,
-        chance,
-        exact: true,
-      };
-    }
-    const distributions = new Array(n).fill(this.damage);
-    const d = NumberDistribution.chain(...distributions);
-    const chance = d.probabilityOfAtLeast(this.context.p2.pokemon.hp);
+    // const n = this.damage.max > 0 ? math.ceil(this.context.p2.pokemon.hp / this.damage.max) : Infinity;
+    // if (n === Infinity || n < 1) {
+    //   return {
+    //     n: Infinity,
+    //     chance: 0,
+    //     exact: true,
+    //   };
+    // } else if (n === 1) {
+    //   const chance = this.damage.probabilityOfAtLeast(this.context.p2.pokemon.hp);
+    //   return {
+    //     n: 1,
+    //     chance,
+    //     exact: true,
+    //   };
+    // }
+    // const distributions = new Array(n).fill(this.damage);
+    // const d = NumberDistribution.chain(...distributions);
+    // const chance = d.probabilityOfAtLeast(this.context.p2.pokemon.hp);
 
+    // return {
+    //   n,
+    //   chance,
+    //   exact: true, // TODO: Set to false when hazards/residual are approximated
+    // };
     return {
-      n,
-      chance,
-      exact: true, // TODO: Set to false when hazards/residual are approximated
+      n: 1,
+      chance: 1,
+      exact: true,
     };
   }
 
@@ -475,9 +483,20 @@ export class HitResult {
 
   constructor(public context: Context, handlers: Handlers = HANDLERS) {
     this.handlers = handlers;
-    this.damage = new NumberDistribution(calculateDamage(context));
-    // context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
-    if (this.context.p2.pokemon.item?.onUpdate) this.context.p2.pokemon.item.onUpdate(this.context.p2.pokemon);
+    this.damage = new NumberDistribution(0);
+
+    //TODO: Change this from being O(n*m) to be faster. Just for POC
+
+    const damage = calculateDamage(context.p1.pokemon, context.p2.pokemon, context);
+    console.log(damage);
+    const possibilities = damage.map(d => {
+      // const possibility: Context.Pokemon = new Context.Pokemon(tp);
+      // possibility.hp = possibility.hp - d;
+      // if (possibility.item?.onUpdate) possibility.item.onUpdate(possibility);
+      // return possibility;
+    });
+    // const pDistribution = new Distribution(possibilities, p => `${p.hp}|${p.item?.id}`);
+    // console.log(pDistribution.outcomes);
   }
 
   // PRECONDITION: this.damage has been finalized

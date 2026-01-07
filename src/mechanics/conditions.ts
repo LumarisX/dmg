@@ -6,12 +6,12 @@ export const Conditions: {
   [id: string]: Partial<Applier & Handler<Context.Pokemon>>;
 } = {
   brn: {
-    onModifyAtk(pokemon: Context.Pokemon) {
+    onModifyAtk(pokemon) {
       if (!is(pokemon.ability?.id, 'guts') && !is(pokemon.move?.id, 'facade')) return 0x800;
     },
   },
   par: {
-    onModifySpe(pokemon: Context.Pokemon) {
+    onModifySpe(pokemon) {
       if (pokemon.gen.num > 6) return 0x800;
       return 0x400;
     },
