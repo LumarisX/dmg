@@ -1,9 +1,39 @@
-import {BoostsTable, Generation, Specie, SpeciesName, StatsTable, TypeName} from '@pkmn/data';
-import {Move as DexMove} from '@pkmn/dex';
+import {
+  As,
+  BoostsTable,
+  ConditionData,
+  Generation,
+  GenerationNum,
+  HitEffect,
+  ID,
+  MoveCategory,
+  Move as MoveData,
+  MoveTarget,
+  Nature,
+  SecondaryEffect,
+  Specie,
+  SpeciesName,
+  StatsTable,
+  StatusName,
+  TypeName,
+} from '@pkmn/data';
+import {StatID} from '@smogon/calc';
+import {EventSpace} from './event-space';
 
 export namespace DMG {
-  type OverriddenFields = 'item' | 'ability' | 'nature' | 'status' | 'volatiles' | 'ivs' | 'evs' | 'boosts';
-  export interface PokemonOptions extends Partial<Omit<Pokemon, OverriddenFields>> {
+  export interface PokemonState {
+    hp: number;
+    item?: string | null;
+    types: [TypeName] | [TypeName, TypeName];
+
+    readonly level: number;
+    readonly stats: StatsTable;
+    readonly evs: StatsTable;
+    readonly ivs: StatsTable;
+    readonly nature?: Nature;
+  }
+
+  export interface PokemonOptions {
     name?: SpeciesName;
     weightkg?: number;
     item?: string;
@@ -17,181 +47,253 @@ export namespace DMG {
     dvs?: Partial<StatsTable & {spc: number}>;
     boosts?: Partial<BoostsTable & {spc: number}>;
     teraType?: TypeName;
+    level?: number;
   }
   export class Pokemon extends Specie {
     item?: string | null;
     hp: number;
-    readonly maxHp: number;
-
+    states: EventSpace<PokemonState>;
+    generation: Generation;
+    level: number;
+    stats: StatsTable;
+    evs: StatsTable;
+    ivs: StatsTable;
+    nature?: Nature;
     constructor(gen: Generation, name: string, options: Partial<PokemonOptions> = {}) {
       const species = gen.species.get(name);
-      if (!species) {
-        throw new Error(`Invalid species name: ${name}`);
-      }
+      if (!species) invalid(gen, 'Pokemon', name);
       super(gen.dex, gen.exists, species);
-      this.maxHp = gen.stats.calc('hp', this.baseStats.hp, 31, 0, 100);
-      this.hp = this.maxHp;
-      this.item = options.item || null;
+
+      this.generation = gen;
+      this.setItem(options.item);
+      this.level = Math.max(0, options.level ?? 100);
+      this.evs = {} as StatsTable;
+      this.ivs = {} as StatsTable;
+      this.stats = {} as StatsTable;
+      (['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as StatID[]).forEach(stat => {
+        this.evs[stat] = Math.min(255, Math.max(0, options.evs && options.evs[stat] ? options.evs[stat] : 0));
+        this.ivs[stat] = Math.min(31, Math.max(0, options.ivs && options.ivs[stat] ? options.ivs[stat] : 31));
+        this.stats[stat] = gen.stats.calc(stat, this.baseStats[stat], this.ivs[stat], this.evs[stat], this.level, this.nature);
+      });
+      this.hp = this.stats.hp;
+      this.states = new EventSpace<PokemonState>(
+        {
+          hp: this.hp,
+          item: this.item,
+          stats: this.stats,
+          ivs: this.ivs,
+          evs: this.evs,
+          nature: this.nature,
+          level: this.level,
+          types: this.types,
+        },
+        p => `${p.hp}-${p.stats.hp}` + (p.item ? `-${p.item}` : '')
+      );
     }
 
-    // static createPokemon(gen: Generation, name: string, options: PokemonOptions = {}, move: string | {name?: string} = '') {
-    //   const pokemon: Partial<State.Pokemon> = {};
-
-    //   // Species
-    //   const species = gen.species.get(name);
-    //   if (!species) invalid(gen, 'species', name);
-    //   if (options.species && options.species !== species) {
-    //     throw new Error(`Species mismatch: ${options.species.name} does not match ${species.name}`);
-    //   }
-    //   pokemon.species = species;
-
-    //   // Level
-    //   pokemon.level = 100;
-    //   if (typeof options.level === 'number') {
-    //     pokemon.level = bounded('level', options.level);
-    //   }
-
-    //   // Weight
-    //   pokemon.weighthg =
-    //     typeof options.weighthg === 'number' ? options.weighthg : typeof options.weightkg === 'number' ? options.weightkg * 10 : species.weighthg;
-    //   if (pokemon.weighthg < 1) throw new Error(`weighthg of ${pokemon.weighthg} must be at least 1`);
-
-    //   // Item
-    //   pokemon.item = undefined;
-    //   setItem(gen, pokemon, options.item);
-
-    //   // Ability
-    //   pokemon.ability = undefined;
-    //   setAbility(gen, pokemon as {species: Specie; ability?: ID}, options.ability);
-
-    //   // Happiness
-    //   pokemon.happiness = typeof options.happiness === 'undefined' ? undefined : bounded('happiness', options.happiness);
-
-    //   // Status
-    //   pokemon.status = undefined;
-    //   pokemon.statusState = undefined;
-    //   if (options.status) {
-    //     const condition = Conditions.get(gen, options.status);
-    //     if (!condition) invalid(gen, 'status', options.status);
-    //     const [status, kind] = condition;
-    //     if (kind !== 'Status') {
-    //       throw new Error(`'${status} is a ${kind} not a Status in generation ${gen.num}`);
-    //     }
-    //     pokemon.status = status as StatusName;
-    //     if (pokemon.status === 'tox') pokemon.statusState = {toxicTurns: 0};
-    //   }
-
-    //   // Status Data
-    //   if (options.statusState) {
-    //     if (options.statusState.toxicTurns) {
-    //       const turns = options.statusState.toxicTurns;
-    //       bounded('toxicCounter', turns);
-    //       if (pokemon.status !== 'tox') {
-    //         throw new Error(`toxicTurns set to ${turns} but the Pokemon's status is not 'tox'`);
-    //       }
-    //     }
-    //     pokemon.statusState = options.statusState;
-    //   }
-
-    //   // Volatiles
-    //   pokemon.volatiles = setConditions(gen, 'Volatile Status', options.volatiles);
-
-    //   // Types
-    //   pokemon.types = options.types || pokemon.species.types;
-    //   pokemon.addedType = options.addedType;
-
-    //   // Nature
-    //   pokemon.nature = undefined;
-    //   setNature(gen, pokemon, options.nature);
-
-    //   // EVs
-    //   setValues(gen, pokemon, 'evs', options.evs);
-
-    //   // IVs / DVs
-    //   setValues(gen, pokemon, 'ivs', options.ivs);
-    //   for (const stat of gen.stats) {
-    //     const val = options.dvs?.[stat];
-    //     if (typeof val === 'number') {
-    //       const dv = bounded('dvs', val);
-    //       if (typeof options.ivs?.[stat] === 'number' && gen.stats.toDV(options.ivs[stat]) !== dv) {
-    //         throw new Error(`${stat} DV of '${dv}' does not match IV of '${options.ivs[stat]}'`);
-    //       }
-    //       pokemon.ivs![stat] = gen.stats.toIV(dv);
-    //     }
-    //   }
-    //   setSpc(gen, pokemon.ivs!, 'ivs', options.dvs, gen.stats.toIV.bind(gen.stats));
-
-    //   if (move) {
-    //     move = typeof move === 'string' ? move : move.name || '';
-    //     setHiddenPowerIVs(gen, pokemon as {level: number; ivs: StatsTable}, [move]);
-    //   }
-
-    //   // Stats
-    //   if (options.stats) pokemon.stats = extend({}, options.stats);
-
-    //   // Boosts
-    //   pokemon.boosts = {};
-    //   if (options.boosts) {
-    //     for (const b in options.boosts) {
-    //       if (b === 'spc') continue;
-    //       const boost = b as keyof BoostsTable;
-    //       const val = options.boosts[boost];
-    //       if (typeof val === 'number') pokemon.boosts[boost] = bounded('boosts', val);
-    //     }
-    //   }
-    //   setSpc(gen, pokemon.boosts, 'boosts', options.boosts);
-
-    //   // Gender (depends on DVs)
-    //   const setAtkDV = typeof (options.dvs?.atk ?? options.ivs?.atk) === 'number';
-    //   setGender(gen, pokemon as {species: Specie; ivs: StatsTable; gender?: GenderName}, options.gender, setAtkDV);
-
-    //   // HP (depends on stats)
-    //   const setHPDV = typeof (options.dvs?.hp ?? options.ivs?.hp) === 'number';
-    //   correctHPDV(gen, pokemon as {species: Specie; ivs: StatsTable}, setHPDV);
-    //   pokemon.maxhp = gen.stats.calc('hp', species.baseStats.hp, pokemon.ivs!.hp, pokemon.evs!.hp, pokemon.level);
-    //   if (options.maxhp) {
-    //     if (options.maxhp < pokemon.maxhp) {
-    //       throw new RangeError(`maxhp ${options.maxhp} less than calculated max HP ${pokemon.maxhp}`);
-    //     }
-    //     pokemon.maxhp = options.maxhp;
-    //   }
-
-    //   //Tera Type
-
-    //   pokemon.teraType = pokemon.types[0];
-
-    //   const computed = typeof options.hpPercent === 'number' ? round((options.hpPercent * pokemon.maxhp) / 100) : undefined;
-    //   pokemon.hp = typeof options.hp === 'number' ? options.hp : typeof computed === 'number' ? computed : pokemon.maxhp;
-    //   if (!(pokemon.hp >= 0 && pokemon.hp <= pokemon.maxhp)) {
-    //     throw new RangeError(`hp ${pokemon.hp} is not within [0,${pokemon.maxhp}]`);
-    //   }
-    //   if (typeof options.hp === 'number' && typeof computed === 'number') {
-    //     if (pokemon.hp !== computed) {
-    //       throw new Error(`hp mismatch: '${computed}' does not match '${pokemon.hp}'`);
-    //     }
-    //   }
-
-    //   // Miscellaneous
-    //   pokemon.position = options.position;
-    //   pokemon.switching = options.switching;
-    //   pokemon.moveLastTurnResult = options.moveLastTurnResult;
-    //   pokemon.hurtThisTurn = options.hurtThisTurn;
-
-    //   return validateStats(gen, pokemon as State.Pokemon);
-    // }
+    setItem(name?: string) {
+      if (name) {
+        const item = this.generation.items.get(name);
+        if (!item) invalid(this.generation, 'item', name);
+        this.item = item.id;
+      }
+    }
   }
 
   const CRITRATES = [0, 1 / 24, 1 / 8, 1 / 2];
 
   export type MoveOptions = {crit?: boolean; alwaysHit?: boolean; alwaysSucceed?: boolean};
-
-  export class Move extends DexMove {
+  export class Move implements MoveData {
     critChance: number;
     alwaysHit?: boolean;
     alwaysSucceed?: boolean;
 
-    constructor(move: DexMove, options: MoveOptions = {}) {
-      super(move);
+    effectType: 'Move';
+    kind: 'Move';
+    secondaries: SecondaryEffect[] | null;
+    flags: MoveData['flags'];
+    zMoveEffect?: ID;
+    isZ: boolean | ID;
+    zMove?: {basePower?: number; effect?: ID; boost?: Partial<BoostsTable>};
+    isMax: boolean | SpeciesName;
+    maxMove?: {basePower: number};
+    volatileStatus?: ID;
+    slotCondition?: ID;
+    sideCondition?: ID;
+    terrain?: ID;
+    pseudoWeather?: ID;
+    weather?: ID;
+    id: ID;
+    name: string & As<'MoveName'>;
+    fullname: string;
+    exists: boolean;
+    num: number;
+    gen: GenerationNum;
+    shortDesc: string;
+    desc: string;
+    isNonstandard: 'Past' | 'Future' | 'Unobtainable' | 'CAP' | 'LGPE' | 'Custom' | 'Gigantamax' | null;
+    duration?: number;
+    inherit?: boolean;
+    basePower: number;
+    type: TypeName;
+    accuracy: number | true;
+    pp: number;
+    target: MoveTarget;
+    priority: number;
+    category: MoveCategory;
+    realMove?: string;
+    condition?: Partial<ConditionData>;
+    damage?: number | false | 'level' | null;
+    noPPBoosts?: boolean;
+    ohko?: boolean | 'Ice';
+    thawsTarget?: boolean;
+    heal?: number[] | null;
+    forceSwitch?: boolean;
+    selfSwitch?: boolean | 'copyvolatile' | 'shedtail';
+    selfBoost?: {boosts?: Partial<BoostsTable>};
+    selfdestruct?: boolean | 'ifHit' | 'always';
+    breaksProtect?: boolean;
+    recoil?: [number, number];
+    drain?: [number, number];
+    mindBlownRecoil?: boolean;
+    stealsBoosts?: boolean;
+    secondary?: SecondaryEffect | null;
+    self?: HitEffect | null;
+    struggleRecoil?: boolean;
+    basePowerModifier?: number;
+    critModifier?: number;
+    critRatio?: number;
+    overrideOffensivePokemon?: 'target' | 'source';
+    overrideOffensiveStat?: 'atk' | 'def' | 'spa' | 'spd' | 'spe';
+    overrideDefensivePokemon?: 'target' | 'source';
+    overrideDefensiveStat?: 'atk' | 'def' | 'spa' | 'spd' | 'spe';
+    forceSTAB?: boolean;
+    ignoreAbility?: boolean;
+    ignoreAccuracy?: boolean;
+    ignoreDefensive?: boolean;
+    ignoreEvasion?: boolean;
+    ignoreImmunity?: MoveData['ignoreImmunity'];
+    ignoreNegativeOffensive?: boolean;
+    ignoreOffensive?: boolean;
+    ignorePositiveDefensive?: boolean;
+    ignorePositiveEvasion?: boolean;
+    infiltrates?: boolean;
+    multiaccuracy?: boolean;
+    multihit?: number | number[];
+    multihitType?: 'parentalbond';
+    noCopy?: boolean;
+    noDamageVariance?: boolean;
+    noFaint?: boolean;
+    nonGhostTarget?: MoveTarget;
+    pressureTarget?: MoveTarget;
+    sleepUsable?: boolean;
+    smartTarget?: boolean;
+    spreadModifier?: number;
+    tracksTarget?: boolean;
+    willCrit?: boolean;
+    callsMove?: boolean;
+    hasCrashDamage?: boolean;
+    hasSheerForce?: boolean;
+    isConfusionSelfHit?: boolean;
+    stallingMove?: boolean;
+    boosts?: Partial<BoostsTable>;
+    status?: StatusName;
+
+    constructor(gen: Generation, name: string, options: MoveOptions = {}) {
+      const move = gen.moves.get(name);
+      if (!move) invalid(gen, 'move', name);
+      this.alwaysHit = options.alwaysHit;
+      this.alwaysSucceed = options.alwaysSucceed;
+      this.effectType = 'Move';
+      this.kind = 'Move';
+      this.secondaries = move.secondaries;
+      this.flags = move.flags;
+      this.zMoveEffect = move.zMoveEffect;
+      this.isZ = move.isZ;
+      this.zMove = move.zMove;
+      this.isMax = move.isMax;
+      this.maxMove = move.maxMove;
+      this.volatileStatus = move.volatileStatus;
+      this.slotCondition = move.slotCondition;
+      this.sideCondition = move.sideCondition;
+      this.terrain = move.terrain;
+      this.pseudoWeather = move.pseudoWeather;
+      this.weather = move.weather;
+      this.id = move.id;
+      this.name = move.name;
+      this.fullname = move.fullname;
+      this.exists = move.exists;
+      this.num = move.num;
+      this.gen = move.gen;
+      this.shortDesc = move.shortDesc;
+      this.desc = move.desc;
+      this.isNonstandard = move.isNonstandard;
+      this.duration = move.duration;
+      this.inherit = move.inherit;
+      this.basePower = move.basePower;
+      this.type = move.type;
+      this.accuracy = move.accuracy;
+      this.pp = move.pp;
+      this.target = move.target;
+      this.priority = move.priority;
+      this.category = move.category;
+      this.realMove = move.realMove;
+      this.condition = move.condition;
+      this.damage = move.damage;
+      this.noPPBoosts = move.noPPBoosts;
+      this.ohko = move.ohko;
+      this.thawsTarget = move.thawsTarget;
+      this.heal = move.heal;
+      this.forceSwitch = move.forceSwitch;
+      this.selfSwitch = move.selfSwitch;
+      this.selfBoost = move.selfBoost;
+      this.selfdestruct = move.selfdestruct;
+      this.breaksProtect = move.breaksProtect;
+      this.recoil = move.recoil;
+      this.drain = move.drain;
+      this.mindBlownRecoil = move.mindBlownRecoil;
+      this.stealsBoosts = move.stealsBoosts;
+      this.secondary = move.secondary;
+      this.self = move.self;
+      this.struggleRecoil = move.struggleRecoil;
+      this.basePowerModifier = move.basePowerModifier;
+      this.critModifier = move.critModifier;
+      this.critRatio = move.critRatio;
+      this.overrideOffensivePokemon = move.overrideOffensivePokemon;
+      this.overrideOffensiveStat = move.overrideOffensiveStat;
+      this.overrideDefensivePokemon = move.overrideDefensivePokemon;
+      this.overrideDefensiveStat = move.overrideDefensiveStat;
+      this.forceSTAB = move.forceSTAB;
+      this.ignoreAbility = move.ignoreAbility;
+      this.ignoreAccuracy = move.ignoreAccuracy;
+      this.ignoreDefensive = move.ignoreDefensive;
+      this.ignoreEvasion = move.ignoreEvasion;
+      this.ignoreImmunity = move.ignoreImmunity;
+      this.ignoreNegativeOffensive = move.ignoreNegativeOffensive;
+      this.ignoreOffensive = move.ignoreOffensive;
+      this.ignorePositiveDefensive = move.ignorePositiveDefensive;
+      this.ignorePositiveEvasion = move.ignorePositiveEvasion;
+      this.infiltrates = move.infiltrates;
+      this.multiaccuracy = move.multiaccuracy;
+      this.multihit = move.multihit;
+      this.multihitType = move.multihitType;
+      this.noCopy = move.noCopy;
+      this.noDamageVariance = move.noDamageVariance;
+      this.noFaint = move.noFaint;
+      this.nonGhostTarget = move.nonGhostTarget;
+      this.pressureTarget = move.pressureTarget;
+      this.sleepUsable = move.sleepUsable;
+      this.smartTarget = move.smartTarget;
+      this.spreadModifier = move.spreadModifier;
+      this.tracksTarget = move.tracksTarget;
+      this.willCrit = move.willCrit;
+      this.callsMove = move.callsMove;
+      this.hasCrashDamage = move.hasCrashDamage;
+      this.hasSheerForce = move.hasSheerForce;
+      this.isConfusionSelfHit = move.isConfusionSelfHit;
+      this.stallingMove = move.stallingMove;
+      this.boosts = move.boosts;
+      this.status = move.status;
       this.critChance =
         options.crit === undefined
           ? move.critRatio
@@ -202,8 +304,10 @@ export namespace DMG {
           : options.crit
           ? 1
           : 0;
-      this.alwaysHit = options.alwaysHit;
-      this.alwaysSucceed = options.alwaysSucceed;
     }
+  }
+
+  function invalid(gen: Generation, k: string, v: any): never {
+    throw new Error(`Unsupported or invalid ${k} '${v}' for generation ${gen.num}`);
   }
 }

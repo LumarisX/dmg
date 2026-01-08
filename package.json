@@ -26,7 +26,8 @@
     "@babel/preset-env": "^7.23.9",
     "@babel/preset-typescript": "^7.23.3",
     "@pkmn/eslint-config": "^6.6.0",
-    "@pkmn/sim": "^0.9.13",
+    "@pkmn/sim": "^0.10.4",
+    "@pkmn/dex": "^0.10.4",
     "@smogon/calc": "^0.10.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.16.5",
@@ -50,7 +51,8 @@
     "prepare": "npm run build",
     "pretest": "npm run build",
     "posttest": "npm run lint",
-    "lumtest": "nodemon ./src/test/lum.ts"
+    "lumtest": "nodemon ./src/test/lum.ts",
+    "poctest": "nodemon ./src/new-mechanics/tests.ts"
   },
   "jest": {
     "testEnvironment": "node",

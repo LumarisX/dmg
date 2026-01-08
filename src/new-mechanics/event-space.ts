@@ -248,22 +248,13 @@ export class EventSpace<T> {
   /**
    * Splits a portion of all events matching a predicate off into new variants.
    * All matching events have their probability reduced, and new events are created
-   * with the specified partial properties merged in.
-   *
-   * Overloads support both static values and computed transformations.
+   * by applying the transformer function to a shallow copy.
    *
    * @param predicate - Function to identify which events to split from
-   * @param partial - Partial properties (static, computed, or mixed)
+   * @param transformer - Function that mutates/transforms a copy of the event
    * @param relativeWeight - Fraction of each matching event's probability to move (0-1)
    */
-  splitEventByFilter(predicate: (value: T) => boolean, partial: Partial<T>, relativeWeight: number): void;
-  splitEventByFilter(predicate: (value: T) => boolean, partial: (value: T) => Partial<T>, relativeWeight: number): void;
-  splitEventByFilter(predicate: (value: T) => boolean, partial: ComputedPartial<T>, relativeWeight: number): void;
-  splitEventByFilter(
-    predicate: (value: T) => boolean,
-    partial: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>,
-    relativeWeight: number
-  ): void {
+  splitEventByFilter(predicate: (value: T) => boolean, transformer: (value: T) => void, relativeWeight: number): void {
     if (relativeWeight < 0 || relativeWeight > 1) {
       throw new Error(`Relative weight must be between 0 and 1, got ${relativeWeight}`);
     }
@@ -279,20 +270,9 @@ export class EventSpace<T> {
     for (const sourceEvent of matchingEvents) {
       const probabilityToTransfer = sourceEvent.probability * relativeWeight;
 
-      // Resolve partial - handle static, computed function, or mixed computed partial
-      let partialValue: Partial<T>;
-      if (typeof partial === 'function') {
-        partialValue = (partial as (value: T) => Partial<T>)(sourceEvent.value);
-      } else {
-        // Resolve each property that might be a function
-        partialValue = {};
-        for (const key in partial) {
-          const val = (partial as Record<string, any>)[key];
-          (partialValue as Record<string, any>)[key] = typeof val === 'function' ? val(sourceEvent.value) : val;
-        }
-      }
-
-      const newValue = {...sourceEvent.value, ...partialValue};
+      // Create a shallow copy and apply transformer
+      const newValue = {...sourceEvent.value};
+      transformer(newValue);
       const newId = this.serializer(newValue);
 
       // Reduce source probability
@@ -319,19 +299,24 @@ export class EventSpace<T> {
    * Overloads support both static values and computed transformations in variants.
    *
    * @param predicate - Function to identify which events to distribute
-   * @param variants - Array of {value: Partial<T>, weight: number} or {value: (T) => Partial<T>, weight: number} pairs
+   * @param variants - Array of {value: Partial<T>, weight: number} or {value: (T) => Partial<T>, weight: number} pairs,
+   *                   or a function that returns such an array
    */
   distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: Partial<T>; weight: number}>): void;
   distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: (value: T) => Partial<T>; weight: number}>): void;
   distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: ComputedPartial<T>; weight: number}>): void;
+  distributeEventByFilter(predicate: (value: T) => boolean, variantsProvider: (value: T) => Array<{value: Partial<T>; weight: number}>): void;
   distributeEventByFilter(
     predicate: (value: T) => boolean,
-    variants: Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>
+    variantsProvider: (value: T) => Array<{value: (value: T) => Partial<T>; weight: number}>
+  ): void;
+  distributeEventByFilter(predicate: (value: T) => boolean, variantsProvider: (value: T) => Array<{value: ComputedPartial<T>; weight: number}>): void;
+  distributeEventByFilter(
+    predicate: (value: T) => boolean,
+    variants:
+      | Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>
+      | ((value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>)
   ): void {
-    if (variants.length === 0) {
-      throw new Error('Must provide at least one variant');
-    }
-
     // Find all matching events and calculate total probability
     const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
 
@@ -339,8 +324,15 @@ export class EventSpace<T> {
       return; // No events match, nothing to do
     }
 
+    // Resolve variants - could be an array or a function that returns an array
+    const resolvedVariants = typeof variants === 'function' ? variants(matchingEvents[0].value) : variants;
+
+    if (resolvedVariants.length === 0) {
+      throw new Error('Must provide at least one variant');
+    }
+
     const totalSourceProbability = matchingEvents.reduce((sum, e) => sum + e.probability, 0);
-    const totalWeight = variants.reduce((sum, v) => sum + v.weight, 0);
+    const totalWeight = resolvedVariants.reduce((sum, v) => sum + v.weight, 0);
 
     if (totalWeight <= 0) {
       throw new Error('Total weight must be greater than 0');
@@ -354,12 +346,12 @@ export class EventSpace<T> {
     // Distribute their combined probability to variants
     // If variants use computed functions, apply each variant to each matching event
     // to create all combinations. Otherwise, distribute combined probability proportionally.
-    const hasComputedVariants = variants.some(v => typeof v.value === 'function');
+    const hasComputedVariants = resolvedVariants.some(v => typeof v.value === 'function');
 
     if (hasComputedVariants) {
       // Computed variants: create cross-product of all matching events with all variants
       for (const matchingEvent of matchingEvents) {
-        for (const variant of variants) {
+        for (const variant of resolvedVariants) {
           if (variant.weight < 0) {
             throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
           }
@@ -393,7 +385,7 @@ export class EventSpace<T> {
       }
     } else {
       // Static variants: distribute combined probability proportionally
-      for (const variant of variants) {
+      for (const variant of resolvedVariants) {
         if (variant.weight < 0) {
           throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
         }
