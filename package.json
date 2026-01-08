@@ -47,6 +47,7 @@
     "bundle": "microbundle --name dmg --format umd --tsconfig bundle.json --strict",
     "build": "npm run compile && npm run bundle",
     "test": "jest",
+    "test:poc": "jest src/new-mechanics/poc.test.ts",
     "test:integration": "npm run test && node integration",
     "prepare": "npm run build",
     "pretest": "npm run build",

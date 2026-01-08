@@ -1,47 +1,23 @@
-class Event<T> {
-  value: T;
-  id: string;
+interface Event<T> {
+  readonly value: T;
+  readonly id: string;
   probability: number;
-
-  constructor(value: T, id: string, probability: number) {
-    this.value = value;
-    this.id = id;
-    this.probability = probability;
-  }
 }
 
-/**
- * Partial type that allows each property to be either a static value or a computed function.
- * Enables mixing static and computed values in a single object.
- */
-type ComputedPartial<T> = {
-  [K in keyof T]?: T[K] | ((value: T) => T[K]);
-};
-
-/**
- * Helper function to resolve a property value that could be static or computed.
- */
-function resolveValue<T, K extends keyof T>(value: T[K] | ((v: T) => T[K]), context: T): T[K] {
-  return typeof value === 'function' ? (value as (v: T) => T[K])(context) : value;
+function createEvent<T>(value: T, id: string, probability: number): Event<T> {
+  return {value, id, probability};
 }
 
 export class EventSpace<T> {
   private eventMap: Map<string, Event<T>> = new Map();
-  private serializer: (value: T) => string;
-  private probabilityFloor: number;
+  private readonly serializer: (value: T) => string;
+  private readonly probabilityFloor: number;
 
-  constructor(
-    source: T,
-    serializer: (value: T) => string,
-    options?: {
-      probabilityFloor?: number;
-    }
-  ) {
+  constructor(source: T, serializer: (value: T) => string, options?: {probabilityFloor?: number}) {
     this.serializer = serializer;
-    // Min probability floor to avoid floating point issues
     this.probabilityFloor = Math.max(0.000000001, Math.min(options?.probabilityFloor ?? 0, 1));
     const id = serializer(source);
-    this.eventMap.set(id, new Event(source, id, 1));
+    this.eventMap.set(id, createEvent(source, id, 1));
   }
 
   addTransition(from: T, to: T, probability: number): void {
@@ -67,7 +43,7 @@ export class EventSpace<T> {
     if (existingTarget) {
       existingTarget.probability += probability;
     } else {
-      this.eventMap.set(toId, new Event(to, toId, probability));
+      this.eventMap.set(toId, createEvent(to, toId, probability));
     }
   }
 
@@ -108,19 +84,11 @@ export class EventSpace<T> {
    * The source event's probability is reduced, and a new event is created
    * with the specified partial properties merged in.
    *
-   * Supports both static values and computed transformations:
-   * - Static: splitEvent(from, {hp: 50}, 0.2)
-   * - Computed: splitEvent(from, (e) => ({hp: e.hp + 10}), 0.2)
-   * - Mixed: splitEvent(from, {hp: e => e.hp + 10, item: null}, 0.2)
-   *
    * @param from - The event to split from (must exist in the space)
-   * @param partial - Partial properties (static, computed, or mixed)
+   * @param partial - Partial properties (static or computed function)
    * @param relativeWeight - Fraction of `from`'s probability to move (0-1)
    */
-  splitEvent(from: T, partial: Partial<T>, relativeWeight: number): void;
-  splitEvent(from: T, partial: (value: T) => Partial<T>, relativeWeight: number): void;
-  splitEvent(from: T, partial: ComputedPartial<T>, relativeWeight: number): void;
-  splitEvent(from: T, partial: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>, relativeWeight: number): void {
+  splitEvent(from: T, partial: Partial<T> | ((value: T) => Partial<T>), relativeWeight: number): void {
     if (relativeWeight < 0 || relativeWeight > 1) {
       throw new Error(`Relative weight must be between 0 and 1, got ${relativeWeight}`);
     }
@@ -135,34 +103,20 @@ export class EventSpace<T> {
 
     const probabilityToTransfer = sourceEvent.probability * relativeWeight;
 
-    // Resolve partial - handle static, computed function, or mixed computed partial
-    let partialValue: Partial<T>;
-    if (typeof partial === 'function') {
-      partialValue = (partial as (value: T) => Partial<T>)(from);
-    } else {
-      // Resolve each property that might be a function
-      partialValue = {};
-      for (const key in partial) {
-        const val = (partial as Record<string, any>)[key];
-        (partialValue as Record<string, any>)[key] = typeof val === 'function' ? val(from) : val;
-      }
-    }
-
+    const partialValue = typeof partial === 'function' ? partial(from) : partial;
     const newValue = {...from, ...partialValue};
     const newId = this.serializer(newValue);
 
-    // Reduce source probability
     sourceEvent.probability -= probabilityToTransfer;
     if (sourceEvent.probability <= this.probabilityFloor) {
       this.eventMap.delete(fromId);
     }
 
-    // Add or update target event
     const existingTarget = this.eventMap.get(newId);
     if (existingTarget) {
       existingTarget.probability += probabilityToTransfer;
     } else {
-      this.eventMap.set(newId, new Event(newValue, newId, probabilityToTransfer));
+      this.eventMap.set(newId, createEvent(newValue, newId, probabilityToTransfer));
     }
   }
 
@@ -171,25 +125,10 @@ export class EventSpace<T> {
    * The source event is removed, and its probability is distributed among the variants
    * according to their weights (which are normalized).
    *
-   * Overloads support both static values and computed transformations in variants.
-   *
    * @param from - The event to distribute from (must exist in the space)
-   * @param variants - Array of {value: Partial<T>, weight: number} or {value: (T) => Partial<T>, weight: number} pairs
+   * @param variants - Array of {value: Partial<T> | (T) => Partial<T>, weight: number} pairs
    */
-  /**
-   * Distributes an event across multiple variants with explicit weight distribution.
-   * The source event is removed, and its probability is distributed among the variants
-   * according to their weights (which are normalized).
-   *
-   * Supports both static values and computed transformations in variants.
-   *
-   * @param from - The event to distribute from (must exist in the space)
-   * @param variants - Array of {value: Partial<T>, weight: number} or {value: (T) => Partial<T>, weight: number} pairs
-   */
-  distributeEvent(from: T, variants: Array<{value: Partial<T>; weight: number}>): void;
-  distributeEvent(from: T, variants: Array<{value: (value: T) => Partial<T>; weight: number}>): void;
-  distributeEvent(from: T, variants: Array<{value: ComputedPartial<T>; weight: number}>): void;
-  distributeEvent(from: T, variants: Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>): void {
+  distributeEvent(from: T, variants: Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>): void {
     if (variants.length === 0) {
       throw new Error('Must provide at least one variant');
     }
@@ -219,20 +158,7 @@ export class EventSpace<T> {
       if (variant.weight <= this.probabilityFloor) continue;
 
       const variantProbability = (variant.weight / totalWeight) * sourceProbability;
-
-      // Resolve variant value - handle static, computed function, or mixed computed partial
-      let variantValue: Partial<T>;
-      if (typeof variant.value === 'function') {
-        variantValue = (variant.value as (value: T) => Partial<T>)(from);
-      } else {
-        // Resolve each property that might be a function
-        variantValue = {};
-        for (const key in variant.value) {
-          const val = (variant.value as Record<string, any>)[key];
-          (variantValue as Record<string, any>)[key] = typeof val === 'function' ? val(from) : val;
-        }
-      }
-
+      const variantValue = typeof variant.value === 'function' ? variant.value(from) : variant.value;
       const newValue = {...from, ...variantValue};
       const newId = this.serializer(newValue);
 
@@ -240,7 +166,7 @@ export class EventSpace<T> {
       if (existingTarget) {
         existingTarget.probability += variantProbability;
       } else {
-        this.eventMap.set(newId, new Event(newValue, newId, variantProbability));
+        this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
       }
     }
   }
@@ -286,36 +212,23 @@ export class EventSpace<T> {
       if (existingTarget) {
         existingTarget.probability += probabilityToTransfer;
       } else {
-        this.eventMap.set(newId, new Event(newValue, newId, probabilityToTransfer));
+        this.eventMap.set(newId, createEvent(newValue, newId, probabilityToTransfer));
       }
     }
   }
 
   /**
    * Distributes all events matching a predicate across multiple variants.
-   * All matching events are removed, and their combined probability is distributed
-   * among the variants according to their weights (which are normalized).
-   *
-   * Overloads support both static values and computed transformations in variants.
+   * Variants can be a static array or a function that provides per-event variants.
    *
    * @param predicate - Function to identify which events to distribute
-   * @param variants - Array of {value: Partial<T>, weight: number} or {value: (T) => Partial<T>, weight: number} pairs,
-   *                   or a function that returns such an array
+   * @param variants - Array or function providing variant transformations with weights
    */
-  distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: Partial<T>; weight: number}>): void;
-  distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: (value: T) => Partial<T>; weight: number}>): void;
-  distributeEventByFilter(predicate: (value: T) => boolean, variants: Array<{value: ComputedPartial<T>; weight: number}>): void;
-  distributeEventByFilter(predicate: (value: T) => boolean, variantsProvider: (value: T) => Array<{value: Partial<T>; weight: number}>): void;
-  distributeEventByFilter(
-    predicate: (value: T) => boolean,
-    variantsProvider: (value: T) => Array<{value: (value: T) => Partial<T>; weight: number}>
-  ): void;
-  distributeEventByFilter(predicate: (value: T) => boolean, variantsProvider: (value: T) => Array<{value: ComputedPartial<T>; weight: number}>): void;
   distributeEventByFilter(
     predicate: (value: T) => boolean,
     variants:
-      | Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>
-      | ((value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>) | ComputedPartial<T>; weight: number}>)
+      | Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>
+      | ((value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>)
   ): void {
     // Find all matching events and calculate total probability
     const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
@@ -359,19 +272,7 @@ export class EventSpace<T> {
 
           // Each combination gets weighted by the variant's relative weight
           const variantProbability = (variant.weight / totalWeight) * matchingEvent.probability;
-
-          // Resolve variant value for this specific event
-          let variantValue: Partial<T>;
-          if (typeof variant.value === 'function') {
-            variantValue = (variant.value as (value: T) => Partial<T>)(matchingEvent.value);
-          } else {
-            variantValue = {};
-            for (const key in variant.value) {
-              const val = (variant.value as Record<string, any>)[key];
-              (variantValue as Record<string, any>)[key] = typeof val === 'function' ? val(matchingEvent.value) : val;
-            }
-          }
-
+          const variantValue = typeof variant.value === 'function' ? variant.value(matchingEvent.value) : variant.value;
           const newValue = {...matchingEvent.value, ...variantValue};
           const newId = this.serializer(newValue);
 
@@ -379,12 +280,11 @@ export class EventSpace<T> {
           if (existingTarget) {
             existingTarget.probability += variantProbability;
           } else {
-            this.eventMap.set(newId, new Event(newValue, newId, variantProbability));
+            this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
           }
         }
       }
     } else {
-      // Static variants: distribute combined probability proportionally
       for (const variant of resolvedVariants) {
         if (variant.weight < 0) {
           throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
@@ -401,7 +301,69 @@ export class EventSpace<T> {
         if (existingTarget) {
           existingTarget.probability += variantProbability;
         } else {
-          this.eventMap.set(newId, new Event(newValue, newId, variantProbability));
+          this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
+        }
+      }
+    }
+  }
+
+  /**
+   * Distributes all events matching a predicate to context-specific variants.
+   * Calls variantsProvider once per matching event to generate variants
+   * that can adapt based on each event's state.
+   *
+   * @param predicate - Function to identify which events to distribute
+   * @param variantsProvider - Function called for each matching event returning variant array
+   */
+  distributeEventByFilterPerEvent(
+    predicate: (value: T) => boolean,
+    variantsProvider: (value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>
+  ): void {
+    // Find all matching events
+    const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
+
+    if (matchingEvents.length === 0) {
+      return; // No events match, nothing to do
+    }
+
+    // Remove all matching events
+    for (const event of matchingEvents) {
+      this.eventMap.delete(event.id);
+    }
+
+    // For each matching event, get its variants and distribute independently
+    for (const matchingEvent of matchingEvents) {
+      const resolvedVariants = variantsProvider(matchingEvent.value);
+
+      if (resolvedVariants.length === 0) {
+        throw new Error('Variants provider must return at least one variant');
+      }
+
+      const totalWeight = resolvedVariants.reduce((sum, v) => sum + v.weight, 0);
+
+      if (totalWeight <= 0) {
+        throw new Error('Total weight must be greater than 0');
+      }
+
+      // Distribute this event's probability to its variants
+      for (const variant of resolvedVariants) {
+        if (variant.weight < 0) {
+          throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
+        }
+        if (variant.weight <= this.probabilityFloor) continue;
+
+        const variantProbability = (variant.weight / totalWeight) * matchingEvent.probability;
+
+        // Resolve variant value
+        const variantValue = typeof variant.value === 'function' ? variant.value(matchingEvent.value) : variant.value;
+        const newValue = {...matchingEvent.value, ...variantValue};
+        const newId = this.serializer(newValue);
+
+        const existingTarget = this.eventMap.get(newId);
+        if (existingTarget) {
+          existingTarget.probability += variantProbability;
+        } else {
+          this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
         }
       }
     }

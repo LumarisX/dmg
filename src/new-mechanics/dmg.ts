@@ -13,11 +13,11 @@ import {
   SecondaryEffect,
   Specie,
   SpeciesName,
+  StatID,
   StatsTable,
   StatusName,
   TypeName,
 } from '@pkmn/data';
-import {StatID} from '@smogon/calc';
 import {EventSpace} from './event-space';
 
 export namespace DMG {

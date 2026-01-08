@@ -1,9 +1,29 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/dex';
 import {DMG} from './dmg';
-import {calculateDamage, computeTurn} from './poc';
+import {computeTurn} from './poc';
 
 const gens = new Generations(Dex);
+
+function printOutput(target: DMG.Pokemon) {
+  const finalOutcomes = target.states.getOutcomes();
+
+  console.table(
+    finalOutcomes
+      .map(o => ({
+        hp: o.value.hp,
+        item: o.value.item,
+        probability: `${Math.round(o.probability * 100000) / 1000}%`,
+      }))
+      .sort((a, b) => b.hp - a.hp)
+  );
+
+  console.log('Total Probability', target.states.getTotalProbability());
+}
+
+function printKoChance(target: DMG.Pokemon, turn: number) {
+  console.log(`Turn ${turn} KO: ${Math.round(target.states.getTotalProbability(state => state.hp === 0) * 10000) / 100}%`);
+}
 
 function example1() {
   const gen = gens.get(9);
@@ -16,10 +36,7 @@ function example1() {
 
   computeTurn(attacker, target, move);
 
-  console.log(
-    'Total Probability',
-    target.states.getTotalProbability(t => t.item !== null)
-  );
+  printOutput(target);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
@@ -47,7 +64,7 @@ function example2() {
   computeTurn(attacker, target, move);
   computeTurn(attacker, target, move);
 
-  console.log(target.states.getTotalProbability());
+  printOutput(target);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
@@ -79,7 +96,7 @@ function example3() {
 
   computeTurn(attacker, target, move);
 
-  console.log(target.states.getTotalProbability());
+  printOutput(target);
 
   // ┌─────────┬─────┬──────┬─────────────┐
   // │ (index) │ hp  │ item │ probability │
@@ -110,7 +127,7 @@ function example4() {
 
   computeTurn(attacker, target, move);
 
-  console.log(target.states.getTotalProbability());
+  printOutput(target);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
@@ -139,41 +156,7 @@ function example5() {
   computeTurn(attacker, target, move);
   computeTurn(attacker, target, move);
 
-  console.log(target.states.getTotalProbability());
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 241 │ 'sitrusberry' │ '25%'       │
-  // │ 1       │ 179 │ null          │ '8.984%'    │
-  // │ 2       │ 175 │ null          │ '8.984%'    │
-  // │ 3       │ 173 │ null          │ '8.984%'    │
-  // │ 4       │ 169 │ null          │ '8.984%'    │
-  // │ 5       │ 167 │ null          │ '4.492%'    │
-  // │ 6       │ 133 │ null          │ '0.195%'    │
-  // │ 7       │ 131 │ null          │ '0.195%'    │
-  // │ 8       │ 127 │ 'sitrusberry' │ '4.492%'    │
-  // │ 9       │ 127 │ null          │ '0.391%'    │
-  // │ 10      │ 125 │ 'sitrusberry' │ '4.492%'    │
-  // │ 11      │ 125 │ null          │ '0.195%'    │
-  // │ 12      │ 121 │ 'sitrusberry' │ '6.738%'    │
-  // │ 13      │ 121 │ null          │ '0.391%'    │
-  // │ 14      │ 119 │ null          │ '0.195%'    │
-  // │ 15      │ 115 │ null          │ '0.391%'    │
-  // │ 16      │ 113 │ null          │ '0.195%'    │
-  // │ 17      │ 109 │ null          │ '0.391%'    │
-  // │ 18      │ 107 │ null          │ '0.195%'    │
-  // │ 19      │ 103 │ null          │ '0.195%'    │
-  // │ 20      │ 101 │ null          │ '0.195%'    │
-  // │ 21      │ 73  │ null          │ '0.538%'    │
-  // │ 22      │ 71  │ null          │ '1.076%'    │
-  // │ 23      │ 69  │ null          │ '0.538%'    │
-  // │ 24      │ 67  │ null          │ '1.614%'    │
-  // │ 25      │ 65  │ null          │ '2.153%'    │
-  // │ 26      │ 63  │ null          │ '0.538%'    │
-  // │ 27      │ 61  │ null          │ '1.749%'    │
-  // │ 28      │ 0   │ 'sitrusberry' │ '7.516%'    │
-  // └─────────┴─────┴───────────────┴─────────────┘
+  printOutput(target);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
@@ -204,24 +187,6 @@ function example5() {
   // │ 23      │ 61  │ null          │ '4.664%'    │
   // │ 24      │ 0   │ 'sitrusberry' │ '20.043%'   │
   // └─────────┴─────┴───────────────┴─────────────┘
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 179 │ null          │ '12.5%'     │
-  // │ 1       │ 175 │ null          │ '12.5%'     │
-  // │ 2       │ 173 │ null          │ '12.5%'     │
-  // │ 3       │ 169 │ null          │ '12.5%'     │
-  // │ 4       │ 167 │ null          │ '6.25%'     │
-  // │ 5       │ 73  │ null          │ '1.563%'    │
-  // │ 6       │ 71  │ null          │ '3.125%'    │
-  // │ 7       │ 69  │ null          │ '1.563%'    │
-  // │ 8       │ 67  │ null          │ '4.688%'    │
-  // │ 9       │ 65  │ null          │ '6.25%'     │
-  // │ 10      │ 63  │ null          │ '1.563%'    │
-  // │ 11      │ 61  │ null          │ '5.078%'    │
-  // │ 12      │ 0   │ 'sitrusberry' │ '19.922%'   │
-  // └─────────┴─────┴───────────────┴─────────────┘
 }
 
 function example6() {
@@ -236,7 +201,7 @@ function example6() {
   computeTurn(attacker, target, move);
   computeTurn(attacker, target, move);
 
-  console.log(target.states.getTotalProbability());
+  printOutput(target);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
@@ -271,28 +236,21 @@ function example6() {
   // │ 27      │ 61  │ null          │ '4.155%'    │
   // │ 28      │ 0   │ 'sitrusberry' │ '17.859%'   │
   // └─────────┴─────┴───────────────┴─────────────┘
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 241 │ 'sitrusberry' │ '1%'        │
-  // │ 1       │ 179 │ null          │ '12.375%'   │
-  // │ 2       │ 175 │ null          │ '12.375%'   │
-  // │ 3       │ 173 │ null          │ '12.375%'   │
-  // │ 4       │ 169 │ null          │ '12.375%'   │
-  // │ 5       │ 167 │ null          │ '6.187%'    │
-  // │ 6       │ 127 │ 'sitrusberry' │ '1.237%'    │
-  // │ 7       │ 125 │ 'sitrusberry' │ '1.237%'    │
-  // │ 8       │ 121 │ 'sitrusberry' │ '1.856%'    │
-  // │ 9       │ 73  │ null          │ '1.392%'    │
-  // │ 10      │ 71  │ null          │ '2.784%'    │
-  // │ 11      │ 69  │ null          │ '1.392%'    │
-  // │ 12      │ 67  │ null          │ '4.177%'    │
-  // │ 13      │ 65  │ null          │ '5.569%'    │
-  // │ 14      │ 63  │ null          │ '1.392%'    │
-  // │ 15      │ 61  │ null          │ '4.525%'    │
-  // │ 16      │ 0   │ 'sitrusberry' │ '17.75%'    │
-  // └─────────┴─────┴───────────────┴─────────────┘
 }
 
-example5();
+function example7() {
+  const gen = gens.get(9);
+
+  const attacker = new DMG.Pokemon(gen, 'Bisharp');
+  const target = new DMG.Pokemon(gen, 'Deoxys-Defense');
+  const move = new DMG.Move(gen, 'Throat Chop');
+
+  if (!move || !attacker || !target) return;
+
+  for (let i = 1; i <= 4; i++) {
+    computeTurn(attacker, target, move);
+    printKoChance(target, i);
+  }
+}
+
+example7();

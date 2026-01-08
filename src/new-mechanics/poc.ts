@@ -36,7 +36,7 @@ const Moves: {
 } = {
   poltergeist: {
     onTryImmunity(scope: DMG.PokemonState) {
-      return false;
+      return scope.item == null;
     },
   },
 };
@@ -111,6 +111,7 @@ export function calculateDamage(attacker: DMG.PokemonState, target: DMG.PokemonS
   // damage.forEach(num => {
   //   rolls[num] = (rolls[num] || 0) + 1;
   // });
+
   return damage;
 }
 
@@ -186,9 +187,10 @@ function getHitOutcomes(move: DMG.Move, attacker: DMG.PokemonState, target: DMG.
     return key;
   });
 
+  const moveHandler = Moves[move.id];
   hitSpace.splitEventByFilter(
     e => true,
-    h => (h.failed = target.item == null),
+    h => (h.failed = moveHandler?.onTryImmunity ? moveHandler.onTryImmunity(target) : false),
     1
   );
 
@@ -206,25 +208,7 @@ function getHitOutcomes(move: DMG.Move, attacker: DMG.PokemonState, target: DMG.
     move.critChance
   );
 
-  // hitSpace.distributeEventByFilter(
-  //   e => !e.failed && !e.missed && !e.isCrit,
-  //   (hitState: HitState) =>
-  //     calculateDamage(attacker, target, move, hitState).map(d => ({
-  //       value: {damage: d},
-  //       weight: 1,
-  //     }))
-  // );
-
-  // hitSpace.distributeEventByFilter(
-  //   e => !e.failed && !e.missed && e.isCrit,
-  //   (hitState: HitState) =>
-  //     calculateDamage(attacker, target, move, hitState).map(d => ({
-  //       value: {damage: d},
-  //       weight: 1,
-  //     }))
-  // );
-
-  hitSpace.distributeEventByFilter(
+  hitSpace.distributeEventByFilterPerEvent(
     e => !e.failed && !e.missed,
     (hitState: HitState) =>
       calculateDamage(attacker, target, move, hitState).map(d => ({
@@ -280,15 +264,4 @@ export function computeTurn(attacker: DMG.Pokemon, target: DMG.Pokemon, move: DM
       1.0
     );
   }
-  const finalOutcomes = target.states.getOutcomes();
-
-  console.table(
-    finalOutcomes
-      .map(o => ({
-        hp: o.value.hp,
-        item: o.value.item,
-        probability: `${Math.round(o.probability * 100000) / 1000}%`,
-      }))
-      .sort((a, b) => b.hp - a.hp)
-  );
 }
