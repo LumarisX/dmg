@@ -1,3 +1,4 @@
+import {Generation} from '@pkmn/data';
 import {applyMod, chain, floor, max, roundDown, shift, trunc} from '../math';
 import {is} from '../utils';
 import {DMG} from './dmg';
@@ -8,6 +9,7 @@ type HitState = {
   isCrit: boolean;
   missed: boolean;
   failed: boolean;
+  effectiveness: number;
 };
 
 export interface Handler<S> {
@@ -100,8 +102,7 @@ export function calculateDamage(attacker: DMG.PokemonState, target: DMG.PokemonS
     // If the stabMod would not accomplish anything we avoid applying it because it could cause
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000) damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
-    const effectiveness = 1;
-    damageAmount = floor(trunc(shift(damageAmount, effectiveness), 32));
+    damageAmount = floor(trunc(shift(damageAmount, hit.effectiveness), 32));
     // if (attacker.status?.onModifyAtk) damageAmount = applyMod(damageAmount, attacker.status?.onModifyAtk(context) || 0x1000);
     if (protect && move.zMove) damageAmount = applyMod(damageAmount, 0x400);
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));
@@ -177,8 +178,20 @@ function getFinalModifier(attacker: DMG.PokemonState, target: DMG.PokemonState, 
   return mod;
 }
 
-function getHitOutcomes(move: DMG.Move, attacker: DMG.PokemonState, target: DMG.PokemonState) {
-  const inital: HitState = {damage: 0, isCrit: false, missed: false, failed: false};
+const EFFECTIVENESSBIT: {[key: number]: number} = {
+  0: -5,
+  0.125: -3,
+  0.25: -2,
+  0.5: -1,
+  1: 0,
+  2: 1,
+  4: 2,
+  8: 3,
+};
+
+function getHitOutcomes(gen: Generation, move: DMG.Move, attacker: DMG.PokemonState, target: DMG.PokemonState) {
+  const effectiveness = EFFECTIVENESSBIT[gen.types.totalEffectiveness(move.type, target.types)];
+  const inital: HitState = {damage: 0, isCrit: false, missed: false, failed: false, effectiveness};
   const hitSpace = new EventSpace<HitState>(inital, v => {
     let key = v.damage.toString();
     if (v.isCrit) key += '-crit';
@@ -208,8 +221,8 @@ function getHitOutcomes(move: DMG.Move, attacker: DMG.PokemonState, target: DMG.
     move.critChance
   );
 
-  hitSpace.distributeEventByFilterPerEvent(
-    e => !e.failed && !e.missed,
+  hitSpace.distributeEventByFilter(
+    e => !e.failed && !e.missed && e.isCrit,
     (hitState: HitState) =>
       calculateDamage(attacker, target, move, hitState).map(d => ({
         value: {damage: d},
@@ -217,18 +230,50 @@ function getHitOutcomes(move: DMG.Move, attacker: DMG.PokemonState, target: DMG.
       }))
   );
 
+  hitSpace.distributeEventByFilter(
+    e => !e.failed && !e.missed && !e.isCrit,
+    (hitState: HitState) =>
+      calculateDamage(attacker, target, move, hitState).map(d => ({
+        value: {damage: d},
+        weight: 1,
+      }))
+  );
+
+  // hitSpace.distributeEventByFilterPerEvent(
+  //   e => !e.failed && !e.missed,
+  //   (hitState: HitState) =>WhWhereWhere @ta
+  //     calculateDamage(attacker, target, move, hitState).map(d => ({
+  //       value: {damage: d},
+  //       weight: 1,
+  //     }))
+  // );
+
   return hitSpace.getOutcomes();
 }
 
 export function computeTurn(attacker: DMG.Pokemon, target: DMG.Pokemon, move: DMG.Move) {
-  const attackerOutcomes = attacker.states.getOutcomes();
-  const targetOutcomes = target.states.getOutcomes();
+  // const attackerOutcomes = attacker.states.getOutcomes();
+  // const targetOutcomes = target.states.getOutcomes();
 
-  for (const tEvent of targetOutcomes) {
+  const serializer = (s: DMG.PokemonState) => `${s.types.toString()}|${s.item}|${s.ability}`;
+  const simpleTargetOutcomes = target.states.projectToSubspace(serializer).getOutcomes();
+  const simpleAttackerOutcomes = attacker.states.projectToSubspace(serializer).getOutcomes();
+
+  console.table(
+    simpleTargetOutcomes
+      .map(o => ({
+        ...o.value,
+        probability: `${(o.probability * 100).toFixed(2)}%`,
+      }))
+      .sort((a, b) => b.hp - a.hp),
+    ['probability', 'item']
+  );
+
+  for (const tEvent of simpleTargetOutcomes) {
     const hitOutcomesForTarget: Array<{value: HitState; probability: number}> = [];
 
-    for (const aEvent of attackerOutcomes) {
-      const hitOutcomes = getHitOutcomes(move, aEvent.value, tEvent.value);
+    for (const aEvent of simpleAttackerOutcomes) {
+      const hitOutcomes = getHitOutcomes(attacker.generation, move, aEvent.value, tEvent.value);
 
       const combinedProbability = aEvent.probability * tEvent.probability;
       for (const hit of hitOutcomes) {
@@ -239,21 +284,21 @@ export function computeTurn(attacker: DMG.Pokemon, target: DMG.Pokemon, move: DM
       }
     }
 
-    // console.table(
-    //   hitOutcomesForTarget.map(o => ({
-    //     ...o.value,
-    //     probability: `${Math.round(o.probability * 1000) / 100}%`,
-    //   }))
-    // );
-
-    target.states.distributeEvent(
-      tEvent.value,
-      hitOutcomesForTarget.map(o => ({
-        value: (d: DMG.PokemonState) => ({
-          hp: Math.max(d.hp - o.value.damage, 0),
-        }),
-        weight: o.probability,
+    console.table(
+      hitOutcomesForTarget.map(h => ({
+        ...h.value,
+        probability: `${(h.probability * 100).toFixed(2)}%`,
       }))
+    );
+    target.states.distributeEventByFilterPerEvent(
+      s => serializer(s) === tEvent.id,
+      () =>
+        hitOutcomesForTarget.map(o => ({
+          value: (d: DMG.PokemonState) => ({
+            hp: Math.max(d.hp - o.value.damage, 0),
+          }),
+          weight: o.probability,
+        }))
     );
 
     target.states.splitEventByFilter(

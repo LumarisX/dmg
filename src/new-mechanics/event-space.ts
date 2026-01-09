@@ -13,11 +13,31 @@ export class EventSpace<T> {
   private readonly serializer: (value: T) => string;
   private readonly probabilityFloor: number;
 
-  constructor(source: T, serializer: (value: T) => string, options?: {probabilityFloor?: number}) {
+  constructor(source: T | Array<{value: T; weight: number}>, serializer: (value: T) => string, options?: {probabilityFloor?: number}) {
     this.serializer = serializer;
     this.probabilityFloor = Math.max(0.000000001, Math.min(options?.probabilityFloor ?? 0, 1));
-    const id = serializer(source);
-    this.eventMap.set(id, createEvent(source, id, 1));
+
+    if (Array.isArray(source)) {
+      const totalWeight = source.reduce((sum, entry) => sum + Math.max(entry.weight, 0), 0);
+
+      if (totalWeight <= 0) throw new Error('Total weight must be greater than 0');
+
+      for (const entry of source) {
+        const weight = Math.max(entry.weight, 0);
+        if (weight > 0) {
+          const id = serializer(entry.value);
+          const probability = weight / totalWeight;
+          if (probability > this.probabilityFloor) {
+            this.eventMap.set(id, createEvent(entry.value, id, probability));
+          }
+        }
+      }
+
+      if (this.eventMap.size === 0) throw new Error('Must provide at least one event with weight above the floor');
+    } else {
+      const id = serializer(source);
+      this.eventMap.set(id, createEvent(source, id, 1));
+    }
   }
 
   addTransition(from: T, to: T, probability: number): void {
@@ -367,5 +387,43 @@ export class EventSpace<T> {
         }
       }
     }
+  }
+
+  getEvents(predicate: (value: T) => boolean) {
+    return Array.from(this.eventMap.values()).filter(e => predicate(e.value));
+  }
+
+  /**
+   * Projects this EventSpace into a sub-space using a different key generator.
+   * States that map to the same key under the new serializer have their probabilities
+   * aggregated together, effectively ignoring differences in properties not captured
+   * by the new serializer.
+   *
+   * @param newSerializer - Key generator for the sub-space
+   * @returns A new EventSpace<T> where equivalent states are merged by probability
+   */
+  projectToSubspace(newSerializer: (value: T) => string): EventSpace<T> {
+    const outcomes = this.getOutcomes();
+    if (outcomes.length === 0) throw new Error('Cannot project empty EventSpace to subspace');
+
+    const aggregatedMap = new Map<string, T>();
+    const aggregatedProbabilities = new Map<string, number>();
+
+    for (const event of outcomes) {
+      const newId = newSerializer(event.value);
+      if (!aggregatedMap.has(newId)) {
+        aggregatedMap.set(newId, event.value);
+      }
+
+      const currentProb = aggregatedProbabilities.get(newId) ?? 0;
+      aggregatedProbabilities.set(newId, currentProb + event.probability);
+    }
+
+    const initialValues = Array.from(aggregatedMap.entries()).map(([id, value]) => ({
+      value,
+      weight: aggregatedProbabilities.get(id) ?? 0,
+    }));
+
+    return new EventSpace(initialValues, newSerializer, {probabilityFloor: this.probabilityFloor});
   }
 }

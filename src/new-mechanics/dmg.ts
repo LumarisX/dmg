@@ -25,6 +25,7 @@ export namespace DMG {
     hp: number;
     item?: string | null;
     types: [TypeName] | [TypeName, TypeName];
+    ability: string;
 
     readonly level: number;
     readonly stats: StatsTable;
@@ -49,7 +50,7 @@ export namespace DMG {
     teraType?: TypeName;
     level?: number;
   }
-  export class Pokemon extends Specie {
+  export class Pokemon extends Specie implements PokemonState {
     item?: string | null;
     hp: number;
     states: EventSpace<PokemonState>;
@@ -58,6 +59,7 @@ export namespace DMG {
     stats: StatsTable;
     evs: StatsTable;
     ivs: StatsTable;
+    ability: string;
     nature?: Nature;
     constructor(gen: Generation, name: string, options: Partial<PokemonOptions> = {}) {
       const species = gen.species.get(name);
@@ -76,6 +78,7 @@ export namespace DMG {
         this.stats[stat] = gen.stats.calc(stat, this.baseStats[stat], this.ivs[stat], this.evs[stat], this.level, this.nature);
       });
       this.hp = this.stats.hp;
+      this.ability = options.ability ?? this.abilities[0];
       this.states = new EventSpace<PokemonState>(
         {
           hp: this.hp,
@@ -86,6 +89,7 @@ export namespace DMG {
           nature: this.nature,
           level: this.level,
           types: this.types,
+          ability: this.abilities[0],
         },
         p => `${p.hp}-${p.stats.hp}` + (p.item ? `-${p.item}` : '')
       );

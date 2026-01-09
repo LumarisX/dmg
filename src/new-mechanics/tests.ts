@@ -32,8 +32,6 @@ function example1() {
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist', {crit: false, alwaysHit: true});
 
-  if (!move || !attacker || !target) return;
-
   computeTurn(attacker, target, move);
 
   printOutput(target);
@@ -58,8 +56,6 @@ function example2() {
   const attacker = new DMG.Pokemon(gen, 'Gengar');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist', {crit: false, alwaysHit: true});
-
-  if (!move || !attacker || !target) return;
 
   computeTurn(attacker, target, move);
   computeTurn(attacker, target, move);
@@ -92,8 +88,6 @@ function example3() {
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist', {crit: true, alwaysHit: true});
 
-  if (!move || !attacker || !target) return;
-
   computeTurn(attacker, target, move);
 
   printOutput(target);
@@ -123,8 +117,6 @@ function example4() {
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist', {crit: false});
 
-  if (!move || !attacker || !target) return;
-
   computeTurn(attacker, target, move);
 
   printOutput(target);
@@ -150,8 +142,6 @@ function example5() {
   const attacker = new DMG.Pokemon(gen, 'Gengar');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist', {alwaysHit: true});
-
-  if (!move || !attacker || !target) return;
 
   computeTurn(attacker, target, move);
   computeTurn(attacker, target, move);
@@ -196,9 +186,9 @@ function example6() {
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
   const move = new DMG.Move(gen, 'Poltergeist');
 
-  if (!move || !attacker || !target) return;
-
   computeTurn(attacker, target, move);
+  console.log(target.states.projectToSubspace(s => `${s.types.toString()}|${s.item}|${s.ability}`).getOutcomes());
+
   computeTurn(attacker, target, move);
 
   printOutput(target);
@@ -243,14 +233,134 @@ function example7() {
 
   const attacker = new DMG.Pokemon(gen, 'Bisharp');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense');
-  const move = new DMG.Move(gen, 'Throat Chop');
+  const move = new DMG.Move(gen, 'Iron Head');
 
-  if (!move || !attacker || !target) return;
+  computeTurn(attacker, target, move);
+  computeTurn(attacker, target, move);
+  computeTurn(attacker, target, move);
 
-  for (let i = 1; i <= 4; i++) {
-    computeTurn(attacker, target, move);
-    printKoChance(target, i);
-  }
+  console.table(
+    target.states
+      .getOutcomes()
+      .map(o => ({
+        ...o.value,
+        probability: `${(o.probability * 100).toFixed(5)}%`,
+      }))
+      .sort((a, b) => b.hp - a.hp),
+    ['hp', 'probability', 'item']
+  );
+
+  // ┌─────────┬─────┬─────────────┬───────────┐
+  // │ (index) │ hp  │ probability │ item      │
+  // ├─────────┼─────┼─────────────┼───────────┤
+  // │ 0       │ 103 │ '0.36%'     │ undefined │
+  // │ 1       │ 102 │ '1.44%'     │ undefined │
+  // │ 2       │ 101 │ '1.44%'     │ undefined │
+  // │ 3       │ 100 │ '1.44%'     │ undefined │
+  // │ 4       │ 99  │ '3.59%'     │ undefined │
+  // │ 5       │ 98  │ '1.44%'     │ undefined │
+  // │ 6       │ 97  │ '2.87%'     │ undefined │
+  // │ 7       │ 96  │ '5.74%'     │ undefined │
+  // │ 8       │ 95  │ '3.23%'     │ undefined │
+  // │ 9       │ 94  │ '4.31%'     │ undefined │
+  // │ 10      │ 93  │ '8.61%'     │ undefined │
+  // │ 11      │ 92  │ '4.31%'     │ undefined │
+  // │ 12      │ 91  │ '5.02%'     │ undefined │
+  // │ 13      │ 90  │ '9.33%'     │ undefined │
+  // │ 14      │ 89  │ '4.31%'     │ undefined │
+  // │ 15      │ 88  │ '4.31%'     │ undefined │
+  // │ 16      │ 87  │ '7.89%'     │ undefined │
+  // │ 17      │ 86  │ '3.59%'     │ undefined │
+  // │ 18      │ 85  │ '2.87%'     │ undefined │
+  // │ 19      │ 84  │ '5.74%'     │ undefined │
+  // │ 20      │ 83  │ '2.87%'     │ undefined │
+  // │ 21      │ 82  │ '1.44%'     │ undefined │
+  // │ 22      │ 81  │ '2.87%'     │ undefined │
+  // │ 23      │ 80  │ '1.44%'     │ undefined │
+  // │ 24      │ 79  │ '0.36%'     │ undefined │
+  // │ 25      │ 78  │ '0.72%'     │ undefined │
+  // │ 26      │ 77  │ '0.36%'     │ undefined │
+  // │ 27      │ 69  │ '0.03%'     │ undefined │
+  // │ 28      │ 68  │ '0.06%'     │ undefined │
+  // │ 29      │ 67  │ '0.03%'     │ undefined │
+  // │ 30      │ 66  │ '0.16%'     │ undefined │
+  // │ 31      │ 65  │ '0.09%'     │ undefined │
+  // │ 32      │ 64  │ '0.12%'     │ undefined │
+  // │ 33      │ 63  │ '0.31%'     │ undefined │
+  // │ 34      │ 62  │ '0.16%'     │ undefined │
+  // │ 35      │ 61  │ '0.22%'     │ undefined │
+  // │ 36      │ 60  │ '0.41%'     │ undefined │
+  // │ 37      │ 59  │ '0.22%'     │ undefined │
+  // │ 38      │ 58  │ '0.28%'     │ undefined │
+  // │ 39      │ 57  │ '0.56%'     │ undefined │
+  // │ 40      │ 56  │ '0.31%'     │ undefined │
+  // │ 41      │ 55  │ '0.31%'     │ undefined │
+  // │ 42      │ 54  │ '0.62%'     │ undefined │
+  // │ 43      │ 53  │ '0.28%'     │ undefined │
+  // │ 44      │ 52  │ '0.28%'     │ undefined │
+  // │ 45      │ 51  │ '0.59%'     │ undefined │
+  // │ 46      │ 50  │ '0.31%'     │ undefined │
+  // │ 47      │ 49  │ '0.25%'     │ undefined │
+  // │ 48      │ 48  │ '0.53%'     │ undefined │
+  // │ 49      │ 47  │ '0.25%'     │ undefined │
+  // │ 50      │ 46  │ '0.22%'     │ undefined │
+  // │ 51      │ 45  │ '0.37%'     │ undefined │
+  // │ 52      │ 44  │ '0.19%'     │ undefined │
+  // │ 53      │ 43  │ '0.16%'     │ undefined │
+  // │ 54      │ 42  │ '0.25%'     │ undefined │
+  // │ 55      │ 41  │ '0.09%'     │ undefined │
+  // │ 56      │ 40  │ '0.09%'     │ undefined │
+  // │ 57      │ 39  │ '0.12%'     │ undefined │
+  // │ 58      │ 38  │ '0.03%'     │ undefined │
+  // │ 59      │ 37  │ '0.03%'     │ undefined │
+  // │ 60      │ 36  │ '0.03%'     │ undefined │
+  // │ 61      │ 35  │ '0.00%'     │ undefined │
+  // │ 62      │ 33  │ '0.00%'     │ undefined │
+  // │ 63      │ 32  │ '0.00%'     │ undefined │
+  // │ 64      │ 31  │ '0.00%'     │ undefined │
+  // │ 65      │ 30  │ '0.00%'     │ undefined │
+  // │ 66      │ 29  │ '0.00%'     │ undefined │
+  // │ 67      │ 28  │ '0.00%'     │ undefined │
+  // │ 68      │ 27  │ '0.01%'     │ undefined │
+  // │ 69      │ 26  │ '0.00%'     │ undefined │
+  // │ 70      │ 25  │ '0.00%'     │ undefined │
+  // │ 71      │ 24  │ '0.01%'     │ undefined │
+  // │ 72      │ 23  │ '0.00%'     │ undefined │
+  // │ 73      │ 22  │ '0.00%'     │ undefined │
+  // │ 74      │ 21  │ '0.01%'     │ undefined │
+  // │ 75      │ 20  │ '0.01%'     │ undefined │
+  // │ 76      │ 19  │ '0.00%'     │ undefined │
+  // │ 77      │ 18  │ '0.01%'     │ undefined │
+  // │ 78      │ 17  │ '0.01%'     │ undefined │
+  // │ 79      │ 16  │ '0.01%'     │ undefined │
+  // │ 80      │ 15  │ '0.01%'     │ undefined │
+  // │ 81      │ 14  │ '0.01%'     │ undefined │
+  // │ 82      │ 13  │ '0.01%'     │ undefined │
+  // │ 83      │ 12  │ '0.01%'     │ undefined │
+  // │ 84      │ 11  │ '0.01%'     │ undefined │
+  // │ 85      │ 10  │ '0.01%'     │ undefined │
+  // │ 86      │ 9   │ '0.01%'     │ undefined │
+  // │ 87      │ 8   │ '0.00%'     │ undefined │
+  // │ 88      │ 7   │ '0.00%'     │ undefined │
+  // │ 89      │ 6   │ '0.01%'     │ undefined │
+  // │ 90      │ 5   │ '0.00%'     │ undefined │
+  // │ 91      │ 4   │ '0.00%'     │ undefined │
+  // │ 92      │ 3   │ '0.01%'     │ undefined │
+  // │ 93      │ 2   │ '0.00%'     │ undefined │
+  // │ 94      │ 1   │ '0.00%'     │ undefined │
+  // │ 95      │ 0   │ '0.01%'     │ undefined │
+  // └─────────┴─────┴─────────────┴───────────┘
+}
+
+function example8() {
+  const gen = gens.get(9);
+
+  const attacker = new DMG.Pokemon(gen, 'Sneasel');
+  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
+  const move = new DMG.Move(gen, 'Triple Axel', {crit: false});
+
+  //   computeTurn(attacker, target, move);
+  //   printOutput(target);
 }
 
 example7();
