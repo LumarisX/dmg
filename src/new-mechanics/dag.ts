@@ -206,7 +206,7 @@ export class DAG<T> {
     }
   }
 
-  visualize(maxDepth: number = Infinity): void {
+  visualize(maxDepth: number = Infinity, label?: (t: T) => string): void {
     console.log('=== DAG Structure Visualization ===\n');
 
     const visited = new Set<string>();
@@ -220,12 +220,14 @@ export class DAG<T> {
       const isRepeated = visited.has(nodeKey);
       visited.add(nodeKey);
 
-      const indent = '    '.repeat(depth);
+      const indent = '  '.repeat(depth);
       const probPercent = (edgeProbability * 100).toFixed(2);
-      const nodeStr = JSON.stringify(node.value);
+      const nodeStr = label ? label(node.value) : JSON.stringify(node.value);
       const repeated = isRepeated ? ' (deduplicated)' : '';
 
-      console.log(`${indent}├─ [${probPercent}%] ${nodeStr}${repeated}`);
+      // ─│┌┐└┘├┤┬┴┼
+
+      console.log(`${indent}└─┬ [${probPercent}%] ${nodeStr}${repeated}`);
 
       if (!isRepeated) {
         for (const edge of node.children.values()) {

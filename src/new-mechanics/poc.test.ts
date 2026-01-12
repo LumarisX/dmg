@@ -1,7 +1,7 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/dex';
 import {DMG} from './dmg';
-import {computeTurn} from './poc';
+import {computeTurn, TurnResult} from './poc';
 
 const gens = new Generations(Dex);
 const GEN_NUM = 9;
@@ -29,6 +29,17 @@ function setupTest(options: TestSetupOptions = {}) {
   return {gen, attacker, target, move};
 }
 
+/**
+ * Helper to calculate probabilities from TurnResult outcomes
+ */
+function getOutcomeProbabilities(result: TurnResult) {
+  return {
+    getTotalProbability: (predicate?: (s: DMG.PokemonState) => boolean) => {
+      return result.outcomes.filter(o => !predicate || predicate(o.state)).reduce((sum, o) => sum + o.probability, 0);
+    },
+  };
+}
+
 describe('POC - Damage Calculator with Probability States', () => {
   // ============================================================================
   // Single Attack Tests
@@ -43,12 +54,13 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
+        const result = computeTurn(attacker, target, move);
+        const states = getOutcomeProbabilities(result);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         expect(itemProbability).toBeCloseTo(0.4375, TOLERANCE);
         // Target should survive single non-lethal attack
@@ -66,12 +78,13 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
+        const result = computeTurn(attacker, target, move);
+        const states = getOutcomeProbabilities(result);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         // Item should be consumed by critical hit
         expect(itemProbability).toBeCloseTo(0, TOLERANCE);
@@ -89,12 +102,13 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
+        const result = computeTurn(attacker, target, move);
+        const states = getOutcomeProbabilities(result);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         // Expected: (0.95 * 0.4375) + (0.05 * 1.0) = 0.4938 (item not consumed on miss)
         expect(itemProbability).toBeCloseTo(0.4938, TOLERANCE);
@@ -117,13 +131,14 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
-        computeTurn(attacker, target, move);
+        const result1 = computeTurn(attacker, target, move);
+        const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+        const states = getOutcomeProbabilities(result2);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         // Expected: (0.4375)^2 = 0.1914 with rounding variance
         expect(itemProbability).toBeCloseTo(0.1992, TOLERANCE);
@@ -141,13 +156,14 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
-        computeTurn(attacker, target, move);
+        const result1 = computeTurn(attacker, target, move);
+        const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+        const states = getOutcomeProbabilities(result2);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         expect(itemProbability).toBeCloseTo(0.2301, TOLERANCE);
         expect(koProbability).toBeCloseTo(0.1786, TOLERANCE);
@@ -163,13 +179,14 @@ describe('POC - Damage Calculator with Probability States', () => {
         });
 
         // Act
-        computeTurn(attacker, target, move);
-        computeTurn(attacker, target, move);
+        const result1 = computeTurn(attacker, target, move);
+        const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+        const states = getOutcomeProbabilities(result2);
 
         // Assert
-        const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-        const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-        const totalProbability = target.states.getTotalProbability();
+        const itemProbability = states.getTotalProbability(t => t.item !== null);
+        const koProbability = states.getTotalProbability(state => state.hp === 0);
+        const totalProbability = states.getTotalProbability();
 
         expect(itemProbability).toBeCloseTo(0.2004, TOLERANCE);
         expect(koProbability).toBeCloseTo(0.2004, TOLERANCE);
@@ -188,10 +205,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       const {attacker, target, move} = setupTest();
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert
-      const totalProbability = target.states.getTotalProbability();
+      const totalProbability = states.getTotalProbability();
       expect(totalProbability).toBeCloseTo(1, TOLERANCE);
     });
 
@@ -200,12 +218,13 @@ describe('POC - Damage Calculator with Probability States', () => {
       const {attacker, target, move} = setupTest();
 
       // Act
-      computeTurn(attacker, target, move);
-      computeTurn(attacker, target, move);
-      computeTurn(attacker, target, move);
+      const result1 = computeTurn(attacker, target, move);
+      const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+      const result3 = computeTurn(attacker, target, move, result2.tree, result2.outcomes);
+      const states = getOutcomeProbabilities(result3);
 
       // Assert
-      const totalProbability = target.states.getTotalProbability();
+      const totalProbability = states.getTotalProbability();
       expect(totalProbability).toBeCloseTo(1, TOLERANCE);
     });
 
@@ -214,10 +233,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       const {attacker, target, move} = setupTest();
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert
-      const totalProbability = target.states.getTotalProbability();
+      const totalProbability = states.getTotalProbability();
       expect(totalProbability).toBeGreaterThan(0);
       expect(totalProbability).toBeCloseTo(1, TOLERANCE);
     });
@@ -231,10 +251,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert - Item should be retained in at least some probability branches
-      const itemRetainedProb = target.states.getTotalProbability(t => t.item !== null);
+      const itemRetainedProb = states.getTotalProbability(t => t.item !== null);
       expect(itemRetainedProb).toBeGreaterThan(0);
     });
 
@@ -245,10 +266,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert - Item should be consumed in at least some probability branches
-      const itemConsumedProb = target.states.getTotalProbability(t => t.item === null);
+      const itemConsumedProb = states.getTotalProbability(t => t.item === null);
       expect(itemConsumedProb).toBeGreaterThan(0);
     });
 
@@ -270,12 +292,14 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attackerNoCrit, targetNoCrit, moveNoCrit);
-      computeTurn(attackerCrit, targetCrit, moveCrit);
+      const resultNoCrit = computeTurn(attackerNoCrit, targetNoCrit, moveNoCrit);
+      const resultCrit = computeTurn(attackerCrit, targetCrit, moveCrit);
+      const statesNoCrit = getOutcomeProbabilities(resultNoCrit);
+      const statesCrit = getOutcomeProbabilities(resultCrit);
 
       // Assert - Critical hit should consume item more often (higher damage)
-      const itemProbNoCrit = targetNoCrit.states.getTotalProbability(t => t.item === null);
-      const itemProbCrit = targetCrit.states.getTotalProbability(t => t.item === null);
+      const itemProbNoCrit = statesNoCrit.getTotalProbability(t => t.item === null);
+      const itemProbCrit = statesCrit.getTotalProbability(t => t.item === null);
 
       expect(itemProbCrit).toBeGreaterThanOrEqual(itemProbNoCrit);
     });
@@ -300,13 +324,15 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker95, target95, move95);
-      computeTurn(attackerAlways, targetAlways, moveAlways);
+      const result95 = computeTurn(attacker95, target95, move95);
+      const resultAlways = computeTurn(attackerAlways, targetAlways, moveAlways);
+      const states95 = getOutcomeProbabilities(result95);
+      const statesAlways = getOutcomeProbabilities(resultAlways);
 
       // Assert - Always hit should have higher item consumption probability
       // (because miss leaves item intact, while hit consumes it)
-      const itemConsume95 = target95.states.getTotalProbability(t => t.item === null);
-      const itemConsumeAlways = targetAlways.states.getTotalProbability(t => t.item === null);
+      const itemConsume95 = states95.getTotalProbability(t => t.item === null);
+      const itemConsumeAlways = statesAlways.getTotalProbability(t => t.item === null);
 
       expect(itemConsumeAlways).toBeGreaterThanOrEqual(itemConsume95);
     });
@@ -318,10 +344,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert - Should have some probability where target HP is unchanged (miss)
-      const targetUnchangedProb = target.states.getTotalProbability(t => t.hp > 0 && t.item !== null);
+      const targetUnchangedProb = states.getTotalProbability(t => t.hp > 0 && t.item !== null);
       expect(targetUnchangedProb).toBeGreaterThan(0);
     });
   });
@@ -334,10 +361,11 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert - Just verify probability distribution is valid
-      const totalProb = target.states.getTotalProbability();
+      const totalProb = states.getTotalProbability();
       expect(totalProb).toBeCloseTo(1, TOLERANCE);
     });
 
@@ -348,11 +376,12 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert - Should have valid probability distribution
-      const survivalProb = target.states.getTotalProbability(t => t.hp > 0);
-      const koProb = target.states.getTotalProbability(t => t.hp === 0);
+      const survivalProb = states.getTotalProbability(t => t.hp > 0);
+      const koProb = states.getTotalProbability(t => t.hp === 0);
 
       // At least one of these should have positive probability
       expect(survivalProb + koProb).toBeCloseTo(1, TOLERANCE);
@@ -417,12 +446,13 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert
-      const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-      const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-      const totalProbability = target.states.getTotalProbability();
+      const itemProbability = states.getTotalProbability(t => t.item !== null);
+      const koProbability = states.getTotalProbability(state => state.hp === 0);
+      const totalProbability = states.getTotalProbability();
 
       expect(itemProbability).toBeCloseTo(0, TOLERANCE);
       expect(koProbability).toBe(0);
@@ -436,12 +466,13 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
+      const result = computeTurn(attacker, target, move);
+      const states = getOutcomeProbabilities(result);
 
       // Assert
-      const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-      const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-      const totalProbability = target.states.getTotalProbability();
+      const itemProbability = states.getTotalProbability(t => t.item !== null);
+      const koProbability = states.getTotalProbability(state => state.hp === 0);
+      const totalProbability = states.getTotalProbability();
 
       expect(itemProbability).toBeCloseTo(0.4938, TOLERANCE);
       expect(koProbability).toBe(0);
@@ -455,13 +486,14 @@ describe('POC - Damage Calculator with Probability States', () => {
       });
 
       // Act
-      computeTurn(attacker, target, move);
-      computeTurn(attacker, target, move);
+      const result1 = computeTurn(attacker, target, move);
+      const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+      const states = getOutcomeProbabilities(result2);
 
       // Assert
-      const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-      const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-      const totalProbability = target.states.getTotalProbability();
+      const itemProbability = states.getTotalProbability(t => t.item !== null);
+      const koProbability = states.getTotalProbability(state => state.hp === 0);
+      const totalProbability = states.getTotalProbability();
 
       expect(itemProbability).toBeCloseTo(0.2004, TOLERANCE);
       expect(koProbability).toBeCloseTo(0.2004, TOLERANCE);
@@ -473,13 +505,14 @@ describe('POC - Damage Calculator with Probability States', () => {
       const {attacker, target, move} = setupTest();
 
       // Act
-      computeTurn(attacker, target, move);
-      computeTurn(attacker, target, move);
+      const result1 = computeTurn(attacker, target, move);
+      const result2 = computeTurn(attacker, target, move, result1.tree, result1.outcomes);
+      const states = getOutcomeProbabilities(result2);
 
       // Assert
-      const itemProbability = target.states.getTotalProbability(t => t.item !== null);
-      const koProbability = target.states.getTotalProbability(state => state.hp === 0);
-      const totalProbability = target.states.getTotalProbability();
+      const itemProbability = states.getTotalProbability(t => t.item !== null);
+      const koProbability = states.getTotalProbability(state => state.hp === 0);
+      const totalProbability = states.getTotalProbability();
 
       expect(itemProbability).toBeCloseTo(0.2301, TOLERANCE);
       expect(koProbability).toBeCloseTo(0.1786, TOLERANCE);

@@ -4,6 +4,16 @@ interface Event<T> {
   probability: number;
 }
 
+interface Variant<T> {
+  value: Partial<T> | ((value: T) => Partial<T>);
+  weight: number;
+}
+
+interface Transformation<T> {
+  transform: (value: T) => void;
+  weight: number;
+}
+
 function createEvent<T>(value: T, id: string, probability: number): Event<T> {
   return {value, id, probability};
 }
@@ -13,84 +23,201 @@ export class EventSpace<T> {
   private readonly serializer: (value: T) => string;
   private readonly probabilityFloor: number;
 
+  // ============================================================================
+  // Constructor & Initialization
+  // ============================================================================
+
   constructor(source: T | Array<{value: T; weight: number}>, serializer: (value: T) => string, options?: {probabilityFloor?: number}) {
     this.serializer = serializer;
     this.probabilityFloor = Math.max(0.000000001, Math.min(options?.probabilityFloor ?? 0, 1));
 
     if (Array.isArray(source)) {
-      const totalWeight = source.reduce((sum, entry) => sum + Math.max(entry.weight, 0), 0);
-
-      if (totalWeight <= 0) throw new Error('Total weight must be greater than 0');
-
-      for (const entry of source) {
-        const weight = Math.max(entry.weight, 0);
-        if (weight > 0) {
-          const id = serializer(entry.value);
-          const probability = weight / totalWeight;
-          if (probability > this.probabilityFloor) {
-            this.eventMap.set(id, createEvent(entry.value, id, probability));
-          }
-        }
-      }
-
-      if (this.eventMap.size === 0) throw new Error('Must provide at least one event with weight above the floor');
+      this.initializeFromWeightedArray(source);
     } else {
       const id = serializer(source);
       this.eventMap.set(id, createEvent(source, id, 1));
     }
   }
 
-  addTransition(from: T, to: T, probability: number): void {
-    if (probability < 0 || probability > 1) {
-      throw new Error(`Probability must be between 0 and 1, got ${probability}`);
-    }
-    if (probability <= this.probabilityFloor) return;
+  private initializeFromWeightedArray(source: Array<{value: T; weight: number}>): void {
+    const totalWeight = source.reduce((sum, entry) => sum + Math.max(entry.weight, 0), 0);
 
-    const fromId = this.serializer(from);
-    const toId = this.serializer(to);
+    if (totalWeight <= 0) throw new Error('Total weight must be greater than 0');
 
-    const sourceOutcome = this.eventMap.get(fromId);
-    if (!sourceOutcome) {
-      throw new Error(`Source node ${fromId} not found in EventSpace`);
-    }
-
-    sourceOutcome.probability -= probability;
-    if (sourceOutcome.probability <= this.probabilityFloor) {
-      this.eventMap.delete(fromId);
+    for (const entry of source) {
+      const weight = Math.max(entry.weight, 0);
+      if (weight > 0) {
+        const id = this.serializer(entry.value);
+        const probability = weight / totalWeight;
+        if (this.isAboveFloor(probability)) {
+          this.eventMap.set(id, createEvent(entry.value, id, probability));
+        }
+      }
     }
 
-    const existingTarget = this.eventMap.get(toId);
-    if (existingTarget) {
-      existingTarget.probability += probability;
-    } else {
-      this.eventMap.set(toId, createEvent(to, toId, probability));
+    if (this.eventMap.size === 0) throw new Error('Must provide at least one event with weight above the floor');
+  }
+
+  // ============================================================================
+  // Private Helpers
+  // ============================================================================
+
+  /**
+   * Validates that a probability value is in the range [0, 1].
+   */
+  private validateProbability(value: number, name: string = 'Probability'): void {
+    if (value < 0 || value > 1) {
+      throw new Error(`${name} must be between 0 and 1, got ${value}`);
     }
   }
+
+  /**
+   * Checks if a probability is above the floor threshold.
+   */
+  private isAboveFloor(probability: number): boolean {
+    return probability > this.probabilityFloor;
+  }
+
+  /**
+   * Checks if a probability is below or at the floor threshold.
+   */
+  private isBelowOrAtFloor(probability: number): boolean {
+    return probability <= this.probabilityFloor;
+  }
+
+  /**
+   * Retrieves an event by its serialized ID, throwing if not found.
+   */
+  private getEventByValue(value: T, errorContext: string = ''): Event<T> {
+    const id = this.serializer(value);
+    const event = this.eventMap.get(id);
+    if (!event) {
+      throw new Error(`${errorContext} Event ${id} not found in EventSpace`);
+    }
+    return event;
+  }
+
+  /**
+   * Transfers probability from a source event to a target value,
+   * removing the source if its probability drops below the floor.
+   */
+  private transferProbability(source: Event<T>, targetValue: T, amount: number): void {
+    source.probability -= amount;
+    if (this.isBelowOrAtFloor(source.probability)) {
+      this.eventMap.delete(source.id);
+    }
+    this.addEventProbability(targetValue, amount);
+  }
+
+  /**
+   * Adds probability to an existing event or creates a new one if it doesn't exist.
+   */
+  private addEventProbability(value: T, probability: number): void {
+    const id = this.serializer(value);
+    const existing = this.eventMap.get(id);
+    if (existing) {
+      existing.probability += probability;
+    } else {
+      this.eventMap.set(id, createEvent(value, id, probability));
+    }
+  }
+
+  /**
+   * Resolves a value or function to a partial object.
+   */
+  private resolvePartial(partialOrFn: Partial<T> | ((value: T) => Partial<T>), value: T): Partial<T> {
+    return typeof partialOrFn === 'function' ? partialOrFn(value) : partialOrFn;
+  }
+
+  /**
+   * Merges a partial into a value and returns the new value.
+   */
+  private mergeValue(value: T, partial: Partial<T>): T {
+    return {...value, ...partial};
+  }
+
+  /**
+   * Clones a value and applies a transformation function to it.
+   */
+  private cloneAndTransform(value: T, transform: (value: T) => void): T {
+    const newValue = {...value};
+    transform(newValue);
+    return newValue;
+  }
+
+  /**
+   * Validates and calculates the total weight from an array.
+   */
+  private calculateTotalWeight(weights: number[]): number {
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    if (totalWeight <= 0) {
+      throw new Error('Total weight must be greater than 0');
+    }
+    return totalWeight;
+  }
+
+  /**
+   * Normalizes an array of weights to sum to 1.0.
+   */
+  private normalizeWeights(weights: number[], totalWeight: number): number[] {
+    return weights.map(w => w / totalWeight);
+  }
+
+  /**
+   * Gets all events matching a predicate.
+   */
+  private getMatchingEvents(predicate: (value: T) => boolean): Event<T>[] {
+    return Array.from(this.eventMap.values()).filter(e => predicate(e.value));
+  }
+
+  /**
+   * Removes all events matching a predicate from the map.
+   */
+  private removeMatchingEvents(predicate: (value: T) => boolean): Event<T>[] {
+    const matching = this.getMatchingEvents(predicate);
+    for (const event of matching) {
+      this.eventMap.delete(event.id);
+    }
+    return matching;
+  }
+
+  /**
+   * Validates that a weighted variant array contains at least one item with weight > 0.
+   */
+  private validateVariants<U extends {weight: number}>(items: U[], name: string = 'Variants'): void {
+    if (items.length === 0) {
+      throw new Error(`${name} array must not be empty`);
+    }
+    if (items.some(item => item.weight < 0)) {
+      throw new Error(`${name} weights must be non-negative`);
+    }
+  }
+
+  // ============================================================================
+  // Event Queries
+  // ============================================================================
 
   getOutcomes(): Event<T>[] {
     return Array.from(this.eventMap.values());
   }
 
   getLeafOutcomes(): Event<T>[] {
-    return Array.from(this.eventMap.values()).filter(e => e.probability > this.probabilityFloor);
+    return this.getOutcomes().filter(e => this.isAboveFloor(e.probability));
   }
 
   getProbabilityDistribution(): Map<string, number> {
     const distribution = new Map<string, number>();
-    for (const [id, outcome] of this.eventMap) {
-      distribution.set(id, outcome.probability);
+    for (const [id, event] of this.eventMap) {
+      distribution.set(id, event.probability);
     }
     return distribution;
   }
 
   /**
    * Filters outcomes by predicate and returns the total probability.
-   *
-   * @param predicate - Function to identify which outcomes to include
-   * @returns Total probability of all outcomes matching the predicate
    */
-  getTotalProbability(predicate: (value: T) => boolean = value => true): number {
-    return Array.from(this.eventMap.values())
+  getTotalProbability(predicate: (value: T) => boolean = () => true): number {
+    return this.getOutcomes()
       .filter(e => predicate(e.value))
       .reduce((sum, e) => sum + e.probability, 0);
   }
@@ -99,308 +226,176 @@ export class EventSpace<T> {
     return this.eventMap.size;
   }
 
+  getEvents(predicate: (value: T) => boolean): Event<T>[] {
+    return this.getMatchingEvents(predicate);
+  }
+
+  // ============================================================================
+  // Single Event Transformations
+  // ============================================================================
+
+  addTransition(from: T, to: T, probability: number): void {
+    this.validateProbability(probability, 'Transition probability');
+    if (this.isBelowOrAtFloor(probability)) return;
+
+    const source = this.getEventByValue(from, 'Source');
+    this.transferProbability(source, to, probability);
+  }
+
   /**
    * Splits a portion of an event off into a new variant by relative weight.
-   * The source event's probability is reduced, and a new event is created
-   * with the specified partial properties merged in.
-   *
-   * @param from - The event to split from (must exist in the space)
-   * @param partial - Partial properties (static or computed function)
-   * @param relativeWeight - Fraction of `from`'s probability to move (0-1)
    */
   splitEvent(from: T, partial: Partial<T> | ((value: T) => Partial<T>), relativeWeight: number): void {
-    if (relativeWeight < 0 || relativeWeight > 1) {
-      throw new Error(`Relative weight must be between 0 and 1, got ${relativeWeight}`);
-    }
-    if (relativeWeight <= this.probabilityFloor) return;
+    this.validateProbability(relativeWeight, 'Relative weight');
+    if (this.isBelowOrAtFloor(relativeWeight)) return;
 
-    const fromId = this.serializer(from);
-    const sourceEvent = this.eventMap.get(fromId);
+    const source = this.getEventByValue(from, 'Source');
+    const probabilityToTransfer = source.probability * relativeWeight;
+    const resolvedPartial = this.resolvePartial(partial, from);
+    const newValue = this.mergeValue(from, resolvedPartial);
 
-    if (!sourceEvent) {
-      throw new Error(`Source event ${fromId} not found in EventSpace`);
-    }
-
-    const probabilityToTransfer = sourceEvent.probability * relativeWeight;
-
-    const partialValue = typeof partial === 'function' ? partial(from) : partial;
-    const newValue = {...from, ...partialValue};
-    const newId = this.serializer(newValue);
-
-    sourceEvent.probability -= probabilityToTransfer;
-    if (sourceEvent.probability <= this.probabilityFloor) {
-      this.eventMap.delete(fromId);
-    }
-
-    const existingTarget = this.eventMap.get(newId);
-    if (existingTarget) {
-      existingTarget.probability += probabilityToTransfer;
-    } else {
-      this.eventMap.set(newId, createEvent(newValue, newId, probabilityToTransfer));
-    }
+    this.transferProbability(source, newValue, probabilityToTransfer);
   }
 
   /**
    * Distributes an event across multiple variants with explicit weight distribution.
-   * The source event is removed, and its probability is distributed among the variants
-   * according to their weights (which are normalized).
-   *
-   * @param from - The event to distribute from (must exist in the space)
-   * @param variants - Array of {value: Partial<T> | (T) => Partial<T>, weight: number} pairs
    */
-  distributeEvent(from: T, variants: Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>): void {
-    if (variants.length === 0) {
-      throw new Error('Must provide at least one variant');
-    }
-
-    const fromId = this.serializer(from);
-    const sourceEvent = this.eventMap.get(fromId);
-
-    if (!sourceEvent) {
-      throw new Error(`Source event ${fromId} not found in EventSpace`);
-    }
-
-    const sourceProbability = sourceEvent.probability;
-    const totalWeight = variants.reduce((sum, v) => sum + v.weight, 0);
-
-    if (totalWeight <= 0) {
-      throw new Error('Total weight must be greater than 0');
-    }
-
-    // Remove source event
-    this.eventMap.delete(fromId);
-
-    // Distribute to variants
-    for (const variant of variants) {
-      if (variant.weight < 0) {
-        throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
-      }
-      if (variant.weight <= this.probabilityFloor) continue;
-
-      const variantProbability = (variant.weight / totalWeight) * sourceProbability;
-      const variantValue = typeof variant.value === 'function' ? variant.value(from) : variant.value;
-      const newValue = {...from, ...variantValue};
-      const newId = this.serializer(newValue);
-
-      const existingTarget = this.eventMap.get(newId);
-      if (existingTarget) {
-        existingTarget.probability += variantProbability;
-      } else {
-        this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
-      }
-    }
+  distributeEvent(from: T, variants: Variant<T>[]): void {
+    const source = this.getEventByValue(from, 'Source');
+    this.eventMap.delete(source.id);
+    this.applyVariants(source, variants, from);
   }
 
+  // ============================================================================
+  // Filtered Event Transformations
+  // ============================================================================
+
   /**
-   * Splits a portion of all events matching a predicate off into new variants.
-   * All matching events have their probability reduced, and new events are created
-   * by applying the transformer function to a shallow copy.
-   *
-   * @param predicate - Function to identify which events to split from
-   * @param transformer - Function that mutates/transforms a copy of the event
-   * @param relativeWeight - Fraction of each matching event's probability to move (0-1)
+   * Splits a portion of all matching events into variants.
    */
   splitEventByFilter(predicate: (value: T) => boolean, transformer: (value: T) => void, relativeWeight: number): void {
-    if (relativeWeight < 0 || relativeWeight > 1) {
-      throw new Error(`Relative weight must be between 0 and 1, got ${relativeWeight}`);
-    }
-    if (relativeWeight <= this.probabilityFloor) return;
+    this.validateProbability(relativeWeight, 'Relative weight');
+    if (this.isBelowOrAtFloor(relativeWeight)) return;
 
-    // Find all matching events
-    const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
+    const matchingEvents = this.getMatchingEvents(predicate);
+    if (matchingEvents.length === 0) return;
 
-    if (matchingEvents.length === 0) {
-      return; // No events match, nothing to do
-    }
-
-    for (const sourceEvent of matchingEvents) {
-      const probabilityToTransfer = sourceEvent.probability * relativeWeight;
-
-      // Create a shallow copy and apply transformer
-      const newValue = {...sourceEvent.value};
-      transformer(newValue);
-      const newId = this.serializer(newValue);
-
-      // Reduce source probability
-      sourceEvent.probability -= probabilityToTransfer;
-      if (sourceEvent.probability <= this.probabilityFloor) {
-        this.eventMap.delete(sourceEvent.id);
-      }
-
-      // Add or update target event
-      const existingTarget = this.eventMap.get(newId);
-      if (existingTarget) {
-        existingTarget.probability += probabilityToTransfer;
-      } else {
-        this.eventMap.set(newId, createEvent(newValue, newId, probabilityToTransfer));
-      }
+    for (const source of matchingEvents) {
+      const probabilityToTransfer = source.probability * relativeWeight;
+      const newValue = this.cloneAndTransform(source.value, transformer);
+      this.transferProbability(source, newValue, probabilityToTransfer);
     }
   }
 
   /**
-   * Distributes all events matching a predicate across multiple variants.
-   * Variants can be a static array or a function that provides per-event variants.
-   *
-   * @param predicate - Function to identify which events to distribute
-   * @param variants - Array or function providing variant transformations with weights
+   * Applies static transformations to all matching events.
+   * Delegates to transformEventByFilterPerEvent with a constant transformer.
    */
-  distributeEventByFilter(
-    predicate: (value: T) => boolean,
-    variants:
-      | Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>
-      | ((value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>)
-  ): void {
-    // Find all matching events and calculate total probability
-    const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
-
-    if (matchingEvents.length === 0) {
-      return; // No events match, nothing to do
-    }
-
-    // Resolve variants - could be an array or a function that returns an array
-    const resolvedVariants = typeof variants === 'function' ? variants(matchingEvents[0].value) : variants;
-
-    if (resolvedVariants.length === 0) {
-      throw new Error('Must provide at least one variant');
-    }
-
-    const totalSourceProbability = matchingEvents.reduce((sum, e) => sum + e.probability, 0);
-    const totalWeight = resolvedVariants.reduce((sum, v) => sum + v.weight, 0);
-
-    if (totalWeight <= 0) {
-      throw new Error('Total weight must be greater than 0');
-    }
-
-    // Remove all matching events
-    for (const event of matchingEvents) {
-      this.eventMap.delete(event.id);
-    }
-
-    // Distribute their combined probability to variants
-    // If variants use computed functions, apply each variant to each matching event
-    // to create all combinations. Otherwise, distribute combined probability proportionally.
-    const hasComputedVariants = resolvedVariants.some(v => typeof v.value === 'function');
-
-    if (hasComputedVariants) {
-      // Computed variants: create cross-product of all matching events with all variants
-      for (const matchingEvent of matchingEvents) {
-        for (const variant of resolvedVariants) {
-          if (variant.weight < 0) {
-            throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
-          }
-          if (variant.weight <= this.probabilityFloor) continue;
-
-          // Each combination gets weighted by the variant's relative weight
-          const variantProbability = (variant.weight / totalWeight) * matchingEvent.probability;
-          const variantValue = typeof variant.value === 'function' ? variant.value(matchingEvent.value) : variant.value;
-          const newValue = {...matchingEvent.value, ...variantValue};
-          const newId = this.serializer(newValue);
-
-          const existingTarget = this.eventMap.get(newId);
-          if (existingTarget) {
-            existingTarget.probability += variantProbability;
-          } else {
-            this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
-          }
-        }
-      }
-    } else {
-      for (const variant of resolvedVariants) {
-        if (variant.weight < 0) {
-          throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
-        }
-        if (variant.weight <= this.probabilityFloor) continue;
-
-        const variantProbability = (variant.weight / totalWeight) * totalSourceProbability;
-        const baseEvent = matchingEvents[0];
-        const variantValue = variant.value as Partial<T>;
-        const newValue = {...baseEvent.value, ...variantValue};
-        const newId = this.serializer(newValue);
-
-        const existingTarget = this.eventMap.get(newId);
-        if (existingTarget) {
-          existingTarget.probability += variantProbability;
-        } else {
-          this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
-        }
-      }
-    }
+  transformEventByFilter(predicate: (value: T) => boolean, transformations: Transformation<T>[]): void {
+    this.transformEventByFilterPerEvent(predicate, () => transformations);
   }
 
   /**
-   * Distributes all events matching a predicate to context-specific variants.
-   * Calls variantsProvider once per matching event to generate variants
-   * that can adapt based on each event's state.
-   *
-   * @param predicate - Function to identify which events to distribute
-   * @param variantsProvider - Function called for each matching event returning variant array
+   * Applies context-dependent transformations to all matching events.
+   * Each matching event is replaced by weighted outcome variants.
    */
-  distributeEventByFilterPerEvent(
-    predicate: (value: T) => boolean,
-    variantsProvider: (value: T) => Array<{value: Partial<T> | ((value: T) => Partial<T>); weight: number}>
-  ): void {
-    // Find all matching events
-    const matchingEvents = Array.from(this.eventMap.values()).filter(e => predicate(e.value));
+  transformEventByFilterPerEvent(predicate: (value: T) => boolean, transformer: (value: T) => Transformation<T>[]): void {
+    const matchingEvents = this.removeMatchingEvents(predicate);
+    if (matchingEvents.length === 0) return;
 
-    if (matchingEvents.length === 0) {
-      return; // No events match, nothing to do
+    for (const source of matchingEvents) {
+      this.applyTransformations(source, transformer(source.value));
     }
-
-    // Remove all matching events
-    for (const event of matchingEvents) {
-      this.eventMap.delete(event.id);
-    }
-
-    // For each matching event, get its variants and distribute independently
-    for (const matchingEvent of matchingEvents) {
-      const resolvedVariants = variantsProvider(matchingEvent.value);
-
-      if (resolvedVariants.length === 0) {
-        throw new Error('Variants provider must return at least one variant');
-      }
-
-      const totalWeight = resolvedVariants.reduce((sum, v) => sum + v.weight, 0);
-
-      if (totalWeight <= 0) {
-        throw new Error('Total weight must be greater than 0');
-      }
-
-      // Distribute this event's probability to its variants
-      for (const variant of resolvedVariants) {
-        if (variant.weight < 0) {
-          throw new Error(`Variant weight must be non-negative, got ${variant.weight}`);
-        }
-        if (variant.weight <= this.probabilityFloor) continue;
-
-        const variantProbability = (variant.weight / totalWeight) * matchingEvent.probability;
-
-        // Resolve variant value
-        const variantValue = typeof variant.value === 'function' ? variant.value(matchingEvent.value) : variant.value;
-        const newValue = {...matchingEvent.value, ...variantValue};
-        const newId = this.serializer(newValue);
-
-        const existingTarget = this.eventMap.get(newId);
-        if (existingTarget) {
-          existingTarget.probability += variantProbability;
-        } else {
-          this.eventMap.set(newId, createEvent(newValue, newId, variantProbability));
-        }
-      }
-    }
-  }
-
-  getEvents(predicate: (value: T) => boolean) {
-    return Array.from(this.eventMap.values()).filter(e => predicate(e.value));
   }
 
   /**
-   * Projects this EventSpace into a sub-space using a different key generator.
-   * States that map to the same key under the new serializer have their probabilities
-   * aggregated together, effectively ignoring differences in properties not captured
-   * by the new serializer.
-   *
-   * @param newSerializer - Key generator for the sub-space
-   * @returns A new EventSpace<T> where equivalent states are merged by probability
+   * Generic helper to apply weighted items (transformations or variants) to a single event.
+   */
+  private applyWeightedItems<U extends {weight: number}>(
+    sourceEvent: Event<T>,
+    items: U[],
+    itemName: string,
+    createValue: (item: U, index: number, fromValue: T) => T
+  ): void {
+    if (items.length === 0) {
+      throw new Error(`${itemName} must contain at least one item`);
+    }
+
+    this.validateVariants(items, itemName);
+    const weights = items.map(item => item.weight);
+    const totalWeight = this.calculateTotalWeight(weights);
+    const normalized = this.normalizeWeights(weights, totalWeight);
+
+    for (let i = 0; i < items.length; i++) {
+      if (this.isBelowOrAtFloor(normalized[i])) continue;
+
+      const probability = normalized[i] * sourceEvent.probability;
+      const newValue = createValue(items[i], i, sourceEvent.value);
+
+      this.addEventProbability(newValue, probability);
+    }
+  }
+
+  /**
+   * Helper: Applies weighted transformations to a single event.
+   */
+  private applyTransformations(sourceEvent: Event<T>, transformations: Transformation<T>[]): void {
+    this.applyWeightedItems(sourceEvent, transformations, 'Transformations', (transformation, _, fromValue) =>
+      this.cloneAndTransform(fromValue, transformation.transform)
+    );
+  }
+
+  /**
+   * Distributes all matching events to context-specific variants.
+   * Delegates to distributeEventByFilterPerEvent with a constant variants provider.
+   */
+  distributeEventByFilter(predicate: (value: T) => boolean, variants: Variant<T>[]): void {
+    this.distributeEventByFilterPerEvent(predicate, () => variants);
+  }
+
+  /**
+   * Distributes all matching events to context-specific variants.
+   * Each matching event is replaced by weighted outcome variants.
+   */
+  distributeEventByFilterPerEvent(predicate: (value: T) => boolean, variantsProvider: (value: T) => Variant<T>[]): void {
+    const matchingEvents = this.removeMatchingEvents(predicate);
+    if (matchingEvents.length === 0) return;
+
+    for (const source of matchingEvents) {
+      const variants = variantsProvider(source.value);
+      this.applyVariants(source, variants, source.value);
+    }
+  }
+
+  /**
+   * Helper: Applies weighted variants to a single event.
+   */
+  private applyVariants(sourceEvent: Event<T>, variants: Variant<T>[], fromValue: T): void {
+    this.applyWeightedItems(sourceEvent, variants, 'Variants', (variant, _, sourceValue) => {
+      const resolvedPartial = this.resolvePartial(variant.value, sourceValue);
+      return this.mergeValue(sourceValue, resolvedPartial);
+    });
+  }
+
+  // ============================================================================
+  // Projections & Utilities
+  // ============================================================================
+
+  /**
+   * Clones this EventSpace into a new independent instance with the same state.
+   */
+  clone(): EventSpace<T> {
+    const outcomes = this.getOutcomes();
+    const weighted = outcomes.map(e => ({
+      value: {...e.value},
+      weight: e.probability,
+    }));
+    return new EventSpace(weighted, this.serializer, {probabilityFloor: this.probabilityFloor});
+  }
+
+  /**
+   * Projects this EventSpace into a sub-space using a different serializer.
+   * Probabilities of events that map to the same ID are aggregated.
    */
   projectToSubspace(newSerializer: (value: T) => string): EventSpace<T> {
     const outcomes = this.getOutcomes();

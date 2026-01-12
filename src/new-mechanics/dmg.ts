@@ -2,6 +2,8 @@ import {
   As,
   BoostsTable,
   ConditionData,
+  GameType,
+  GenderName,
   Generation,
   GenerationNum,
   HitEffect,
@@ -10,15 +12,20 @@ import {
   Move as MoveData,
   MoveTarget,
   Nature,
+  NatureName,
   SecondaryEffect,
   Specie,
   SpeciesName,
   StatID,
   StatsTable,
   StatusName,
+  Type,
   TypeName,
 } from '@pkmn/data';
 import {EventSpace} from './event-space';
+import {HitState} from './poc';
+import {floor, round} from '../math';
+import {toID} from '../utils';
 
 export namespace DMG {
   export interface PokemonState {
@@ -26,6 +33,7 @@ export namespace DMG {
     item?: string | null;
     types: [TypeName] | [TypeName, TypeName];
     ability: string;
+    hits: HitState[];
 
     readonly level: number;
     readonly stats: StatsTable;
@@ -37,18 +45,31 @@ export namespace DMG {
   export interface PokemonOptions {
     name?: SpeciesName;
     weightkg?: number;
+    weighthg?: number;
     item?: string;
     ability?: string;
     nature?: string;
     status?: string;
+    statusState?: {toxicTurns?: number};
     hpPercent?: number;
-    // volatiles?: string[] | State.Pokemon['volatiles'];
+    hp?: number;
+    maxhp?: number;
+    happiness?: number;
+    volatiles?: string[] | {[id: string]: {level?: number}};
+    types?: [TypeName] | [TypeName, TypeName];
+    addedType?: TypeName;
+    teraType?: TypeName;
     evs?: Partial<StatsTable & {spc: number}>;
     ivs?: Partial<StatsTable & {spc: number}>;
     dvs?: Partial<StatsTable & {spc: number}>;
     boosts?: Partial<BoostsTable & {spc: number}>;
-    teraType?: TypeName;
+    stats?: StatsTable;
+    gender?: GenderName;
     level?: number;
+    position?: number;
+    switching?: 'in' | 'out';
+    moveLastTurnResult?: unknown;
+    hurtThisTurn?: unknown;
   }
   export class Pokemon extends Specie implements PokemonState {
     item?: string | null;
@@ -61,24 +82,168 @@ export namespace DMG {
     ivs: StatsTable;
     ability: string;
     nature?: Nature;
+    hits: HitState[] = [];
+    species: Specie;
+    weighthg: number = 0;
+    gender?: GenderName;
+    happiness?: number;
+    status?: StatusName;
+    statusState?: {toxicTurns?: number};
+    volatiles: {[id: string]: {level?: number}} = {};
+    types!: [TypeName] | [TypeName, TypeName];
+    addedType?: TypeName;
+    teraType?: TypeName;
+    maxhp: number = 0;
+    boosts: Partial<BoostsTable> = {};
+    position?: number;
+    switching?: 'in' | 'out';
+    moveLastTurnResult?: unknown;
+    hurtThisTurn?: unknown;
+
     constructor(gen: Generation, name: string, options: Partial<PokemonOptions> = {}) {
       const species = gen.species.get(name);
       if (!species) invalid(gen, 'Pokemon', name);
       super(gen.dex, gen.exists, species);
 
+      this.species = species;
+
       this.generation = gen;
+      this.level = 100;
+      if (typeof options.level === 'number') {
+        this.level = bounded('level', options.level);
+      }
+
+      // Weight
+      this.weighthg =
+        typeof options.weighthg === 'number' ? options.weighthg : typeof options.weightkg === 'number' ? options.weightkg * 10 : species.weighthg;
+      if (this.weighthg < 1) throw new Error(`weighthg of ${this.weighthg} must be at least 1`);
+
+      // Item
+      this.item = undefined;
       this.setItem(options.item);
-      this.level = Math.max(0, options.level ?? 100);
+
+      // Ability
+      this.ability = options.ability ?? this.abilities[0];
+
+      // Happiness
+      this.happiness = typeof options.happiness === 'undefined' ? undefined : bounded('happiness', options.happiness);
+
+      // Status
+      this.status = undefined;
+      this.statusState = undefined;
+      if (options.status) {
+        const [status, kind] = getCondition(gen, options.status);
+        if (kind !== 'Status') {
+          throw new Error(`'${status} is a ${kind} not a Status in generation ${gen.num}`);
+        }
+        this.status = status as StatusName;
+        if (this.status === 'tox') this.statusState = {toxicTurns: 0};
+      }
+
+      // Status Data
+      if (options.statusState) {
+        if (options.statusState.toxicTurns) {
+          const turns = options.statusState.toxicTurns;
+          bounded('toxicCounter', turns);
+          if (this.status !== 'tox') {
+            throw new Error(`toxicTurns set to ${turns} but the Pokemon's status is not 'tox'`);
+          }
+        }
+        this.statusState = options.statusState;
+      }
+
+      // Volatiles
+      this.volatiles = setConditions(gen, 'Volatile Status', options.volatiles);
+
+      // Types
+      this.types = options.types || species.types;
+      this.addedType = options.addedType;
+
+      // Nature
+      this.nature = undefined;
+      if (options.nature) {
+        const nature = gen.natures.get(options.nature);
+        if (!nature) invalid(gen, 'nature', options.nature);
+        this.nature = nature;
+      }
+
+      // EVs
       this.evs = {} as StatsTable;
       this.ivs = {} as StatsTable;
+      setValues(gen, this, 'evs', options.evs);
+      setValues(gen, this, 'ivs', options.ivs);
+
+      // DVs
+      for (const stat of gen.stats) {
+        const val = options.dvs?.[stat];
+        if (typeof val === 'number') {
+          const dv = bounded('dvs', val);
+          if (typeof options.ivs?.[stat] === 'number' && gen.stats.toDV(options.ivs[stat]) !== dv) {
+            throw new Error(`${stat} DV of '${dv}' does not match IV of '${options.ivs[stat]}'`);
+          }
+          this.ivs[stat] = gen.stats.toIV(dv);
+        }
+      }
+      setSpc(gen, this.ivs, 'ivs', options.dvs, gen.stats.toIV.bind(gen.stats));
+
+      // Stats
       this.stats = {} as StatsTable;
-      (['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as StatID[]).forEach(stat => {
-        this.evs[stat] = Math.min(255, Math.max(0, options.evs && options.evs[stat] ? options.evs[stat] : 0));
-        this.ivs[stat] = Math.min(31, Math.max(0, options.ivs && options.ivs[stat] ? options.ivs[stat] : 31));
-        this.stats[stat] = gen.stats.calc(stat, this.baseStats[stat], this.ivs[stat], this.evs[stat], this.level, this.nature);
-      });
-      this.hp = this.stats.hp;
-      this.ability = options.ability ?? this.abilities[0];
+      if (options.stats) {
+        this.stats = {...options.stats};
+      } else {
+        (['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as StatID[]).forEach(stat => {
+          this.stats[stat] = gen.stats.calc(stat, this.baseStats[stat], this.ivs[stat], this.evs[stat], this.level, this.nature);
+        });
+      }
+
+      // Boosts
+      this.boosts = {};
+      if (options.boosts) {
+        for (const b in options.boosts) {
+          if (b === 'spc') continue;
+          const boost = b as keyof BoostsTable;
+          const val = options.boosts[boost];
+          if (typeof val === 'number') this.boosts[boost] = bounded('boosts', val);
+        }
+      }
+      setSpc(gen, this.boosts, 'boosts', options.boosts);
+
+      // Gender (depends on DVs)
+      const setAtkDV = typeof (options.dvs?.atk ?? options.ivs?.atk) === 'number';
+      setGender(gen, this, options.gender, setAtkDV);
+
+      // HP (depends on stats)
+      const setHPDV = typeof (options.dvs?.hp ?? options.ivs?.hp) === 'number';
+      correctHPDV(gen, this, setHPDV);
+      this.maxhp = gen.stats.calc('hp', species.baseStats.hp, this.ivs.hp, this.evs.hp, this.level);
+      if (options.maxhp) {
+        if (options.maxhp < this.maxhp) {
+          throw new RangeError(`maxhp ${options.maxhp} less than calculated max HP ${this.maxhp}`);
+        }
+        this.maxhp = options.maxhp;
+      }
+
+      // Tera Type
+      this.teraType = options.teraType || this.types[0];
+
+      // HP (current)
+      const computed = typeof options.hpPercent === 'number' ? round((options.hpPercent * this.maxhp) / 100) : undefined;
+      this.hp = typeof options.hp === 'number' ? options.hp : typeof computed === 'number' ? computed : this.maxhp;
+      if (!(this.hp >= 0 && this.hp <= this.maxhp)) {
+        throw new RangeError(`hp ${this.hp} is not within [0,${this.maxhp}]`);
+      }
+      if (typeof options.hp === 'number' && typeof computed === 'number') {
+        if (this.hp !== computed) {
+          throw new Error(`hp mismatch: '${computed}' does not match '${this.hp}'`);
+        }
+      }
+
+      // Miscellaneous
+      this.position = options.position;
+      this.switching = options.switching;
+      this.moveLastTurnResult = options.moveLastTurnResult;
+      this.hurtThisTurn = options.hurtThisTurn;
+
       this.states = new EventSpace<PokemonState>(
         {
           hp: this.hp,
@@ -89,7 +254,8 @@ export namespace DMG {
           nature: this.nature,
           level: this.level,
           types: this.types,
-          ability: this.abilities[0],
+          ability: this.ability,
+          hits: this.hits,
         },
         p => `${p.hp}-${p.stats.hp}` + (p.item ? `-${p.item}` : '')
       );
@@ -106,11 +272,12 @@ export namespace DMG {
 
   const CRITRATES = [0, 1 / 24, 1 / 8, 1 / 2];
 
-  export type MoveOptions = {crit?: boolean; alwaysHit?: boolean; alwaysSucceed?: boolean};
+  export type MoveOptions = {crit?: boolean; alwaysHit?: boolean; alwaysSucceed?: boolean; hits?: number | [number, number]};
   export class Move implements MoveData {
     critChance: number;
     alwaysHit?: boolean;
     alwaysSucceed?: boolean;
+    hit: number = 0;
 
     effectType: 'Move';
     kind: 'Move';
@@ -279,7 +446,7 @@ export namespace DMG {
       this.ignorePositiveEvasion = move.ignorePositiveEvasion;
       this.infiltrates = move.infiltrates;
       this.multiaccuracy = move.multiaccuracy;
-      this.multihit = move.multihit;
+      this.multihit = options.hits ?? move.multihit;
       this.multihitType = move.multihitType;
       this.noCopy = move.noCopy;
       this.noDamageVariance = move.noDamageVariance;
@@ -313,5 +480,115 @@ export namespace DMG {
 
   function invalid(gen: Generation, k: string, v: any): never {
     throw new Error(`Unsupported or invalid ${k} '${v}' for generation ${gen.num}`);
+  }
+
+  function bounded(key: string, val: number, die = true) {
+    const BOUNDS: {[key: string]: [number, number]} = {
+      level: [1, 100],
+      stat: [0, 255],
+      evs: [0, 255],
+      ivs: [0, 31],
+      dvs: [0, 15],
+      gen: [1, 8],
+      boosts: [-6, 6],
+      toxicCounter: [0, 15],
+      happiness: [0, 255],
+      magnitude: [4, 10],
+    };
+    const ok = val >= BOUNDS[key][0] && val <= BOUNDS[key][1];
+    if (!ok && die) throw new RangeError(`${key} ${val} is not within [${BOUNDS[key].join(',')}]`);
+    return val;
+  }
+
+  function getCondition(gen: Generation, conditionName: string): [string, string] {
+    // Simple condition detection - can be expanded with Conditions.get if needed
+    const lowerName = conditionName.toLowerCase();
+    if (['burn', 'par', 'psn', 'tox', 'frz', 'slp'].includes(lowerName)) {
+      return [lowerName, 'Status'];
+    }
+    return [lowerName, 'Status'];
+  }
+
+  function setConditions(gen: Generation, kind: string, data: string[] | {[id: string]: unknown} | undefined) {
+    const obj: {[id: string]: {level?: number}} = {};
+    if (data) {
+      if (Array.isArray(data)) {
+        for (const d of data) {
+          obj[toID(d)] = {};
+        }
+      } else {
+        for (const d in data) {
+          obj[toID(d)] = data[d] as {level?: number};
+        }
+      }
+    }
+    return obj;
+  }
+
+  function setValues(gen: Generation, pokemon: Pick<Pokemon, 'evs' | 'ivs'>, type: 'evs' | 'ivs', vals?: Partial<StatsTable & {spc: number}>) {
+    for (const stat of gen.stats) {
+      pokemon[type][stat] = pokemon[type][stat] || (type === 'evs' ? (gen.num <= 2 ? 252 : 0) : 31);
+      const val = vals?.[stat];
+      if (typeof val === 'number') pokemon[type][stat] = bounded(type, val);
+    }
+    setSpc(gen, pokemon[type], type, vals);
+  }
+
+  function setSpc(
+    gen: Generation,
+    existing: Partial<{spc: number; spa: number; spd: number}>,
+    type: 'evs' | 'ivs' | 'boosts',
+    vals?: Partial<{spc: number; spa: number; spd: number}>,
+    fn?: (n: number) => number
+  ) {
+    const spc = vals?.spc;
+    if (typeof spc === 'number') {
+      if (gen.num >= 2) throw new Error('Spc does not exist after generation 1');
+      if (typeof vals!.spa === 'number' && vals!.spa !== spc) {
+        throw new Error(`Spc and SpA ${type} mismatch: ${spc} vs. ${vals!.spa}`);
+      }
+      if (typeof vals!.spd === 'number' && vals!.spd !== spc) {
+        throw new Error(`Spc and SpD ${type} mismatch: ${spc} vs. ${vals!.spd}`);
+      }
+      existing.spa = existing.spd = bounded(type, fn ? fn(spc) : spc);
+    }
+    if (gen.num <= 2 && existing.spa !== existing.spd) {
+      throw new Error(`SpA and SpD ${type} must match before generation 3`);
+    }
+  }
+
+  function setGender(gen: Generation, pokemon: Pokemon, name?: GenderName, setAtkDV = false) {
+    const ivs = pokemon.ivs;
+    const species = pokemon.species;
+    const atkDV = gen.stats.toDV(ivs.atk);
+    // AtkDV determining gender is only a thing in generation 2, but we can use it as the default
+    const gender = gen.num === 1 ? undefined : atkDV >= species.genderRatio.F * 16 ? 'M' : 'F';
+    if (name) {
+      if (gen.num === 1) throw new Error('Gender does not exist in generation 1');
+      if (species.gender && name !== species.gender) {
+        throw new Error(`${species.name} must be '${species.gender}' in generation ${gen.num}`);
+      }
+      if (gen.num === 2) {
+        if (setAtkDV && name !== gender) {
+          throw new Error(`A ${species.name} with ${atkDV} Atk DVs must be '${gender}' in gen 2`);
+        }
+        pokemon.gender = gender;
+        return;
+      }
+    }
+    pokemon.gender = name || species.gender || gender;
+  }
+
+  function correctHPDV(gen: Generation, pokemon: Pokemon, setHPDV = false) {
+    const expectedHPDV = gen.stats.getHPDV(pokemon.ivs);
+    const actualHPDV = gen.stats.toDV(pokemon.ivs.hp);
+    if (gen.num <= 2 && expectedHPDV !== actualHPDV) {
+      if (setHPDV) {
+        throw new Error(
+          `${pokemon.species.name} is required to have an HP DV of ` + `${expectedHPDV} in generations 1 and 2 but it is ${actualHPDV}`
+        );
+      }
+      pokemon.ivs.hp = gen.stats.toIV(expectedHPDV);
+    }
   }
 }

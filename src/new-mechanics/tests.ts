@@ -1,28 +1,381 @@
-import {Generations} from '@pkmn/data';
-import {Dex} from '@pkmn/dex';
+import {Data, Generation, Generations, ID} from '@pkmn/data';
+import {Dex, ModData, ModdedDex} from '@pkmn/dex';
 import {DMG} from './dmg';
-import {computeTurn} from './poc';
+import {computeTurn, TurnResult} from './poc';
+import * as fs from 'fs';
+import {StateTree} from './state-tree';
+
+const NATDEX_UNOBTAINABLE_SPECIES = ['Pichu-Spiky-eared', 'Eternatus-Eternamax'];
+
+const COSMETIC_SPECIES = [
+  'Maushold-Four',
+  'Sinistea-Antique',
+  'Polteageist-Antique',
+  'Dudunsparce-Three-Segment',
+  'Poltchageist-Artisan',
+  'Sinistcha-Masterpiece',
+  'Magearna-Original',
+  'Magearna-Original-Mega',
+  'Pikachu-Original',
+  'Pikachu-Hoenn',
+  'Pikachu-Sinnoh',
+  'Pikachu-Unova',
+  'Pikachu-Kalos',
+  'Pikachu-Alola',
+  'Pikachu-Partner',
+  'Pikachu-World',
+  'Vivillon-Pokeball',
+  'Vivillon-Fancy',
+  'Cramorant-Gorging',
+  'Ogerpon-Teal-Tera',
+  'Ogerpon-Hearthflame-Tera',
+  'Ogerpon-Cornerstone-Tera',
+  'Ogerpon-Wellspring-Tera',
+  'Tatsugiri-Stretchy',
+  'Tatsugiri-Droopy',
+  'Tatsugiri-Stretchy-Mega',
+  'Tatsugiri-Droopy-Mega',
+];
+
+type ExistFilter = {
+  nonstandard?: string[];
+  species?: {
+    unobtainable?: string[];
+    cosmetic?: string[];
+  };
+};
+
+function _exists(d: Data, filters: ExistFilter = {}) {
+  if (!d.exists) return false;
+  if (d.kind === 'Ability' && d.id === 'noability') return false;
+  if ('isNonstandard' in d && d.isNonstandard) {
+    if ('tier' in d && d.tier === 'Unreleased') return false;
+    if (filters.nonstandard && filters.nonstandard.includes(d.isNonstandard)) {
+      return false;
+    }
+    if (d.kind === 'Move' && d.isNonstandard !== 'Past' && d.isNonstandard !== 'Unobtainable') {
+      return false;
+    }
+  }
+  if (d.kind === 'Species') {
+    if (d.forme === 'Totem' || d.forme === 'Alola-Totem') return false;
+    if (d.isCosmeticForme) return false;
+    if (filters.species) {
+      if (filters.species.unobtainable && filters.species.unobtainable.includes(d.name)) return false;
+      if (filters.species.cosmetic && filters.species.cosmetic.includes(d.name)) return false;
+    }
+  }
+
+  if (d.kind === 'Item' && d.isNonstandard && ['Past', 'Unobtainable'].includes(d.isNonstandard) && !d.zMove && !d.itemUser && !d.forcedForme) {
+    return false;
+  }
+  return true;
+}
+
+function ROM_EXISTS(d: Data) {
+  return _exists(d, {
+    nonstandard: ['CAP', 'Custom', 'Future'],
+  });
+}
+
+function NATDEX_EXISTS(d: Data) {
+  return _exists(d, {
+    nonstandard: ['CAP', 'Custom', 'Future'],
+    species: {
+      unobtainable: NATDEX_UNOBTAINABLE_SPECIES,
+      cosmetic: COSMETIC_SPECIES,
+    },
+  });
+}
+
+function ZA_EXISTS(d: Data) {
+  return _exists(d, {
+    nonstandard: ['CAP', 'Custom'],
+    species: {
+      unobtainable: NATDEX_UNOBTAINABLE_SPECIES,
+      cosmetic: COSMETIC_SPECIES,
+    },
+  });
+}
+
+function CAP_EXISTS(d: Data) {
+  return _exists(d, {
+    nonstandard: ['Custom', 'Future'],
+    species: {
+      unobtainable: NATDEX_UNOBTAINABLE_SPECIES,
+      cosmetic: COSMETIC_SPECIES,
+    },
+  });
+}
+
+function DRAFT_EXISTS(d: Data) {
+  if (!NATDEX_EXISTS(d)) return false;
+  if ('isNonstandard' in d && d.isNonstandard) return false;
+  return !('tier' in d && ['Illegal'].includes(d.tier));
+}
+
+const RULESET_IDS = {
+  ZA_NATDEX: 'ZA NatDex',
+  GEN9_NATDEX: 'Gen9 NatDex',
+  PALDEA_DEX: 'Paldea Dex',
+  GEN8_NATDEX: 'Gen8 NatDex',
+  GALAR_DEX: 'Galar Dex',
+  ALOLA_DEX: 'Alola Dex',
+  KALOS_DEX: 'Kalos Dex',
+  UNOVA_DEX: 'Unova Dex',
+  SINNOH_DEX: 'Sinnoh Dex',
+  HOENN_DEX: 'Hoenn Dex',
+  JOHTO_DEX: 'Johto Dex',
+  KANTO_DEX: 'Kanto Dex',
+  SWORD_SHIELD: 'Sword/Shield',
+  RADICAL_RED: 'radicalred',
+  INSURGANCE: 'insurgance',
+  CAP_GEN9: 'CAP Gen 9',
+} as const;
+
+export type RulesetId = (typeof RULESET_IDS)[keyof typeof RULESET_IDS];
+
+export class Ruleset extends Generation {
+  name: RulesetId;
+  restriction?: 'Pentagon' | 'Plus' | 'Galar' | 'Paldea';
+  isNatDex: boolean;
+  constructor(dex: ModdedDex, exists: (d: Data) => boolean, name: RulesetId, options?: {restriction?: 'Pentagon' | 'Plus' | 'Galar' | 'Paldea'}) {
+    super(dex, exists);
+    this.name = name;
+    this.restriction = options?.restriction;
+    this.isNatDex = this.exists === NATDEX_EXISTS;
+  }
+}
 
 const gens = new Generations(Dex);
 
-function printOutput(target: DMG.Pokemon) {
-  const finalOutcomes = target.states.getOutcomes();
+export const Rulesets: {
+  [key: string]: {
+    [key: string]: {
+      desc?: string;
+      id: RulesetId;
+      ruleset: Ruleset;
+    };
+  };
+} = {
+  'Gen 9': {
+    'National Dex': {
+      id: RULESET_IDS.GEN9_NATDEX,
+      desc: 'Only Pokémon available in Generation 9 and before',
+      ruleset: new Ruleset(Dex.forGen(9), (d: Data) => !(!NATDEX_EXISTS(d) || (d.kind === 'Species' && d.forme === 'Gmax')), RULESET_IDS.GEN9_NATDEX),
+    },
+    'Paldea Dex': {
+      id: RULESET_IDS.PALDEA_DEX,
+      desc: 'Only Pokémon available in the Paldea Dex',
+      ruleset: new Ruleset(Dex.forGen(9), DRAFT_EXISTS, RULESET_IDS.PALDEA_DEX, {
+        restriction: 'Paldea',
+      }),
+    },
+    'ZA National Dex': {
+      id: RULESET_IDS.ZA_NATDEX,
+      desc: 'Only Pokémon available in Generation 9 and before',
+      ruleset: new Ruleset(Dex.forGen(9), (d: Data) => !(!ZA_EXISTS(d) || (d.kind === 'Species' && d.forme === 'Gmax')), RULESET_IDS.ZA_NATDEX),
+    },
+  },
+  //Lazy-loaded since not frequently accessed
+  'Gen 8': {
+    'National Dex': {
+      id: RULESET_IDS.GEN8_NATDEX,
+      desc: 'All Pokémon available in Generation 8 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(8), NATDEX_EXISTS, this.id);
+      },
+    },
+    'Sword/Shield': {
+      id: RULESET_IDS.SWORD_SHIELD,
+      desc: 'All Pokémon available to be transferred to Sword/Shield',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(8), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Galar Dex': {
+      id: RULESET_IDS.GALAR_DEX,
+      desc: 'Only Pokémon available in the Galar Dex',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(8), DRAFT_EXISTS, this.id, {
+          restriction: 'Galar',
+        });
+      },
+    },
+  },
+  'Older Gens': {
+    'Generation 7': {
+      id: RULESET_IDS.ALOLA_DEX,
+      desc: 'All Pokémon available in Generation 7 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(7), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 6': {
+      id: RULESET_IDS.KALOS_DEX,
+      desc: 'All Pokémon available in Generation 6 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(6), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 5': {
+      id: RULESET_IDS.UNOVA_DEX,
+      desc: 'All Pokémon available in Generation 5 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(5), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 4': {
+      id: RULESET_IDS.SINNOH_DEX,
+      desc: 'All Pokémon available in Generation 4 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(4), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 3': {
+      id: RULESET_IDS.HOENN_DEX,
+      desc: 'All Pokémon available in Generation 3 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(3), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 2': {
+      id: RULESET_IDS.JOHTO_DEX,
+      desc: 'All Pokémon available in Generation 2 and before',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(2), DRAFT_EXISTS, this.id);
+      },
+    },
+    'Generation 1': {
+      id: RULESET_IDS.KANTO_DEX,
+      desc: 'All Pokémon available in Generation 1',
+      get ruleset() {
+        return new Ruleset(Dex.forGen(1), DRAFT_EXISTS, this.id);
+      },
+    },
+  },
+};
+function printOutput(outcomes: TurnResult['outcomes']) {
+  const totalProbability = outcomes.reduce((sum, o) => sum + o.probability, 0);
 
   console.table(
-    finalOutcomes
+    outcomes
       .map(o => ({
-        hp: o.value.hp,
-        item: o.value.item,
-        probability: `${Math.round(o.probability * 100000) / 1000}%`,
+        hp: o.state.hp,
+        item: o.state.item,
+        probability: `${(o.probability * 100).toFixed(2)}%`,
       }))
       .sort((a, b) => b.hp - a.hp)
   );
 
-  console.log('Total Probability', target.states.getTotalProbability());
+  console.log('Total Probability', totalProbability);
 }
 
-function printKoChance(target: DMG.Pokemon, turn: number) {
-  console.log(`Turn ${turn} KO: ${Math.round(target.states.getTotalProbability(state => state.hp === 0) * 10000) / 100}%`);
+function printKoChance(outcomes: TurnResult['outcomes'], turn: number) {
+  const koChance = outcomes.filter(o => o.state.hp === 0).reduce((sum, o) => sum + o.probability, 0);
+  console.log(`Turn ${turn} KO: ${Math.round(koChance * 10000) / 100}%`);
+}
+
+function printBarChart(outcomes: TurnResult['outcomes'], maxBarWidth: number = 50) {
+  // Group outcomes by HP, summing probabilities
+  const hpMap = new Map<number, number>();
+
+  for (const outcome of outcomes) {
+    const currentProb = hpMap.get(outcome.state.hp) || 0;
+    hpMap.set(outcome.state.hp, currentProb + outcome.probability);
+  }
+
+  // Find min and max HP values
+  const hpValues = Array.from(hpMap.keys());
+  const maxHP = Math.max(...hpValues);
+  const minHP = Math.min(...hpValues);
+
+  // Fill in all HP values from max to min
+  const hpData: Array<{hp: number; probability: number}> = [];
+  for (let hp = maxHP; hp >= minHP; hp--) {
+    hpData.push({
+      hp,
+      probability: hpMap.get(hp) || 0,
+    });
+  }
+
+  // Find max probability for scaling
+  const maxProb = Math.max(...hpData.map(d => d.probability));
+
+  console.log('\n=== HP Distribution ===\n');
+
+  for (const data of hpData) {
+    const percentage = (data.probability * 100).toFixed(2);
+    const barLength = Math.round((data.probability / maxProb) * maxBarWidth);
+    const bar = '█'.repeat(barLength);
+    const hpStr = data.hp.toString().padStart(3, ' ');
+
+    console.log(`${hpStr} HP │${bar} ${percentage}%`);
+  }
+
+  const totalProb = hpData.reduce((sum, d) => sum + d.probability, 0);
+  console.log(`\nTotal Probability: ${(totalProb * 100).toFixed(2)}%`);
+}
+
+function exportTreeToGraphviz(tree: StateTree<DMG.PokemonState>) {
+  const graphvizCode = tree.toGraphviz(Infinity, s => `HP: ${s.hp}` + (s.item ? '\n' + s.item : ''));
+  const filePath = 'turn-tree.dot';
+
+  fs.writeFileSync(filePath, graphvizCode);
+  console.log(`\nGraphviz output saved to: ${filePath}`);
+  console.log(`To generate a PNG: dot -Tpng ${filePath} -o turn-tree.png`);
+  console.log(`To generate an SVG: dot -Tsvg ${filePath} -o turn-tree.svg`);
+}
+
+function printHPStatistics(outcomes: TurnResult['outcomes']) {
+  const hps = outcomes.map(o => o.state.hp);
+  const sortedHPs = [...hps].sort((a, b) => a - b);
+
+  // Calculate min and max
+  const minHP = Math.min(...hps);
+  const maxHP = Math.max(...hps);
+  const range = maxHP - minHP;
+
+  // Calculate mean
+  const meanHP = hps.reduce((sum, hp) => sum + hp, 0) / hps.length;
+
+  // Calculate median
+  const medianHP =
+    sortedHPs.length % 2 === 0
+      ? (sortedHPs[sortedHPs.length / 2 - 1] + sortedHPs[sortedHPs.length / 2]) / 2
+      : sortedHPs[Math.floor(sortedHPs.length / 2)];
+
+  // Calculate standard deviation
+  const variance = hps.reduce((sum, hp) => sum + Math.pow(hp - meanHP, 2), 0) / hps.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Calculate KO chance (sum probabilities, not just count outcomes)
+  const koChance = outcomes.filter(o => o.state.hp === 0).reduce((sum, o) => sum + o.probability, 0) * 100;
+
+  // Calculate mode (most common HP)
+  const hpFrequency = new Map<number, number>();
+  for (const hp of hps) {
+    hpFrequency.set(hp, (hpFrequency.get(hp) || 0) + 1);
+  }
+  const mode = Array.from(hpFrequency.entries()).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+
+  // Calculate quartiles
+  const q1Index = Math.floor(sortedHPs.length * 0.25);
+  const q3Index = Math.floor(sortedHPs.length * 0.75);
+  const q1 = sortedHPs[q1Index];
+  const q3 = sortedHPs[q3Index];
+
+  console.log('=== HP Statistics ===');
+  console.log(`Min HP: ${minHP}`);
+  console.log(`Max HP: ${maxHP}`);
+  console.log(`Range: ${range}`);
+  console.log(`Mean HP: ${meanHP.toFixed(2)}`);
+  console.log(`Median HP: ${medianHP.toFixed(2)}`);
+  console.log(`Mode HP: ${mode}`);
+  console.log(`Std Dev: ${stdDev.toFixed(2)}`);
+  console.log(`Q1 (25th %ile): ${q1}`);
+  console.log(`Q3 (75th %ile): ${q3}`);
+  console.log(`KO Chance: ${koChance.toFixed(2)}%`);
 }
 
 function example1() {
@@ -30,23 +383,32 @@ function example1() {
 
   const attacker = new DMG.Pokemon(gen, 'Gengar');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist', {crit: false, alwaysHit: true});
+  const move = new DMG.Move(gen, 'Poltergeist', {crit: false});
 
-  computeTurn(attacker, target, move);
+  const result = computeTurn(attacker, target, move);
 
-  printOutput(target);
+  console.log(`Outcomes: ${result.outcomes.length}`);
+  console.log(`Total prob: ${result.outcomes.reduce((s, o) => s + o.probability, 0).toFixed(4)}`);
+
+  const withItem = result.outcomes.filter(o => o.state.item !== null);
+  console.log(`With item: ${withItem.length}, total prob: ${withItem.reduce((s, o) => s + o.probability, 0).toFixed(4)}`);
+
+  const withoutItem = result.outcomes.filter(o => o.state.item === null);
+  console.log(`Without item: ${withoutItem.length}, total prob: ${withoutItem.reduce((s, o) => s + o.probability, 0).toFixed(4)}`);
+  printOutput(result.outcomes);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
   // ├─────────┼─────┼───────────────┼─────────────┤
   // │ 0       │ 241 │ 'sitrusberry' │ '10%'       │
-  // │ 1       │ 179 │ null          │ '11.25%'    │
-  // │ 2       │ 175 │ null          │ '11.25%'    │
-  // │ 3       │ 173 │ null          │ '11.25%'    │
-  // │ 4       │ 169 │ null          │ '11.25%'    │
-  // │ 5       │ 167 │ null          │ '5.625%'    │
-  // │ 6       │ 127 │ 'sitrusberry' │ '11.25%'    │
-  // │ 7       │ 121 │ 'sitrusberry' │ '18.75%'    │
+  // │ 1       │ 127 │ 'sitrusberry' │ '11.25%'    │
+  // │ 2       │ 125 │ 'sitrusberry' │ '11.25%'    │
+  // │ 3       │ 121 │ 'sitrusberry' │ '16.875%'   │
+  // │ 4       │ 119 │ 'sitrusberry' │ '11.25%'    │
+  // │ 5       │ 115 │ 'sitrusberry' │ '11.25%'    │
+  // │ 6       │ 113 │ 'sitrusberry' │ '11.25%'    │
+  // │ 7       │ 109 │ 'sitrusberry' │ '11.25%'    │
+  // │ 8       │ 107 │ 'sitrusberry' │ '5.625%'    │
   // └─────────┴─────┴───────────────┴─────────────┘
 }
 
@@ -55,195 +417,87 @@ function example2() {
 
   const attacker = new DMG.Pokemon(gen, 'Gengar');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist', {crit: false, alwaysHit: true});
+  const move = new DMG.Move(gen, 'Poltergeist');
 
-  computeTurn(attacker, target, move);
-  computeTurn(attacker, target, move);
+  // Turn 1
+  let result = computeTurn(attacker, target, move);
+  let tree = result.tree;
+  let outcomes = result.outcomes;
 
-  printOutput(target);
+  // console.log('=== After Turn 1 ===');
+  // console.table(
+  //   outcomes
+  //     .map(o => ({
+  //       hp: o.state.hp,
+  //       item: o.state.item,
+  //       probability: `${(o.probability * 100).toFixed(3)}%`,
+  //     }))
+  //     .sort((a, b) => b.hp - a.hp)
+  // );
+
+  // Turn 2
+  result = computeTurn(attacker, target, move, tree, outcomes);
+  tree = result.tree;
+  outcomes = result.outcomes;
+
+  // console.log('\n=== After Turn 2 ===');
+  // tree.visualize(Infinity, s => `${s.hp}|${s.item}`);
+
+  exportTreeToGraphviz(tree);
+
+  printOutput(outcomes);
 
   // ┌─────────┬─────┬───────────────┬─────────────┐
   // │ (index) │ hp  │ item          │ probability │
   // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 179 │ null          │ '12.5%'     │
-  // │ 1       │ 175 │ null          │ '12.5%'     │
-  // │ 2       │ 173 │ null          │ '12.5%'     │
-  // │ 3       │ 169 │ null          │ '12.5%'     │
-  // │ 4       │ 167 │ null          │ '6.25%'     │
-  // │ 5       │ 73  │ null          │ '1.563%'    │
-  // │ 6       │ 71  │ null          │ '3.125%'    │
-  // │ 7       │ 69  │ null          │ '1.563%'    │
-  // │ 8       │ 67  │ null          │ '4.688%'    │
-  // │ 9       │ 65  │ null          │ '6.25%'     │
-  // │ 10      │ 63  │ null          │ '1.563%'    │
-  // │ 11      │ 61  │ null          │ '5.078%'    │
-  // │ 12      │ 0   │ 'sitrusberry' │ '19.922%'   │
+  // │ 0       │ 241 │ 'sitrusberry' │ '1.00%'     │
+  // │ 1       │ 179 │ null          │ '11.86%'    │
+  // │ 2       │ 175 │ null          │ '11.86%'    │
+  // │ 3       │ 173 │ null          │ '11.86%'    │
+  // │ 4       │ 169 │ null          │ '11.86%'    │
+  // │ 5       │ 167 │ null          │ '5.93%'     │
+  // │ 6       │ 133 │ null          │ '0.26%'     │
+  // │ 7       │ 131 │ null          │ '0.26%'     │
+  // │ 8       │ 127 │ 'sitrusberry' │ '2.16%'     │
+  // │ 9       │ 127 │ null          │ '0.52%'     │
+  // │ 10      │ 125 │ 'sitrusberry' │ '2.16%'     │
+  // │ 11      │ 125 │ null          │ '0.26%'     │
+  // │ 12      │ 121 │ 'sitrusberry' │ '3.23%'     │
+  // │ 13      │ 121 │ null          │ '0.52%'     │
+  // │ 14      │ 119 │ null          │ '0.26%'     │
+  // │ 15      │ 115 │ null          │ '0.52%'     │
+  // │ 16      │ 113 │ null          │ '0.26%'     │
+  // │ 17      │ 109 │ null          │ '0.52%'     │
+  // │ 18      │ 107 │ null          │ '0.26%'     │
+  // │ 19      │ 103 │ null          │ '0.26%'     │
+  // │ 20      │ 101 │ null          │ '0.26%'     │
+  // │ 21      │ 73  │ null          │ '1.16%'     │
+  // │ 22      │ 71  │ null          │ '2.32%'     │
+  // │ 23      │ 69  │ null          │ '1.16%'     │
+  // │ 24      │ 67  │ null          │ '3.49%'     │
+  // │ 25      │ 65  │ null          │ '4.65%'     │
+  // │ 26      │ 63  │ null          │ '1.16%'     │
+  // │ 27      │ 61  │ null          │ '3.78%'     │
+  // │ 28      │ 0   │ 'sitrusberry' │ '16.24%'    │
   // └─────────┴─────┴───────────────┴─────────────┘
 }
 
 function example3() {
   const gen = gens.get(9);
 
-  const attacker = new DMG.Pokemon(gen, 'Gengar');
-  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist', {crit: true, alwaysHit: true});
-
-  computeTurn(attacker, target, move);
-
-  printOutput(target);
-
-  // ┌─────────┬─────┬──────┬─────────────┐
-  // │ (index) │ hp  │ item │ probability │
-  // ├─────────┼─────┼──────┼─────────────┤
-  // │ 0       │ 133 │ null │ '6.25%'     │
-  // │ 1       │ 131 │ null │ '6.25%'     │
-  // │ 2       │ 127 │ null │ '12.5%'     │
-  // │ 3       │ 125 │ null │ '6.25%'     │
-  // │ 4       │ 121 │ null │ '12.5%'     │
-  // │ 5       │ 119 │ null │ '6.25%'     │
-  // │ 6       │ 115 │ null │ '12.5%'     │
-  // │ 7       │ 113 │ null │ '6.25%'     │
-  // │ 8       │ 109 │ null │ '12.5%'     │
-  // │ 9       │ 107 │ null │ '6.25%'     │
-  // │ 10      │ 103 │ null │ '6.25%'     │
-  // │ 11      │ 101 │ null │ '6.25%'     │
-  // └─────────┴─────┴──────┴─────────────┘
-}
-
-function example4() {
-  const gen = gens.get(9);
-
-  const attacker = new DMG.Pokemon(gen, 'Gengar');
-  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist', {crit: false});
-
-  computeTurn(attacker, target, move);
-
-  printOutput(target);
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 241 │ 'sitrusberry' │ '10%'       │
-  // │ 1       │ 179 │ null          │ '11.25%'    │
-  // │ 2       │ 175 │ null          │ '11.25%'    │
-  // │ 3       │ 173 │ null          │ '11.25%'    │
-  // │ 4       │ 169 │ null          │ '11.25%'    │
-  // │ 5       │ 167 │ null          │ '5.625%'    │
-  // │ 6       │ 127 │ 'sitrusberry' │ '11.25%'    │
-  // │ 7       │ 125 │ 'sitrusberry' │ '11.25%'    │
-  // │ 8       │ 121 │ 'sitrusberry' │ '16.875%'   │
-  // └─────────┴─────┴───────────────┴─────────────┘
-}
-
-function example5() {
-  const gen = gens.get(9);
-
-  const attacker = new DMG.Pokemon(gen, 'Gengar');
-  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist', {alwaysHit: true});
-
-  computeTurn(attacker, target, move);
-  computeTurn(attacker, target, move);
-
-  printOutput(target);
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 179 │ null          │ '11.979%'   │
-  // │ 1       │ 175 │ null          │ '11.979%'   │
-  // │ 2       │ 173 │ null          │ '11.979%'   │
-  // │ 3       │ 169 │ null          │ '11.979%'   │
-  // │ 4       │ 167 │ null          │ '5.99%'     │
-  // │ 5       │ 133 │ null          │ '0.26%'     │
-  // │ 6       │ 131 │ null          │ '0.26%'     │
-  // │ 7       │ 127 │ null          │ '0.521%'    │
-  // │ 8       │ 125 │ null          │ '0.26%'     │
-  // │ 9       │ 121 │ null          │ '0.521%'    │
-  // │ 10      │ 119 │ null          │ '0.26%'     │
-  // │ 11      │ 115 │ null          │ '0.521%'    │
-  // │ 12      │ 113 │ null          │ '0.26%'     │
-  // │ 13      │ 109 │ null          │ '0.521%'    │
-  // │ 14      │ 107 │ null          │ '0.26%'     │
-  // │ 15      │ 103 │ null          │ '0.26%'     │
-  // │ 16      │ 101 │ null          │ '0.26%'     │
-  // │ 17      │ 73  │ null          │ '1.435%'    │
-  // │ 18      │ 71  │ null          │ '2.87%'     │
-  // │ 19      │ 69  │ null          │ '1.435%'    │
-  // │ 20      │ 67  │ null          │ '4.305%'    │
-  // │ 21      │ 65  │ null          │ '5.74%'     │
-  // │ 22      │ 63  │ null          │ '1.435%'    │
-  // │ 23      │ 61  │ null          │ '4.664%'    │
-  // │ 24      │ 0   │ 'sitrusberry' │ '20.043%'   │
-  // └─────────┴─────┴───────────────┴─────────────┘
-}
-
-function example6() {
-  const gen = gens.get(9);
-
-  const attacker = new DMG.Pokemon(gen, 'Gengar');
-  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Poltergeist');
-
-  computeTurn(attacker, target, move);
-  console.log(target.states.projectToSubspace(s => `${s.types.toString()}|${s.item}|${s.ability}`).getOutcomes());
-
-  computeTurn(attacker, target, move);
-
-  printOutput(target);
-
-  // ┌─────────┬─────┬───────────────┬─────────────┐
-  // │ (index) │ hp  │ item          │ probability │
-  // ├─────────┼─────┼───────────────┼─────────────┤
-  // │ 0       │ 241 │ 'sitrusberry' │ '1%'        │
-  // │ 1       │ 179 │ null          │ '11.859%'   │
-  // │ 2       │ 175 │ null          │ '11.859%'   │
-  // │ 3       │ 173 │ null          │ '11.859%'   │
-  // │ 4       │ 169 │ null          │ '11.859%'   │
-  // │ 5       │ 167 │ null          │ '5.93%'     │
-  // │ 6       │ 133 │ null          │ '0.258%'    │
-  // │ 7       │ 131 │ null          │ '0.258%'    │
-  // │ 8       │ 127 │ 'sitrusberry' │ '1.186%'    │
-  // │ 9       │ 127 │ null          │ '0.516%'    │
-  // │ 10      │ 125 │ 'sitrusberry' │ '1.186%'    │
-  // │ 11      │ 125 │ null          │ '0.258%'    │
-  // │ 12      │ 121 │ 'sitrusberry' │ '1.779%'    │
-  // │ 13      │ 121 │ null          │ '0.516%'    │
-  // │ 14      │ 119 │ null          │ '0.258%'    │
-  // │ 15      │ 115 │ null          │ '0.516%'    │
-  // │ 16      │ 113 │ null          │ '0.258%'    │
-  // │ 17      │ 109 │ null          │ '0.516%'    │
-  // │ 18      │ 107 │ null          │ '0.258%'    │
-  // │ 19      │ 103 │ null          │ '0.258%'    │
-  // │ 20      │ 101 │ null          │ '0.258%'    │
-  // │ 21      │ 73  │ null          │ '1.279%'    │
-  // │ 22      │ 71  │ null          │ '2.557%'    │
-  // │ 23      │ 69  │ null          │ '1.279%'    │
-  // │ 24      │ 67  │ null          │ '3.836%'    │
-  // │ 25      │ 65  │ null          │ '5.114%'    │
-  // │ 26      │ 63  │ null          │ '1.279%'    │
-  // │ 27      │ 61  │ null          │ '4.155%'    │
-  // │ 28      │ 0   │ 'sitrusberry' │ '17.859%'   │
-  // └─────────┴─────┴───────────────┴─────────────┘
-}
-
-function example7() {
-  const gen = gens.get(9);
-
   const attacker = new DMG.Pokemon(gen, 'Bisharp');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense');
   const move = new DMG.Move(gen, 'Iron Head');
 
-  computeTurn(attacker, target, move);
-  computeTurn(attacker, target, move);
-  computeTurn(attacker, target, move);
+  let result = computeTurn(attacker, target, move);
+  result = computeTurn(attacker, target, move, result.tree, result.outcomes);
+  result = computeTurn(attacker, target, move, result.tree, result.outcomes);
 
   console.table(
-    target.states
-      .getOutcomes()
+    result.outcomes
       .map(o => ({
-        ...o.value,
+        hp: o.state.hp,
+        item: o.state.item,
         probability: `${(o.probability * 100).toFixed(5)}%`,
       }))
       .sort((a, b) => b.hp - a.hp),
@@ -352,15 +606,83 @@ function example7() {
   // └─────────┴─────┴─────────────┴───────────┘
 }
 
-function example8() {
+function example4() {
   const gen = gens.get(9);
 
   const attacker = new DMG.Pokemon(gen, 'Sneasel');
   const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
-  const move = new DMG.Move(gen, 'Triple Axel', {crit: false});
+  const move = new DMG.Move(gen, 'Triple Kick', {crit: false, hits: 3});
 
-  //   computeTurn(attacker, target, move);
-  //   printOutput(target);
+  let turn = computeTurn(attacker, target, move);
+  turn.tree.debugVisualize();
+  printOutput(turn.outcomes);
+  exportTreeToGraphviz(turn.tree);
+
+  // ┌─────────┬─────┬───────────────┬─────────────┐
+  // │ (index) │ hp  │ item          │ probability │
+  // ├─────────┼─────┼───────────────┼─────────────┤
+  // │ 0       │ 241 │ 'sitrusberry' │ '10.00%'    │
+  // │ 1       │ 239 │ 'sitrusberry' │ '0.56%'     │
+  // │ 2       │ 238 │ 'sitrusberry' │ '8.44%'     │
+  // │ 3       │ 234 │ 'sitrusberry' │ '0.47%'     │
+  // │ 4       │ 233 │ 'sitrusberry' │ '7.15%'     │
+  // │ 5       │ 232 │ 'sitrusberry' │ '0.47%'     │
+  // │ 6       │ 227 │ 'sitrusberry' │ '2.67%'     │
+  // │ 7       │ 226 │ 'sitrusberry' │ '41.82%'    │
+  // │ 8       │ 225 │ 'sitrusberry' │ '26.80%'    │
+  // │ 9       │ 224 │ 'sitrusberry' │ '1.60%'     │
+  // └─────────┴─────┴───────────────┴─────────────┘
+}
+
+function example5() {
+  const gen = gens.get(9);
+
+  const attacker = new DMG.Pokemon(gen, 'Sunkern');
+  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
+  const move = new DMG.Move(gen, 'Rock Blast');
+
+  // console.log(move);
+
+  let turn = computeTurn(attacker, target, move);
+  // turn.tree.debugVisualize();
+  printOutput(turn.outcomes);
+  printBarChart(turn.outcomes);
+  exportTreeToGraphviz(turn.tree);
+}
+
+function example6() {
+  const gen = gens.get(9);
+
+  const attacker = new DMG.Pokemon(gen, 'Sunkern');
+  const target = new DMG.Pokemon(gen, 'Deoxys-Defense', {item: 'Sitrus Berry'});
+  const move = new DMG.Move(gen, 'Population Bomb', {crit: false});
+
+  // console.log(move);
+
+  let turn = computeTurn(attacker, target, move);
+  // turn.tree.debugVisualize();
+  printOutput(turn.outcomes);
+  printBarChart(turn.outcomes);
+  exportTreeToGraphviz(turn.tree);
+}
+
+function example7() {
+  const gen = Rulesets['Gen 9']['National Dex'].ruleset;
+
+  const attacker = new DMG.Pokemon(gen, 'Mewtwo-Mega-X', {level: 50, nature: 'Jolly', evs: {atk: 252, spe: 252}, item: 'Scope Lens'});
+  const target = new DMG.Pokemon(gen, 'Zacian', {level: 50});
+  const move = new DMG.Move(gen, 'Zen Headbutt');
+
+  // console.log(move);
+
+  let turn = computeTurn(attacker, target, move);
+  turn = computeTurn(attacker, target, move, turn.tree, turn.outcomes);
+
+  // turn.tree.debugVisualize();
+  printOutput(turn.outcomes);
+  printBarChart(turn.outcomes);
+  exportTreeToGraphviz(turn.tree);
+  printHPStatistics(turn.outcomes);
 }
 
 example7();
