@@ -1,52 +1,66 @@
 import {
+  Ability,
   As,
   BoostsTable,
   ConditionData,
-  GameType,
   GenderName,
   Generation,
   GenerationNum,
   HitEffect,
   ID,
+  Item,
   MoveCategory,
   Move as MoveData,
   MoveTarget,
   Nature,
-  NatureName,
   SecondaryEffect,
   Specie,
   SpeciesName,
   StatID,
   StatsTable,
   StatusName,
-  Type,
   TypeName,
 } from '@pkmn/data';
+import {round} from '../math';
+import {DeepReadonly, toID} from '../utils';
 import {EventSpace} from './event-space';
-import {HitState} from './poc';
-import {floor, round} from '../math';
-import {toID} from '../utils';
+import {DMGHANDLERS, Handler, HitState} from './poc';
+
+type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
+type Handlers = typeof DMGHANDLERS;
+
+function reify<T>(obj: T & Partial<Handler<DMG.PokemonState>>, id: ID, handlers: Handlers[HandlerKind]): T & Partial<Handler<DMG.PokemonState>> {
+  const handler = handlers[id];
+  if (handler) {
+    for (const key in handler) {
+      const fn = handler[key as keyof typeof handler];
+      if (fn && typeof fn === 'function') {
+        (obj as any)[key] = (x: DMG.PokemonState) => {
+          return (fn as any)(x);
+        };
+      }
+    }
+  }
+  return obj;
+}
 
 export namespace DMG {
   export interface PokemonState {
     hp: number;
-    item?: string | null;
+    item?: (Item & Partial<Handler<DMG.PokemonState>>) | null;
     types: [TypeName] | [TypeName, TypeName];
-    ability: string;
+    ability?: (Ability & Partial<Handler<DMG.PokemonState>>) | null;
     hits: HitState[];
+    critRatio: number;
 
-    readonly level: number;
-    readonly stats: StatsTable;
-    readonly evs: StatsTable;
-    readonly ivs: StatsTable;
-    readonly nature?: Nature;
+    readonly data: DeepReadonly<Pokemon>;
   }
 
   export interface PokemonOptions {
     name?: SpeciesName;
     weightkg?: number;
     weighthg?: number;
-    item?: string;
+    item?: string | null;
     ability?: string;
     nature?: string;
     status?: string;
@@ -71,8 +85,8 @@ export namespace DMG {
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
   }
-  export class Pokemon extends Specie implements PokemonState {
-    item?: string | null;
+  export class Pokemon extends Specie implements Omit<PokemonState, 'data'> {
+    item?: (Item & Partial<Handler<DMG.PokemonState>>) | null;
     hp: number;
     states: EventSpace<PokemonState>;
     generation: Generation;
@@ -80,7 +94,7 @@ export namespace DMG {
     stats: StatsTable;
     evs: StatsTable;
     ivs: StatsTable;
-    ability: string;
+    ability?: (Ability & Partial<Handler<DMG.PokemonState>>) | null;
     nature?: Nature;
     hits: HitState[] = [];
     species: Specie;
@@ -99,6 +113,7 @@ export namespace DMG {
     switching?: 'in' | 'out';
     moveLastTurnResult?: unknown;
     hurtThisTurn?: unknown;
+    critRatio: number = 0;
 
     constructor(gen: Generation, name: string, options: Partial<PokemonOptions> = {}) {
       const species = gen.species.get(name);
@@ -106,7 +121,6 @@ export namespace DMG {
       super(gen.dex, gen.exists, species);
 
       this.species = species;
-
       this.generation = gen;
       this.level = 100;
       if (typeof options.level === 'number') {
@@ -123,7 +137,8 @@ export namespace DMG {
       this.setItem(options.item);
 
       // Ability
-      this.ability = options.ability ?? this.abilities[0];
+      this.ability = undefined;
+      this.setAbility(options.ability);
 
       // Happiness
       this.happiness = typeof options.happiness === 'undefined' ? undefined : bounded('happiness', options.happiness);
@@ -248,33 +263,36 @@ export namespace DMG {
         {
           hp: this.hp,
           item: this.item,
-          stats: this.stats,
-          ivs: this.ivs,
-          evs: this.evs,
-          nature: this.nature,
-          level: this.level,
           types: this.types,
           ability: this.ability,
           hits: this.hits,
+          critRatio: this.critRatio,
+          data: this as DeepReadonly<typeof this>,
         },
-        p => `${p.hp}-${p.stats.hp}` + (p.item ? `-${p.item}` : '')
+        p => `${p.hp}-${p.data.stats.hp}` + (p.item ? `-${p.item}` : '')
       );
     }
 
-    setItem(name?: string) {
+    setItem(name?: string | null) {
       if (name) {
         const item = this.generation.items.get(name);
+        console.log(item);
         if (!item) invalid(this.generation, 'item', name);
-        this.item = item.id;
+        this.item = reify({...item}, item.id, DMGHANDLERS.Items);
+      }
+    }
+
+    setAbility(name?: string | null) {
+      if (name) {
+        const ability = this.generation.abilities.get(name);
+        if (!ability) invalid(this.generation, 'ability', name);
+        this.ability = reify({...ability}, ability.id, DMGHANDLERS.Items);
       }
     }
   }
 
-  const CRITRATES = [0, 1 / 24, 1 / 8, 1 / 2];
-
   export type MoveOptions = {crit?: boolean; alwaysHit?: boolean; alwaysSucceed?: boolean; hits?: number | [number, number]};
   export class Move implements MoveData {
-    critChance: number;
     alwaysHit?: boolean;
     alwaysSucceed?: boolean;
     hit: number = 0;
@@ -333,7 +351,7 @@ export namespace DMG {
     struggleRecoil?: boolean;
     basePowerModifier?: number;
     critModifier?: number;
-    critRatio?: number;
+    critRatio: number;
     overrideOffensivePokemon?: 'target' | 'source';
     overrideOffensiveStat?: 'atk' | 'def' | 'spa' | 'spd' | 'spe';
     overrideDefensivePokemon?: 'target' | 'source';
@@ -429,7 +447,6 @@ export namespace DMG {
       this.struggleRecoil = move.struggleRecoil;
       this.basePowerModifier = move.basePowerModifier;
       this.critModifier = move.critModifier;
-      this.critRatio = move.critRatio;
       this.overrideOffensivePokemon = move.overrideOffensivePokemon;
       this.overrideOffensiveStat = move.overrideOffensiveStat;
       this.overrideDefensivePokemon = move.overrideDefensivePokemon;
@@ -465,16 +482,7 @@ export namespace DMG {
       this.stallingMove = move.stallingMove;
       this.boosts = move.boosts;
       this.status = move.status;
-      this.critChance =
-        options.crit === undefined
-          ? move.critRatio
-            ? move.critRatio > CRITRATES.length
-              ? 1
-              : CRITRATES[move.critRatio]
-            : CRITRATES[0]
-          : options.crit
-          ? 1
-          : 0;
+      this.critRatio = options.crit === undefined ? move.critRatio ?? 0 : options.crit ? 1 : -100;
     }
   }
 

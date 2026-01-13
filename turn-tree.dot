@@ -1,205 +1,47 @@
 digraph G {
   graph [ranksep=3];
   node [shape=box];
-  "167|Fairy|undefined|Intrepid Sword" [label="HP: 167",shape=circle];
-  "167|Fairy|undefined|Intrepid Sword" -> "44|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -123"];
-  "44|Fairy|undefined|Intrepid Sword" [label="HP: 44",shape=circle];
-  "44|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -44"];
-  "0|Fairy|undefined|Intrepid Sword" [label="HP: 0",shape=circle];
-  "44|Fairy|undefined|Intrepid Sword" -> "44|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "43|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
+  "167|Fairy|undefined|undefined" [label="HP: 167",shape=box];
+  "167|Fairy|undefined|undefined" -> "3|Fairy|undefined|undefined" [label="0.8%\n[damage]
+HP: -164"];
+  "3|Fairy|undefined|undefined" [label="HP: 3",shape=circle];
+  "167|Fairy|undefined|undefined" -> "1|Fairy|undefined|undefined" [label="0.8%\n[damage]
+HP: -166"];
+  "1|Fairy|undefined|undefined" [label="HP: 1",shape=circle];
+  "167|Fairy|undefined|undefined" -> "0|Fairy|undefined|undefined" [label="10.9%\n[damage]
+HP: -167"];
+  "0|Fairy|undefined|undefined" [label="HP: 0",shape=circle];
+  "167|Fairy|undefined|undefined" -> "57|Fairy|undefined|undefined" [label="10.9%\n[damage]
+HP: -110"];
+  "57|Fairy|undefined|undefined" [label="HP: 57",shape=circle];
+  "167|Fairy|undefined|undefined" -> "55|Fairy|undefined|undefined" [label="5.5%\n[damage]
+HP: -112"];
+  "55|Fairy|undefined|undefined" [label="HP: 55",shape=circle];
+  "167|Fairy|undefined|undefined" -> "53|Fairy|undefined|undefined" [label="10.9%\n[damage]
+HP: -114"];
+  "53|Fairy|undefined|undefined" [label="HP: 53",shape=circle];
+  "167|Fairy|undefined|undefined" -> "51|Fairy|undefined|undefined" [label="5.5%\n[damage]
+HP: -116"];
+  "51|Fairy|undefined|undefined" [label="HP: 51",shape=circle];
+  "167|Fairy|undefined|undefined" -> "49|Fairy|undefined|undefined" [label="10.9%\n[damage]
+HP: -118"];
+  "49|Fairy|undefined|undefined" [label="HP: 49",shape=circle];
+  "167|Fairy|undefined|undefined" -> "47|Fairy|undefined|undefined" [label="5.5%\n[damage]
+HP: -120"];
+  "47|Fairy|undefined|undefined" [label="HP: 47",shape=circle];
+  "167|Fairy|undefined|undefined" -> "45|Fairy|undefined|undefined" [label="10.9%\n[damage]
+HP: -122"];
+  "45|Fairy|undefined|undefined" [label="HP: 45",shape=circle];
+  "167|Fairy|undefined|undefined" -> "43|Fairy|undefined|undefined" [label="5.5%\n[damage]
 HP: -124"];
-  "43|Fairy|undefined|Intrepid Sword" [label="HP: 43",shape=circle];
-  "43|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -43"];
-  "43|Fairy|undefined|Intrepid Sword" -> "43|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "41|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
+  "43|Fairy|undefined|undefined" [label="HP: 43",shape=circle];
+  "167|Fairy|undefined|undefined" -> "41|Fairy|undefined|undefined" [label="10.9%\n[damage]
 HP: -126"];
-  "41|Fairy|undefined|Intrepid Sword" [label="HP: 41",shape=circle];
-  "41|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -41"];
-  "41|Fairy|undefined|Intrepid Sword" -> "41|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "40|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -127"];
-  "40|Fairy|undefined|Intrepid Sword" [label="HP: 40",shape=circle];
-  "40|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -40"];
-  "40|Fairy|undefined|Intrepid Sword" -> "40|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "38|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -129"];
-  "38|Fairy|undefined|Intrepid Sword" [label="HP: 38",shape=circle];
-  "38|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -38"];
-  "38|Fairy|undefined|Intrepid Sword" -> "38|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "37|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
+  "41|Fairy|undefined|undefined" [label="HP: 41",shape=circle];
+  "167|Fairy|undefined|undefined" -> "39|Fairy|undefined|undefined" [label="5.5%\n[damage]
+HP: -128"];
+  "39|Fairy|undefined|undefined" [label="HP: 39",shape=circle];
+  "167|Fairy|undefined|undefined" -> "37|Fairy|undefined|undefined" [label="5.5%\n[damage]
 HP: -130"];
-  "37|Fairy|undefined|Intrepid Sword" [label="HP: 37",shape=circle];
-  "37|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -37"];
-  "37|Fairy|undefined|Intrepid Sword" -> "37|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "35|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -132"];
-  "35|Fairy|undefined|Intrepid Sword" [label="HP: 35",shape=circle];
-  "35|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -35"];
-  "35|Fairy|undefined|Intrepid Sword" -> "35|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "34|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -133"];
-  "34|Fairy|undefined|Intrepid Sword" [label="HP: 34",shape=circle];
-  "34|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -34"];
-  "34|Fairy|undefined|Intrepid Sword" -> "34|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "32|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -135"];
-  "32|Fairy|undefined|Intrepid Sword" [label="HP: 32",shape=circle];
-  "32|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -32"];
-  "32|Fairy|undefined|Intrepid Sword" -> "32|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "31|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -136"];
-  "31|Fairy|undefined|Intrepid Sword" [label="HP: 31",shape=circle];
-  "31|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -31"];
-  "31|Fairy|undefined|Intrepid Sword" -> "31|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "29|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -138"];
-  "29|Fairy|undefined|Intrepid Sword" [label="HP: 29",shape=circle];
-  "29|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -29"];
-  "29|Fairy|undefined|Intrepid Sword" -> "29|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "28|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -139"];
-  "28|Fairy|undefined|Intrepid Sword" [label="HP: 28",shape=circle];
-  "28|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -28"];
-  "28|Fairy|undefined|Intrepid Sword" -> "28|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "26|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -141"];
-  "26|Fairy|undefined|Intrepid Sword" [label="HP: 26",shape=circle];
-  "26|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -26"];
-  "26|Fairy|undefined|Intrepid Sword" -> "26|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "25|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -142"];
-  "25|Fairy|undefined|Intrepid Sword" [label="HP: 25",shape=circle];
-  "25|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -25"];
-  "25|Fairy|undefined|Intrepid Sword" -> "25|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "23|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -144"];
-  "23|Fairy|undefined|Intrepid Sword" [label="HP: 23",shape=circle];
-  "23|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -23"];
-  "23|Fairy|undefined|Intrepid Sword" -> "23|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "22|Fairy|undefined|Intrepid Sword" [label="0.2%\n[damage]
-HP: -145"];
-  "22|Fairy|undefined|Intrepid Sword" [label="HP: 22",shape=circle];
-  "22|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -22"];
-  "22|Fairy|undefined|Intrepid Sword" -> "22|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "85|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -82"];
-  "85|Fairy|undefined|Intrepid Sword" [label="HP: 85",shape=circle];
-  "85|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="73.8%\n[damage]
-HP: -85"];
-  "85|Fairy|undefined|Intrepid Sword" -> "3|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -82"];
-  "3|Fairy|undefined|Intrepid Sword" [label="HP: 3",shape=circle];
-  "85|Fairy|undefined|Intrepid Sword" -> "1|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -84"];
-  "1|Fairy|undefined|Intrepid Sword" [label="HP: 1",shape=circle];
-  "85|Fairy|undefined|Intrepid Sword" -> "85|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "83|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -84"];
-  "83|Fairy|undefined|Intrepid Sword" [label="HP: 83",shape=circle];
-  "83|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="79.2%\n[damage]
-HP: -83"];
-  "83|Fairy|undefined|Intrepid Sword" -> "1|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -82"];
-  "83|Fairy|undefined|Intrepid Sword" -> "83|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "82|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -85"];
-  "82|Fairy|undefined|Intrepid Sword" [label="HP: 82",shape=circle];
-  "82|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -82"];
-  "82|Fairy|undefined|Intrepid Sword" -> "82|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "80|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -87"];
-  "80|Fairy|undefined|Intrepid Sword" [label="HP: 80",shape=circle];
-  "80|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -80"];
-  "80|Fairy|undefined|Intrepid Sword" -> "80|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "79|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -88"];
-  "79|Fairy|undefined|Intrepid Sword" [label="HP: 79",shape=circle];
-  "79|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -79"];
-  "79|Fairy|undefined|Intrepid Sword" -> "79|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "77|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -90"];
-  "77|Fairy|undefined|Intrepid Sword" [label="HP: 77",shape=circle];
-  "77|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -77"];
-  "77|Fairy|undefined|Intrepid Sword" -> "77|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "76|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -91"];
-  "76|Fairy|undefined|Intrepid Sword" [label="HP: 76",shape=circle];
-  "76|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -76"];
-  "76|Fairy|undefined|Intrepid Sword" -> "76|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "74|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -93"];
-  "74|Fairy|undefined|Intrepid Sword" [label="HP: 74",shape=circle];
-  "74|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -74"];
-  "74|Fairy|undefined|Intrepid Sword" -> "74|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "73|Fairy|undefined|Intrepid Sword" [label="10.8%\n[damage]
-HP: -94"];
-  "73|Fairy|undefined|Intrepid Sword" [label="HP: 73",shape=circle];
-  "73|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -73"];
-  "73|Fairy|undefined|Intrepid Sword" -> "73|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "71|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -96"];
-  "71|Fairy|undefined|Intrepid Sword" [label="HP: 71",shape=circle];
-  "71|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -71"];
-  "71|Fairy|undefined|Intrepid Sword" -> "71|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "70|Fairy|undefined|Intrepid Sword" [label="5.4%\n[damage]
-HP: -97"];
-  "70|Fairy|undefined|Intrepid Sword" [label="HP: 70",shape=circle];
-  "70|Fairy|undefined|Intrepid Sword" -> "0|Fairy|undefined|Intrepid Sword" [label="90.0%\n[damage]
-HP: -70"];
-  "70|Fairy|undefined|Intrepid Sword" -> "70|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
-  "167|Fairy|undefined|Intrepid Sword" -> "167|Fairy|undefined|Intrepid Sword" [label="10.0%\nSelf-loop (10.0%)
-[self-recursion]",style=dashed,constraint=false];
+  "37|Fairy|undefined|undefined" [label="HP: 37",shape=circle];
 }

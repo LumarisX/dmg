@@ -276,7 +276,15 @@ function printKoChance(outcomes: TurnResult['outcomes'], turn: number) {
   console.log(`Turn ${turn} KO: ${Math.round(koChance * 10000) / 100}%`);
 }
 
-function printBarChart(outcomes: TurnResult['outcomes'], maxBarWidth: number = 50) {
+function printBarChart(outcomes: TurnResult['outcomes'], options: {maxBarWidth?: number; binSize?: number; floatPoint?: number} = {}) {
+  // Get max HP from first outcome
+  const maxHp = outcomes.length > 0 ? outcomes[0].state.data.stats.hp : 0;
+  const floatPoint = options.floatPoint ?? 1;
+  // Set default binSize if not provided
+  if (options.binSize === undefined) {
+    options.binSize = Math.max(1, Math.round(maxHp / 100));
+  }
+
   // Group outcomes by HP, summing probabilities
   const hpMap = new Map<number, number>();
 
@@ -285,36 +293,64 @@ function printBarChart(outcomes: TurnResult['outcomes'], maxBarWidth: number = 5
     hpMap.set(outcome.state.hp, currentProb + outcome.probability);
   }
 
-  // Find min and max HP values
-  const hpValues = Array.from(hpMap.keys());
-  const maxHP = Math.max(...hpValues);
-  const minHP = Math.min(...hpValues);
+  // Bin HP values and probabilities (0 always in its own bin)
+  const binMap = new Map<number, number>();
 
-  // Fill in all HP values from max to min
-  const hpData: Array<{hp: number; probability: number}> = [];
-  for (let hp = maxHP; hp >= minHP; hp--) {
-    hpData.push({
-      hp,
-      probability: hpMap.get(hp) || 0,
-    });
+  for (const [hp, prob] of hpMap.entries()) {
+    let binMinValue: number;
+    if (hp === 0) {
+      binMinValue = 0;
+    } else {
+      binMinValue = 1 + Math.floor((hp - 1) / options.binSize) * options.binSize;
+    }
+    const currentProb = binMap.get(binMinValue) || 0;
+    binMap.set(binMinValue, currentProb + prob);
   }
 
+  // Create data from maxHp down to 0, respecting bin size (0 always in its own bin)
+  const hpData: Array<{binMin: number; probability: number}> = [];
+
+  // Add bins from maxHp down to 1
+  for (let hp = maxHp; hp >= 1; hp -= options.binSize) {
+    const binMinValue = 1 + Math.floor((hp - 1) / options.binSize) * options.binSize;
+    if (!hpData.some(d => d.binMin === binMinValue)) {
+      hpData.push({
+        binMin: binMinValue,
+        probability: binMap.get(binMinValue) || 0,
+      });
+    }
+  }
+
+  // Add 0 bin at the end
+  hpData.push({
+    binMin: 0,
+    probability: binMap.get(0) || 0,
+  });
+
   // Find max probability for scaling
-  const maxProb = Math.max(...hpData.map(d => d.probability));
+  const maxProb = Math.max(...hpData.map(d => d.probability), 0);
 
   console.log('\n=== HP Distribution ===\n');
 
   for (const data of hpData) {
-    const percentage = (data.probability * 100).toFixed(2);
-    const barLength = Math.round((data.probability / maxProb) * maxBarWidth);
+    const percentage = (data.probability * 100).toFixed(floatPoint);
+    const barLength = maxProb > 0 ? Math.round((data.probability / maxProb) * (options.maxBarWidth ?? 50)) : 0;
     const bar = '█'.repeat(barLength);
-    const hpStr = data.hp.toString().padStart(3, ' ');
+    let binLabel: string;
+    if (data.binMin === 0) {
+      binLabel = '0';
+    } else if (options.binSize === 1) {
+      binLabel = data.binMin.toString();
+    } else {
+      binLabel = `${data.binMin}`;
+    }
+    const hpStr = binLabel.padStart(3, ' ');
 
     console.log(`${hpStr} HP │${bar} ${percentage}%`);
   }
 
   const totalProb = hpData.reduce((sum, d) => sum + d.probability, 0);
-  console.log(`\nTotal Probability: ${(totalProb * 100).toFixed(2)}%`);
+  console.log(`\nTotal Probability: ${(totalProb * 100).toFixed(floatPoint)}%`);
 }
 
 function exportTreeToGraphviz(tree: StateTree<DMG.PokemonState>) {
@@ -328,53 +364,55 @@ function exportTreeToGraphviz(tree: StateTree<DMG.PokemonState>) {
 }
 
 function printHPStatistics(outcomes: TurnResult['outcomes']) {
-  const hps = outcomes.map(o => o.state.hp);
-  const sortedHPs = [...hps].sort((a, b) => a - b);
+  const maxTotalHP = outcomes.reduce((t, o) => Math.max(o.state.data.stats.hp, t), 0);
 
-  // Calculate min and max
-  const minHP = Math.min(...hps);
-  const maxHP = Math.max(...hps);
-  const range = maxHP - minHP;
+  // Sort outcomes by HP for percentile calculations
+  const sortedOutcomes = [...outcomes].sort((a, b) => a.state.hp - b.state.hp);
 
-  // Calculate mean
-  const meanHP = hps.reduce((sum, hp) => sum + hp, 0) / hps.length;
+  // Calculate min and max HP
+  const minHP = Math.min(...outcomes.map(o => o.state.hp));
+  const maxHP = Math.max(...outcomes.map(o => o.state.hp));
 
-  // Calculate median
-  const medianHP =
-    sortedHPs.length % 2 === 0
-      ? (sortedHPs[sortedHPs.length / 2 - 1] + sortedHPs[sortedHPs.length / 2]) / 2
-      : sortedHPs[Math.floor(sortedHPs.length / 2)];
+  // Calculate weighted mean HP
+  const meanHP = outcomes.reduce((sum, o) => sum + o.state.hp * o.probability, 0);
 
-  // Calculate standard deviation
-  const variance = hps.reduce((sum, hp) => sum + Math.pow(hp - meanHP, 2), 0) / hps.length;
+  // Calculate weighted median and quartiles
+  let cumulativeProb = 0;
+  let medianHP = 0;
+  let q1HP = 0;
+  let q3HP = 0;
+
+  for (const outcome of sortedOutcomes) {
+    cumulativeProb += outcome.probability;
+
+    if (q1HP === 0 && cumulativeProb >= 0.25) {
+      q1HP = outcome.state.hp;
+    }
+    if (medianHP === 0 && cumulativeProb >= 0.5) {
+      medianHP = outcome.state.hp;
+    }
+    if (q3HP === 0 && cumulativeProb >= 0.75) {
+      q3HP = outcome.state.hp;
+    }
+
+    if (cumulativeProb >= 0.75) break;
+  }
+
+  // Calculate weighted standard deviation
+  const variance = outcomes.reduce((sum, o) => sum + o.probability * Math.pow(o.state.hp - meanHP, 2), 0);
   const stdDev = Math.sqrt(variance);
 
   // Calculate KO chance (sum probabilities, not just count outcomes)
   const koChance = outcomes.filter(o => o.state.hp === 0).reduce((sum, o) => sum + o.probability, 0) * 100;
 
-  // Calculate mode (most common HP)
-  const hpFrequency = new Map<number, number>();
-  for (const hp of hps) {
-    hpFrequency.set(hp, (hpFrequency.get(hp) || 0) + 1);
-  }
-  const mode = Array.from(hpFrequency.entries()).reduce((a, b) => (b[1] > a[1] ? b : a))[0];
-
-  // Calculate quartiles
-  const q1Index = Math.floor(sortedHPs.length * 0.25);
-  const q3Index = Math.floor(sortedHPs.length * 0.75);
-  const q1 = sortedHPs[q1Index];
-  const q3 = sortedHPs[q3Index];
-
-  console.log('=== HP Statistics ===');
-  console.log(`Min HP: ${minHP}`);
-  console.log(`Max HP: ${maxHP}`);
-  console.log(`Range: ${range}`);
+  console.log('=== Remaining HP Statistics ===');
+  console.log(`Total HP: ${maxTotalHP}`);
+  console.log(`HP Range: ${minHP}-${maxHP} (${((minHP / maxTotalHP) * 100).toFixed(1)}%-${((maxHP / maxTotalHP) * 100).toFixed(1)}%)`);
   console.log(`Mean HP: ${meanHP.toFixed(2)}`);
   console.log(`Median HP: ${medianHP.toFixed(2)}`);
-  console.log(`Mode HP: ${mode}`);
   console.log(`Std Dev: ${stdDev.toFixed(2)}`);
-  console.log(`Q1 (25th %ile): ${q1}`);
-  console.log(`Q3 (75th %ile): ${q3}`);
+  console.log(`Q1 (25th %ile): ${q1HP}`);
+  console.log(`Q3 (75th %ile): ${q3HP}`);
   console.log(`KO Chance: ${koChance.toFixed(2)}%`);
 }
 
@@ -671,18 +709,22 @@ function example7() {
 
   const attacker = new DMG.Pokemon(gen, 'Mewtwo-Mega-X', {level: 50, nature: 'Jolly', evs: {atk: 252, spe: 252}, item: 'Scope Lens'});
   const target = new DMG.Pokemon(gen, 'Zacian', {level: 50});
-  const move = new DMG.Move(gen, 'Zen Headbutt');
+  const move = new DMG.Move(gen, 'Poison Jab');
 
-  // console.log(move);
+  const TURNS = 1;
+  let turnResult: TurnResult | {outcomes: undefined; tree: undefined} = {outcomes: undefined, tree: undefined};
 
-  let turn = computeTurn(attacker, target, move);
-  turn = computeTurn(attacker, target, move, turn.tree, turn.outcomes);
+  for (let turn = 0; turn < TURNS; turn++) {
+    turnResult = computeTurn(attacker, target, move, turnResult.tree, turnResult.outcomes);
+  }
 
   // turn.tree.debugVisualize();
-  printOutput(turn.outcomes);
-  printBarChart(turn.outcomes);
-  exportTreeToGraphviz(turn.tree);
-  printHPStatistics(turn.outcomes);
+  if (turnResult.outcomes && turnResult.tree) {
+    printOutput(turnResult.outcomes);
+    printBarChart(turnResult.outcomes);
+    exportTreeToGraphviz(turnResult.tree);
+    printHPStatistics(turnResult.outcomes);
+  }
 }
 
 example7();

@@ -15,8 +15,28 @@ export type HitState = {
 };
 
 export interface Handler<S> {
-  onHitActivate(scope: S): boolean;
+  basePowerCallback(scope: S): number;
+  damageCallback(scope: S): number;
+  onAnyBasePower(scope: S): number | undefined;
+  onBasePower(scope: S): number | undefined;
+  onModifyMove(scope: S): void;
+  onModifyAtk(scope: S): number | undefined;
+  onModifySpA(scope: S): number | undefined;
+  onModifyDef(scope: S): number | undefined;
+  onModifySpD(scope: S): number | undefined;
+  onModifySpe(scope: S): number | undefined;
+  onModifyWeight(scope: S): number | undefined;
+  onResidual(scope: S): number | undefined;
+  onModifyDamageAttacker(scope: S): number | undefined;
+  onModifyDamageDefender(scope: S): number | undefined;
+  onUpdate(scope: S): void;
+  onModifyMoveStat(scope: S): number | undefined;
+  onModifySTAB(scope: S): number | undefined;
+  onEffectiveness(scope: S): number | undefined;
+  onTryImmunity(scope: S): boolean;
   onEat(scope: S): void;
+  onHitActivate(scope: S): boolean;
+  onModifyCritRatio(scope: S): number | undefined;
 }
 
 const Items: {
@@ -24,17 +44,34 @@ const Items: {
 } = {
   sitrusberry: {
     onHitActivate(state) {
-      return state.hp <= Math.floor(0.5 * state.stats.hp);
+      return state.hp <= Math.floor(0.5 * state.data.stats.hp);
     },
     onEat(state) {
-      state.hp = Math.min(state.hp + Math.floor(state.stats.hp / 4), state.stats.hp);
+      state.hp = Math.min(state.hp + Math.floor(state.data.stats.hp / 4), state.data.stats.hp);
       state.item = null;
     },
   },
   scopelens: {
-    //   onModifyCritRatio(critRatio) {
-    //     return critRatio + 1;
-    //   },
+    onModifyCritRatio(state) {
+      return 1;
+    },
+  },
+  lifeorb: {
+    onModifyDamageAttacker() {
+      return 0x14cc;
+    },
+    // onAfterMoveSecondarySelf(source, target, move) {
+    //   if (source && source !== target && move && move.category !== 'Status') {
+    //     this.damage(source.baseMaxhp / 10, source, source, this.dex.getItem('lifeorb'));
+    //   }
+    // },
+  },
+  luckypunch: {
+    onModifyCritRatio(state) {
+      if (state.data.id === 'chansey') {
+        return 2;
+      }
+    },
   },
 };
 
@@ -62,29 +99,39 @@ const Moves: {
   },
 };
 
+const Abilities: {
+  [id: string]: Partial<{}>;
+} = {};
+
+const Conditions: {
+  [id: string]: Partial<{}>;
+} = {};
+
+export const DMGHANDLERS = {Items, Moves, Abilities, Conditions};
+
 export function calculateDamage(attacker: DMG.PokemonState, target: DMG.PokemonState, move: DMG.Move, hit: HitState): number[] {
   // if (move.onTryImmunity && move.onTryImmunity(context)) return [0];
   // if (move.effectiveness === -5) return [0];
   // if (move.damageCallback) return [move.damageCallback(context)];
 
   const attackStat = move.overrideOffensiveStat
-    ? attacker.stats[move.overrideOffensiveStat]
+    ? attacker.data.stats[move.overrideOffensiveStat]
     : is(move.category, 'Physical')
-    ? attacker.stats.atk
+    ? attacker.data.stats.atk
     : is(move.category, 'Special')
-    ? attacker.stats.spa
+    ? attacker.data.stats.spa
     : 0;
   const defenseStat = move.overrideDefensiveStat
-    ? target.stats[move.overrideDefensiveStat]
+    ? target.data.stats[move.overrideDefensiveStat]
     : is(move.category, 'Physical')
-    ? target.stats.def
+    ? target.data.stats.def
     : is(move.category, 'Special')
-    ? target.stats.spd
+    ? target.data.stats.spd
     : 0;
 
   const basePower = Moves[move.id]?.basePowerCallback ? Moves[move.id].basePowerCallback!(move) : move.basePower;
 
-  let baseDamage = getBaseDamage(attacker.level, basePower, attackStat, defenseStat);
+  let baseDamage = getBaseDamage(attacker.data.level, basePower, attackStat, defenseStat);
   // const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(move.target);
   // if (isSpread) {
   //   baseDamage = applyMod(baseDamage, 0xc00);
@@ -173,9 +220,9 @@ function getFinalModifier(attacker: DMG.PokemonState, target: DMG.PokemonState, 
   //   mod = chain(mod, context.gameType === 'singles' ? 0x800 : 0xaac);
   // }
 
-  // if (attacker.ability?.onModifyDamageAttacker) {
-  //   mod = chain(mod, attacker.ability.onModifyDamageAttacker(attacker));
-  // }
+  if (attacker.ability?.onModifyDamageAttacker) {
+    mod = chain(mod, attacker.ability.onModifyDamageAttacker(attacker));
+  }
 
   // if (target.volatiles.dynamax && ['Dynamax Cannon', 'Behemoth Blade', 'Behemoth Bash'].includes(move.name)) {
   //   mod = chain(mod, 0x2000);
@@ -187,9 +234,9 @@ function getFinalModifier(attacker: DMG.PokemonState, target: DMG.PokemonState, 
 
   // if (context.p2.active?.some(active => active?.ability === 'friendguard')) mod = chain(mod, 0xc00);
 
-  // if (attacker.item?.onModifyDamageAttacker) {
-  //   mod = chain(mod, attacker.item.onModifyDamageAttacker(attacker));
-  // }
+  if (attacker.item?.onModifyDamageAttacker) {
+    mod = chain(mod, attacker.item.onModifyDamageAttacker(attacker));
+  }
 
   // if (target.item?.onModifyDamageDefender) {
   //   mod = chain(mod, target.item.onModifyDamageDefender(attacker));
@@ -245,14 +292,19 @@ function getHitOutcomes(
     missProbability
   );
 
-  console.log(move.critChance);
+  const CRITRATES = [0, 1 / 24, 1 / 8, 1 / 2];
+
+  let critRatio = move.critRatio;
+  if (attacker.item?.onModifyCritRatio) critRatio += attacker.item.onModifyCritRatio(attacker) ?? 0;
+
+  const critRate = critRatio > CRITRATES.length - 1 ? 1 : CRITRATES[critRatio];
 
   hitSpace.splitEventByFilter(
     e => !e.missed,
     h => {
       h.isCrit = true;
     },
-    move.critChance
+    critRate
   );
 
   const damageTransform = (isCrit: boolean) => (hitState: HitState) =>
@@ -480,12 +532,12 @@ function computeHitOnSpace(
     );
 
     const shouldActivateItemEffect = (state: DMG.PokemonState): boolean => {
-      return state.hp > 0 && state.item != null && Items[state.item]?.onHitActivate?.(state) === true;
+      return state.hp > 0 && state.item != null && state.item?.onHitActivate?.(state) === true;
     };
 
     const applyItemEffect = (state: DMG.PokemonState) => {
       if (state.item != null) {
-        Items[state.item]?.onEat?.(state);
+        state.item?.onEat?.(state);
       }
     };
 

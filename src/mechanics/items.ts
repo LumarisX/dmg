@@ -1748,9 +1748,9 @@ export const Items: {
     //   },
   },
   scopelens: {
-    //   onModifyCritRatio(critRatio) {
-    //     return critRatio + 1;
-    //   },
+    // onModifyCritRatio(scope) {
+    //   return 1;
+    // },
   },
   seaincense: {
     onBasePower(pokemon) {
