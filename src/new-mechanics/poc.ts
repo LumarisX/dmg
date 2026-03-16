@@ -259,8 +259,8 @@ const EFFECTIVENESSBIT: {[key: number]: number} = {
 
 type StateSerializer = (s: DMG.PokemonState) => string;
 
-const stateFullSerializer: StateSerializer = s => `${s.hp}|${s.types.toString()}|${s.item}|${s.ability}`;
-const stateVariantSerializer: StateSerializer = s => `${s.types.toString()}|${s.item}|${s.ability}`;
+const stateFullSerializer: StateSerializer = s => `${s.hp}|${s.types.toString()}|${s.item?.id}|${s.ability?.id}`;
+const stateVariantSerializer: StateSerializer = s => `${s.types.toString()}|${s.item?.id}|${s.ability?.id}`;
 
 function getHitOutcomes(
   gen: Generation,
@@ -371,7 +371,9 @@ export function computeTurn(
   let turnTree: TurnTree;
   if (!previousTree) {
     const rootState = target.states.getOutcomes()[0].value;
-    turnTree = new StateTree<DMG.PokemonState>(rootState, stateFullSerializer);
+    turnTree = new StateTree<DMG.PokemonState>(rootState, stateFullSerializer, {
+      cloneState: DMG.clonePokemonState,
+    });
   } else {
     turnTree = previousTree;
   }

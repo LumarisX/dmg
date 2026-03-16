@@ -45,6 +45,18 @@ function reify<T>(obj: T & Partial<Handler<DMG.PokemonState>>, id: ID, handlers:
 }
 
 export namespace DMG {
+  export function clonePokemonState(state: PokemonState): PokemonState {
+    return {
+      hp: state.hp,
+      item: state.item,
+      types: state.types,
+      ability: state.ability,
+      hits: [...state.hits],
+      critRatio: state.critRatio,
+      data: state.data,
+    };
+  }
+
   export interface PokemonState {
     hp: number;
     item?: (Item & Partial<Handler<DMG.PokemonState>>) | null;
@@ -482,7 +494,7 @@ export namespace DMG {
       this.stallingMove = move.stallingMove;
       this.boosts = move.boosts;
       this.status = move.status;
-      this.critRatio = options.crit === undefined ? move.critRatio ?? 0 : options.crit ? 1 : -100;
+      this.critRatio = options.crit === undefined ? move.critRatio ?? 0 : options.crit ? 1 : 0;
     }
   }
 

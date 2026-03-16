@@ -1,47 +1,35 @@
 digraph G {
   graph [ranksep=3];
   node [shape=box];
-  "167|Fairy|undefined|undefined" [label="HP: 167",shape=box];
-  "167|Fairy|undefined|undefined" -> "3|Fairy|undefined|undefined" [label="0.8%\n[damage]
-HP: -164"];
-  "3|Fairy|undefined|undefined" [label="HP: 3",shape=circle];
-  "167|Fairy|undefined|undefined" -> "1|Fairy|undefined|undefined" [label="0.8%\n[damage]
-HP: -166"];
-  "1|Fairy|undefined|undefined" [label="HP: 1",shape=circle];
-  "167|Fairy|undefined|undefined" -> "0|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -167"];
-  "0|Fairy|undefined|undefined" [label="HP: 0",shape=circle];
-  "167|Fairy|undefined|undefined" -> "57|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -110"];
-  "57|Fairy|undefined|undefined" [label="HP: 57",shape=circle];
-  "167|Fairy|undefined|undefined" -> "55|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -112"];
-  "55|Fairy|undefined|undefined" [label="HP: 55",shape=circle];
-  "167|Fairy|undefined|undefined" -> "53|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -114"];
-  "53|Fairy|undefined|undefined" [label="HP: 53",shape=circle];
-  "167|Fairy|undefined|undefined" -> "51|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -116"];
-  "51|Fairy|undefined|undefined" [label="HP: 51",shape=circle];
-  "167|Fairy|undefined|undefined" -> "49|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -118"];
-  "49|Fairy|undefined|undefined" [label="HP: 49",shape=circle];
-  "167|Fairy|undefined|undefined" -> "47|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -120"];
-  "47|Fairy|undefined|undefined" [label="HP: 47",shape=circle];
-  "167|Fairy|undefined|undefined" -> "45|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -122"];
-  "45|Fairy|undefined|undefined" [label="HP: 45",shape=circle];
-  "167|Fairy|undefined|undefined" -> "43|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -124"];
-  "43|Fairy|undefined|undefined" [label="HP: 43",shape=circle];
-  "167|Fairy|undefined|undefined" -> "41|Fairy|undefined|undefined" [label="10.9%\n[damage]
-HP: -126"];
-  "41|Fairy|undefined|undefined" [label="HP: 41",shape=circle];
-  "167|Fairy|undefined|undefined" -> "39|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -128"];
-  "39|Fairy|undefined|undefined" [label="HP: 39",shape=circle];
-  "167|Fairy|undefined|undefined" -> "37|Fairy|undefined|undefined" [label="5.5%\n[damage]
-HP: -130"];
-  "37|Fairy|undefined|undefined" [label="HP: 37",shape=circle];
+  "241|Psychic|undefined|undefined" [label="HP: 241",shape=box];
+  "241|Psychic|undefined|undefined" -> "172|Psychic|undefined|undefined" [label="6.3%\n[damage]
+HP: -69"];
+  "172|Psychic|undefined|undefined" [label="HP: 172",shape=circle];
+  "241|Psychic|undefined|undefined" -> "171|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -70"];
+  "171|Psychic|undefined|undefined" [label="HP: 171",shape=circle];
+  "241|Psychic|undefined|undefined" -> "169|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -72"];
+  "169|Psychic|undefined|undefined" [label="HP: 169",shape=circle];
+  "241|Psychic|undefined|undefined" -> "168|Psychic|undefined|undefined" [label="6.3%\n[damage]
+HP: -73"];
+  "168|Psychic|undefined|undefined" [label="HP: 168",shape=circle];
+  "241|Psychic|undefined|undefined" -> "166|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -75"];
+  "166|Psychic|undefined|undefined" [label="HP: 166",shape=circle];
+  "241|Psychic|undefined|undefined" -> "165|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -76"];
+  "165|Psychic|undefined|undefined" [label="HP: 165",shape=circle];
+  "241|Psychic|undefined|undefined" -> "163|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -78"];
+  "163|Psychic|undefined|undefined" [label="HP: 163",shape=circle];
+  "241|Psychic|undefined|undefined" -> "162|Psychic|undefined|undefined" [label="12.5%\n[damage]
+HP: -79"];
+  "162|Psychic|undefined|undefined" [label="HP: 162",shape=circle];
+  "241|Psychic|undefined|undefined" -> "160|Psychic|undefined|undefined" [label="6.3%\n[damage]
+HP: -81"];
+  "160|Psychic|undefined|undefined" [label="HP: 160",shape=circle];
+  "241|Psychic|undefined|undefined" -> "159|Psychic|undefined|undefined" [label="6.3%\n[damage]
+HP: -82"];
+  "159|Psychic|undefined|undefined" [label="HP: 159",shape=circle];
 }

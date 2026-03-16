@@ -115,15 +115,18 @@ export class StateTree<T> {
   private edgeCount = 0;
   private readonly serializer: (state: T) => string;
   private outcomesCache: StateOutcome<T>[] | null = null;
+  private readonly cloneState: (state: T) => T;
 
   constructor(
     source: T,
     serializer: (state: T) => string,
     options?: {
       probabilityFloor?: number;
+      cloneState?: (state: T) => T;
     }
   ) {
     this.serializer = serializer;
+    this.cloneState = options?.cloneState ?? ((state: T) => structuredClone(state));
     this.root = this.getOrCreateNode(source, 0);
     this.probabilityFloor = Math.max(0, Math.min(options?.probabilityFloor ?? 0, 0.999));
   }
@@ -164,7 +167,7 @@ export class StateTree<T> {
     if (totalWeight <= 0) {
       throw new Error('Total transformation probability must be greater than 0');
     }
-    if (totalWeight > 1.0) {
+    if (totalWeight > 1.001) {
       throw new Error(`Total transformation probability cannot exceed 1.0, got ${totalWeight}`);
     }
 
@@ -174,7 +177,7 @@ export class StateTree<T> {
       if (spec.probability < this.probabilityFloor) continue;
 
       // Apply transformation to create new state
-      const newState = spec.transform(structuredClone(fromState));
+      const newState = spec.transform(this.cloneState(fromState));
       const toNode = this.getOrCreateNode(newState, fromNode.depth + 1);
 
       // Create edge
@@ -405,8 +408,9 @@ export class StateTree<T> {
    * Clone the tree (deep copy of structure and states)
    */
   clone(): StateTree<T> {
-    const cloned = new StateTree<T>(structuredClone(this.root.state), this.serializer, {
+    const cloned = new StateTree<T>(this.cloneState(this.root.state), this.serializer, {
       probabilityFloor: this.probabilityFloor,
+      cloneState: this.cloneState,
     });
 
     // Map old node IDs to new nodes
@@ -416,7 +420,7 @@ export class StateTree<T> {
     // Clone all non-root nodes
     for (const [id, node] of this.nodeMap) {
       if (id !== this.root.id) {
-        const clonedNode = cloned.getOrCreateNode(structuredClone(node.state), node.depth);
+        const clonedNode = cloned.getOrCreateNode(this.cloneState(node.state), node.depth);
         nodeMapping.set(id, clonedNode);
       }
     }

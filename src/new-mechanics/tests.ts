@@ -255,14 +255,14 @@ export const Rulesets: {
     },
   },
 };
-function printOutput(outcomes: TurnResult['outcomes']) {
+export function printOutput(outcomes: TurnResult['outcomes']) {
   const totalProbability = outcomes.reduce((sum, o) => sum + o.probability, 0);
 
   console.table(
     outcomes
       .map(o => ({
         hp: o.state.hp,
-        item: o.state.item,
+        item: o.state.item?.name,
         probability: `${(o.probability * 100).toFixed(2)}%`,
       }))
       .sort((a, b) => b.hp - a.hp)
@@ -353,7 +353,7 @@ function printBarChart(outcomes: TurnResult['outcomes'], options: {maxBarWidth?:
   console.log(`\nTotal Probability: ${(totalProb * 100).toFixed(floatPoint)}%`);
 }
 
-function exportTreeToGraphviz(tree: StateTree<DMG.PokemonState>) {
+export function exportTreeToGraphviz(tree: StateTree<DMG.PokemonState>) {
   const graphvizCode = tree.toGraphviz(Infinity, s => `HP: ${s.hp}` + (s.item ? '\n' + s.item : ''));
   const filePath = 'turn-tree.dot';
 
@@ -707,6 +707,29 @@ function example6() {
 function example7() {
   const gen = Rulesets['Gen 9']['National Dex'].ruleset;
 
+  const attacker = new DMG.Pokemon(gen, 'Bisharp');
+  const target = new DMG.Pokemon(gen, 'Deoxys-Defense');
+  const move = new DMG.Move(gen, 'Iron Head', {crit: false});
+
+  const TURNS = 1;
+  let turnResult: TurnResult | {outcomes: undefined; tree: undefined} = {outcomes: undefined, tree: undefined};
+
+  for (let turn = 0; turn < TURNS; turn++) {
+    turnResult = computeTurn(attacker, target, move, turnResult.tree, turnResult.outcomes);
+  }
+
+  // turn.tree.debugVisualize();
+  if (turnResult.outcomes && turnResult.tree) {
+    printOutput(turnResult.outcomes);
+    printBarChart(turnResult.outcomes);
+    exportTreeToGraphviz(turnResult.tree);
+    printHPStatistics(turnResult.outcomes);
+  }
+}
+
+function example8() {
+  const gen = Rulesets['Gen 9']['National Dex'].ruleset;
+
   const attacker = new DMG.Pokemon(gen, 'Mewtwo-Mega-X', {level: 50, nature: 'Jolly', evs: {atk: 252, spe: 252}, item: 'Scope Lens'});
   const target = new DMG.Pokemon(gen, 'Zacian', {level: 50});
   const move = new DMG.Move(gen, 'Poison Jab');
@@ -726,5 +749,3 @@ function example7() {
     printHPStatistics(turnResult.outcomes);
   }
 }
-
-example7();
