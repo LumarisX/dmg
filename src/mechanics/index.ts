@@ -1,48 +1,21 @@
-import type {GameType, Generation, Generations, ID, MoveName, StatsTable, TypeName} from '@pkmn/data';
+import type {GameType, Generation, Generations, ID, MoveName, TypeName} from '@pkmn/data';
 
-import {Context} from '../context';
+import {Context} from '../../../pokemon-draftzone-server/dmg/context';
+import {HandlerKind, Handlers, HANDLERS} from '../handlers';
 import {parse} from '../parse';
-import {Relevancy, Result} from '../result';
-import {State} from '../state';
+import {Relevancy} from '../relevancy';
+import {Result} from '../result';
+import {State} from '../../../pokemon-draftzone-server/dmg/state';
+import {computeBoostedStat} from '../stats';
 import {DeepReadonly, has, is} from '../utils';
 
 import {Abilities} from './abilities';
-import {Conditions} from './conditions';
 import {Items} from './items';
-import {Moves} from './moves';
 
-import {abs, apply, applyMod, chain, clamp, floor, max, min, round, roundDown, shift, trunc} from '../math';
+import {apply, applyMod, chain, floor, max, min, round, roundDown, shift, trunc} from '../../../pokemon-draftzone-server/dmg/math';
 
-export interface Applier {
-  apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
-}
-
-export interface Handler<S> {
-  basePowerCallback(scope: S): number;
-  damageCallback(scope: S): number;
-  onAnyBasePower(scope: S): number | undefined;
-  onBasePower(scope: S): number | undefined;
-  onModifyMove(scope: S): void;
-  onModifyAtk(scope: S): number | undefined;
-  onModifySpA(scope: S): number | undefined;
-  onModifyDef(scope: S): number | undefined;
-  onModifySpD(scope: S): number | undefined;
-  onModifySpe(scope: S): number | undefined;
-  onModifyWeight(scope: S): number | undefined;
-  onResidual(scope: S): number | undefined;
-  onModifyDamageAttacker(scope: S): number | undefined;
-  onModifyDamageDefender(scope: S): number | undefined;
-  onUpdate(scope: S): void;
-  onModifyMoveStat(scope: S): number | undefined;
-  onModifySTAB(scope: S): number | undefined;
-  onEffectiveness(scope: S): number | undefined;
-  onTryImmunity(scope: S): boolean;
-  onEat(scope: S): void;
-}
-
-export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
-export type Handlers = typeof HANDLERS;
-export const HANDLERS = {Abilities, Conditions, Items, Moves};
+export {Applier, Handler, HandlerKind, Handlers, HANDLERS} from '../handlers';
+export {computeStats} from '../stats';
 
 export class Appliers {
   private handlers: Handlers;
@@ -166,10 +139,10 @@ export function pdzCalculateStrength(pokemon: Context.Pokemon): number {
   const attackStat = pokemon.move.overrideOffensiveStat
     ? pokemon.species.baseStats[pokemon.move.overrideOffensiveStat]
     : is(pokemon.move.category, 'Physical')
-    ? pokemon.species.baseStats.atk
-    : is(pokemon.move.category, 'Special')
-    ? pokemon.species.baseStats.spa
-    : 0;
+      ? pokemon.species.baseStats.atk
+      : is(pokemon.move.category, 'Special')
+        ? pokemon.species.baseStats.spa
+        : 0;
   const baseDamage = move.basePower * attackStat;
   const stabMod = pdzGetStabModifier(pokemon);
   let damageAmount = baseDamage;
@@ -190,17 +163,17 @@ export function calculateDamage(context: Context | State): number | number[] {
   const attackStat = context.move.overrideOffensiveStat
     ? context.p1.pokemon.stats[context.move.overrideOffensiveStat]
     : is(context.move.category, 'Physical')
-    ? context.p1.pokemon.stats.atk
-    : is(context.move.category, 'Special')
-    ? context.p1.pokemon.stats.spa
-    : 0;
+      ? context.p1.pokemon.stats.atk
+      : is(context.move.category, 'Special')
+        ? context.p1.pokemon.stats.spa
+        : 0;
   const defenseStat = context.move.overrideDefensiveStat
     ? context.p2.pokemon.stats[context.move.overrideDefensiveStat]
     : is(context.move.category, 'Physical')
-    ? context.p2.pokemon.stats.def
-    : is(context.move.category, 'Special')
-    ? context.p2.pokemon.stats.spd
-    : 0;
+      ? context.p2.pokemon.stats.def
+      : is(context.move.category, 'Special')
+        ? context.p2.pokemon.stats.spd
+        : 0;
 
   let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
@@ -313,41 +286,6 @@ function getFinalModifier(context: Context): number {
 
   // double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
   return mod;
-}
-
-// FIXME: other modifiers beyond just boosts
-export function computeStats(gen: Generation, pokemon: State.Pokemon) {
-  const stats = {} as StatsTable;
-  if (pokemon.stats) {
-    for (const stat of gen.stats) {
-      stats[stat] = stat === 'hp' ? pokemon.stats[stat] : computeBoostedStat(pokemon.stats[stat], pokemon.boosts?.[stat] || 0, gen);
-    }
-    return stats;
-  } else {
-    for (const stat of gen.stats) {
-      stats[stat] = gen.stats.calc(
-        stat,
-        pokemon.species.baseStats[stat],
-        pokemon.ivs?.[stat] ?? 31,
-        pokemon.evs?.[stat] ?? (gen.num <= 2 ? 252 : 0),
-        pokemon.level,
-        gen.natures.get(pokemon.nature!)
-      );
-      if (stat !== 'hp') {
-        stats[stat] = computeBoostedStat(stats[stat], pokemon.boosts?.[stat] || 0, gen);
-      }
-    }
-  }
-  return stats;
-}
-
-const LEGACY_BOOSTS = [25, 28, 33, 40, 50, 66, 100, 150, 200, 250, 300, 350, 400];
-
-function computeBoostedStat(stat: number, mod: number, gen?: Generation) {
-  if (gen && gen.num <= 2) {
-    return clamp(1, (stat * LEGACY_BOOSTS[mod + 6]) / 100, 999);
-  }
-  return floor(trunc(stat * (mod >= 0 ? 2 + mod : 2), 16) / (mod >= 0 ? 2 : abs(mod) + 2));
 }
 
 export function computeModifiedSpeed(context: Context | State) {
@@ -700,17 +638,8 @@ export class NumberDistribution extends Distribution<number> {
     return result;
   }
 
-  subtract(other: number): NumberDistribution {
-    const result = new NumberDistribution();
-    const map = new Map<number, number>();
-    for (const outcome1 of this.outcomes) {
-      for (const outcome2 of other.outcomes) {
-        const diff = outcome1.data - outcome2.data;
-        map.set(diff, (map.get(diff) || 0) + outcome1.count * outcome2.count);
-      }
-    }
-    result.outcomes = Array.from(map, ([data, count]) => ({data, count}));
-    return result;
+  subtract(scalar: number): NumberDistribution {
+    return this.add(-scalar);
   }
 
   combine(other: NumberDistribution, operation: (a: number, b: number) => number): NumberDistribution {

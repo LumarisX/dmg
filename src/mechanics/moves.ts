@@ -1,7 +1,7 @@
 import {Generation} from '@pkmn/data';
-import {Applier, Handler} from '.';
-import {Context} from '../context';
-import {floor, random} from '../math';
+import {Applier, Handler} from '../handlers';
+import {Context} from '../../../pokemon-draftzone-server/dmg/context';
+import {floor, random} from '../../../pokemon-draftzone-server/dmg/math';
 import {has, is} from '../utils';
 
 export const Moves: {

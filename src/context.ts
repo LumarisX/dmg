@@ -25,8 +25,8 @@ import type {
 
 import {TerrainName, WeatherName} from './conditions';
 import {apply, chain} from './math';
-import {HANDLERS, Handler, HandlerKind, Handlers} from './mechanics';
-import {Relevancy} from './result';
+import {HANDLERS, Handler, HandlerKind, Handlers} from './handlers';
+import {Relevancy} from './relevancy';
 import {State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
 

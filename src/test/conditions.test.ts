@@ -1,7 +1,7 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
-import {Conditions} from '../conditions';
+import {Conditions} from '../../../pokemon-draftzone-server/dmg/conditions';
 
 const gens = new Generations(Dex as any);
 
@@ -17,17 +17,9 @@ describe('Conditions', () => {
     expect(Conditions.get(gens.get(2), 'reflect')).toEqual(['Reflect', 'Side Condition', 'p2']);
 
     expect(Conditions.get(gens.get(3), 'mudsport')).toEqual(['Mud Sport', 'Volatile Status', 'p2']);
-    expect(Conditions.get(gens.get(6), 'mudsport')).toEqual([
-      'Mud Sport',
-      'Pseudo Weather',
-      'field',
-    ]);
+    expect(Conditions.get(gens.get(6), 'mudsport')).toEqual(['Mud Sport', 'Pseudo Weather', 'field']);
 
     expect(Conditions.get(gens.get(6), 'burned')).toEqual(['brn', 'Status']);
-    expect(Conditions.get(gens.get(6), 'Foresight')).toEqual([
-      'Foresight',
-      'Volatile Status',
-      'p1',
-    ]);
+    expect(Conditions.get(gens.get(6), 'Foresight')).toEqual(['Foresight', 'Volatile Status', 'p1']);
   });
 });

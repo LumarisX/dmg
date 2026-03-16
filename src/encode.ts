@@ -1,9 +1,9 @@
 import type {BoostID, Generation, NatureName, StatID, StatsTable} from '@pkmn/data';
-import {State} from './state';
-import {PseudoWeathers, SideConditions, Statuses, Volatiles} from './conditions';
+import {State} from '../../pokemon-draftzone-server/dmg/state';
+import {PseudoWeathers, SideConditions, Statuses, Volatiles} from '../../pokemon-draftzone-server/dmg/conditions';
 import {has, is, toID} from './utils';
-import {computeStats} from './mechanics';
-import * as math from './math';
+import {computeStats} from './stats';
+import * as math from '../../pokemon-draftzone-server/dmg/math';
 
 const FORWARD = {
   '/': '$',
@@ -125,12 +125,7 @@ function encodeSide(
   const order = gen.num === 1 ? RBY_STAT_ORDER : STAT_ORDER;
 
   // Boosts
-  if (
-    !normal ||
-    !stats ||
-    (stats && !pokemon.boosts[stats[p]]) ||
-    Object.values(pokemon.boosts).filter(Boolean).length > 1
-  ) {
+  if (!normal || !stats || (stats && !pokemon.boosts[stats[p]]) || Object.values(pokemon.boosts).filter(Boolean).length > 1) {
     for (const boost of [...order.slice(1), 'accuracy', 'evasion'] as BoostID[]) {
       if (!pokemon.boosts[boost]) continue;
       const s = gen.stats.display(boost);
@@ -163,13 +158,7 @@ function encodeSide(
   encodeEVsAndNature(gen, evs, pokemon.nature, order, buf);
 
   // HP
-  const maxhp = gen.stats.calc(
-    'hp',
-    pokemon.species.baseStats.hp,
-    pokemon.ivs?.hp ?? 31,
-    pokemon.evs!.hp ?? (gen.num <= 2 ? 252 : 0),
-    pokemon.level
-  );
+  const maxhp = gen.stats.calc('hp', pokemon.species.baseStats.hp, pokemon.ivs?.hp ?? 31, pokemon.evs!.hp ?? (gen.num <= 2 ? 252 : 0), pokemon.level);
   if (pokemon.hp !== pokemon.maxhp) {
     const hp = math.round((pokemon.hp * 1000) / pokemon.maxhp) / 10;
     buf.push(math.round((hp * pokemon.maxhp) / 100) === pokemon.hp ? `${hp}%` : `HP:${pokemon.hp}`);
@@ -177,9 +166,7 @@ function encodeSide(
 
   // Status
   if (pokemon.status === 'tox') {
-    buf.push(
-      pokemon.statusState?.toxicTurns ? `Toxic:${pokemon.statusState.toxicTurns}` : '+Toxic'
-    );
+    buf.push(pokemon.statusState?.toxicTurns ? `Toxic:${pokemon.statusState.toxicTurns}` : '+Toxic');
   } else if (pokemon.status) {
     buf.push(`+${Statuses[pokemon.status]}`);
   }
@@ -209,11 +196,7 @@ function encodeSide(
   }
 
   // Gender
-  if (
-    pokemon.gender &&
-    pokemon.gender !== pokemon.species.gender &&
-    is('rivalry', state.p1.pokemon.ability)
-  ) {
+  if (pokemon.gender && pokemon.gender !== pokemon.species.gender && is('rivalry', state.p1.pokemon.ability)) {
     buf.push(`Gender:${pokemon.gender}`);
   }
 
@@ -234,9 +217,7 @@ function encodeSide(
     // Hidden Power changes the expected IVs - if hypertraining isn't possible the IVs should match
     // the default Hidden Power IVs (which requires a special case for Gen 2...)
     if (p === 'p1' && state.move.id === 'hiddenpower' && (gen.num <= 6 || pokemon.level !== 100)) {
-      const type =
-        gen.types.get(state.move.id.slice(11)) ??
-        gen.types.get(gen.types.getHiddenPower(gen.stats.fill({...pokemon.ivs}, 31)).type);
+      const type = gen.types.get(state.move.id.slice(11)) ?? gen.types.get(gen.types.getHiddenPower(gen.stats.fill({...pokemon.ivs}, 31)).type);
       if (gen.num <= 2) {
         for (const stat of gen.stats) {
           expected[stat] = type?.HPdvs?.[stat] ? gen.stats.toIV(type.HPdvs[stat]) : 31;
@@ -272,15 +253,9 @@ function encodeSide(
     if (unexpected.length) {
       if (unexpected.length === 1 && typedHP) {
         const iv = unexpected[0];
-        buf.push(
-          gen.num >= 3
-            ? `${gen.stats.display(iv)}IV:${pokemon.ivs[iv]}`
-            : `${gen.stats.display(iv)}DV:${gen.stats.toDV(pokemon.ivs[iv]!)}`
-        );
+        buf.push(gen.num >= 3 ? `${gen.stats.display(iv)}IV:${pokemon.ivs[iv]}` : `${gen.stats.display(iv)}DV:${gen.stats.toDV(pokemon.ivs[iv]!)}`);
       } else {
-        buf.push(
-          gen.num >= 3 ? `IVs:${ivs.join('/')}` : `DVs:${ivs.map(v => gen.stats.toDV(v)).join('/')}`
-        );
+        buf.push(gen.num >= 3 ? `IVs:${ivs.join('/')}` : `DVs:${ivs.map(v => gen.stats.toDV(v)).join('/')}`);
       }
     }
   }
@@ -330,13 +305,7 @@ function encodeSide(
   return consecutive;
 }
 
-function encodeEVsAndNature(
-  gen: Generation,
-  evs: Partial<StatsTable>,
-  nature: NatureName | undefined,
-  order: readonly StatID[],
-  buf: string[]
-) {
+function encodeEVsAndNature(gen: Generation, evs: Partial<StatsTable>, nature: NatureName | undefined, order: readonly StatID[], buf: string[]) {
   const n = nature ? gen.natures.get(nature) : undefined;
   if (n?.plus) {
     const plus = n.plus in evs ? n.plus : undefined;
@@ -423,10 +392,7 @@ const NATURE_ORDER: readonly NatureName[] = [
   'Serious',
 ];
 
-export function getNature(
-  nature: {plus?: StatID; minus?: StatID},
-  evs: Partial<StatsTable & {spc: number}> | undefined
-) {
+export function getNature(nature: {plus?: StatID; minus?: StatID}, evs: Partial<StatsTable & {spc: number}> | undefined) {
   if (nature.plus === 'hp' || nature.minus === 'hp') throw new Error('Natures cannot modify HP');
   if (nature.plus && nature.minus) return getNatureFromPlusMinus(nature.plus, nature.minus);
   if (!(nature.plus || nature.minus)) return undefined;

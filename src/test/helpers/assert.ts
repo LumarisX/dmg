@@ -2,7 +2,7 @@ import * as assert from 'assert';
 
 import {Specie} from '@pkmn/data';
 
-import {State} from '../../state';
+import {State} from '../../../../pokemon-draftzone-server/dmg/state';
 
 /**
  * Workaround for asserting equality between between two `State` objects.

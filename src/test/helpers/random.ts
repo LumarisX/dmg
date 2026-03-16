@@ -1,10 +1,18 @@
 import {BoostID, GameType, Generation, GenerationNum, Generations, Specie, StatsTable, toID} from '@pkmn/data';
 import {PRNG} from '@pkmn/sim';
 
-import {Conditions, PseudoWeathers, SideConditions, Statuses, Terrains, Volatiles, Weathers} from '../../conditions';
-import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State, setGender} from '../../state';
+import {
+  Conditions,
+  PseudoWeathers,
+  SideConditions,
+  Statuses,
+  Terrains,
+  Volatiles,
+  Weathers,
+} from '../../../../pokemon-draftzone-server/dmg/conditions';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State, setGender} from '../../../../pokemon-draftzone-server/dmg/state';
 import {is} from '../../utils';
-import * as math from '../../math';
+import * as math from '../../../../pokemon-draftzone-server/dmg/math';
 
 export function generate(gens: Generations, prng: PRNG) {
   const gen = gens.get(range(prng, 1, 8) as GenerationNum);
@@ -150,8 +158,8 @@ function generatePokemon(gen: Generation, prng: PRNG) {
           ? range(prng, 0, math.min(total, 252))
           : math.min(total, 252)
         : prng.randomChance(1, 20)
-        ? range(prng, 0, 252)
-        : 252;
+          ? range(prng, 0, 252)
+          : 252;
     total -= options.evs[stat] ?? 0;
     stats[stat] = gen.stats.calc(stat, species.baseStats[stat], options.ivs[stat], options.evs[stat], options.level, nature);
   }

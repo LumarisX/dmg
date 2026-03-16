@@ -1,6 +1,6 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
-import {State} from '../../state';
+import {State} from '../../../../pokemon-draftzone-server/dmg/state';
 import {computeModifiedSpeed} from '../../mechanics';
 
 const gens = new Generations(Dex as any);

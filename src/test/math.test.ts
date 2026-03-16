@@ -1,4 +1,4 @@
-import * as math from '../math';
+import * as math from '../../../pokemon-draftzone-server/dmg/math';
 
 describe('Math', () => {
   test('abs', () => {

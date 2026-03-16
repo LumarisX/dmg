@@ -1,27 +1,15 @@
 // TODO ability activation...
 
-import type {
-  BoostsTable,
-  GameType,
-  GenderName,
-  Generation,
-  GenerationNum,
-  Generations,
-  ID,
-  StatID,
-  StatsTable,
-  TypeName,
-} from '@pkmn/data';
+import type {BoostsTable, GameType, GenderName, Generation, GenerationNum, Generations, ID, StatID, StatsTable, TypeName} from '@pkmn/data';
 
-import {ConditionKind, Conditions, Player} from './conditions';
-import {MOVE_SUGAR, State, bounded} from './state';
+import {ConditionKind, Conditions, Player} from '../../pokemon-draftzone-server/dmg/conditions';
+import {MOVE_SUGAR, State, bounded} from '../../pokemon-draftzone-server/dmg/state';
 import {ABILITIES, RBY_STAT_ORDER, STAT_ORDER, decodeURL, getNature} from './encode';
 import {has, is, toID} from './utils';
 
 // Flags can either be specified as key:value or as 'implicits'
 // eslint-disable-next-line max-len
-const FLAG =
-  /^(?:(?:(?:--?)?(\w+)(?:=|:)([-+0-9a-zA-Z_'’".,/%:= ]+))|((?:--?|\+)[a-zA-Z'’"][-+0-9a-zA-Z_'’".,/%:= ]*))$/;
+const FLAG = /^(?:(?:(?:--?)?(\w+)(?:=|:)([-+0-9a-zA-Z_'’".,/%:= ]+))|((?:--?|\+)[a-zA-Z'’"][-+0-9a-zA-Z_'’".,/%:= ]*))$/;
 // Used to splits up the 'value' of a flag into multiple logical sub-flags
 const SPLIT_SUBFLAG = /[^+0-9a-zA-Z_'’"/%:= ]/;
 
@@ -50,8 +38,7 @@ const DEFAULTS: {[id: string]: 'p1' | 'p2'} = {
   switching: 'p2',
 };
 
-const stats = (s: string) =>
-  ['hp', 'atk', 'def', 'spa', 'spd', 'spc', 'spe'].map(stat => `${stat}${s}`);
+const stats = (s: string) => ['hp', 'atk', 'def', 'spa', 'spd', 'spc', 'spe'].map(stat => `${stat}${s}`);
 const boosts = (s: string) => [...stats(s).slice(1), `accuracy${s}`, `evasion${s}`];
 // Known keys for the various Flags scopes above - in strict mode unknown keys causes errors, note
 // that scalar conditions (weather/terrain/status) are 'lifted' out of _ up to the top level
@@ -93,8 +80,7 @@ const KNOWN = {
 const BOOSTS = /(?:((?:\+|-)[1-6])?\s+)?/;
 const LEVEL = /(?:Lvl?\s*(\d{1,2})\s+)?/;
 // eslint-disable-next-line max-len
-const EVS =
-  /((?:\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)(?:\s*\/\s*\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)){0,5})?\s+)?/;
+const EVS = /((?:\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)(?:\s*\/\s*\d{1,3}(?:\+|-)?\s*(?:HP|Atk|Def|SpA|SpD|Spe|Spc)){0,5})?\s+)?/;
 const HP = /(?:(100|\d{1,2}(?:\.\d+)?)%\s+)?/;
 // eslint-disable-next-line no-misleading-character-class
 const POKEMON_AND_ITEM = /(?:([A-Za-z][-0-9A-Za-zé%'’:. ]+)(?:\s*@\s*([A-Za-z][-0-9A-Za-z:' ]+))?)/;
@@ -266,12 +252,7 @@ const GEN = /\[\s*(?:(?:G|g)en)?\s*(\d)\s*(doubles|singles)?\]/gi;
 // Gen can be specified by a flag or by passing in a specific Generation object in addition to
 // as part of the phrase. We pull any generation information out of the phrase in addition to
 // returning the correct Generation object
-function parseGen(
-  gens: Generation | Generations,
-  g: GenerationNum | undefined,
-  s: string,
-  strict: boolean
-) {
+function parseGen(gens: Generation | Generations, g: GenerationNum | undefined, s: string, strict: boolean) {
   let gameType: GameType | undefined = undefined;
 
   let m;
@@ -287,12 +268,7 @@ function parseGen(
   return [gen, gameType, s] as const;
 }
 
-function validateGen(
-  gens: Generation | Generations,
-  g: GenerationNum | undefined,
-  val: string,
-  strict: boolean
-) {
+function validateGen(gens: Generation | Generations, g: GenerationNum | undefined, val: string, strict: boolean) {
   const n = Number(val);
   if (isNaN(n) || !bounded('gen', n)) {
     if (strict) throw new Error(`Invalid generation flag '${val}'`);
@@ -335,12 +311,7 @@ const CONDITIONS: {[id: string]: ConditionKind} = {
   status: 'Status',
 };
 
-function parseFlags(
-  gen: Generation,
-  vsScope: boolean,
-  raw: Array<[ID, string, string, boolean]>,
-  strict: boolean
-) {
+function parseFlags(gen: Generation, vsScope: boolean, raw: Array<[ID, string, string, boolean]>, strict: boolean) {
   const flags: Flags = {
     general: {},
     field: {[_]: {}},
@@ -424,15 +395,7 @@ const CONDITION_NON_BOOLS = [
   'tox',
 ] as ID[];
 // Boolean flags that are not conditions
-const NON_CONDITION_BOOLS = [
-  'usez',
-  'z',
-  'crit',
-  'spread',
-  'movelastturn',
-  'hurtthisturn',
-  ...Object.keys(ABILITIES),
-] as ID[];
+const NON_CONDITION_BOOLS = ['usez', 'z', 'crit', 'spread', 'movelastturn', 'hurtthisturn', ...Object.keys(ABILITIES)] as ID[];
 
 // Flags which canonically take an 's' suffix
 const PLURALS = ['ev', 'iv', 'dv', 'boost'] as ID[];
@@ -499,9 +462,7 @@ function parseConditionFlag(
         const cscope = scope ?? a;
         val = asBoolean(val) ? '1' : '0';
         if (strict && flags[cscope][id] && flags[cscope][id] !== val) {
-          throw new Error(
-            `Conflicting values for flag '${id}': '${flags[cscope][id]}' vs. '${val}'`
-          );
+          throw new Error(`Conflicting values for flag '${id}': '${flags[cscope][id]}' vs. '${val}'`);
         }
         flags[cscope][id] = val;
         continue;
@@ -539,10 +500,7 @@ function parseConditionFlag(
           const match = FLAG.exec(orig);
           if (match && !match[3]) {
             if (strict && flags[cscope].toxiccounter && flags[cscope].toxiccounter !== val) {
-              throw new Error(
-                "Conflicting values for flag 'toxiccounter': " +
-                  `'${flags[cscope].toxiccounter}' vs. '${val}'`
-              );
+              throw new Error("Conflicting values for flag 'toxiccounter': " + `'${flags[cscope].toxiccounter}' vs. '${val}'`);
             }
             flags[cscope].toxiccounter = val;
           }
@@ -635,13 +593,7 @@ function parsePokemonAndAbility(gen: Generation, s: string) {
   };
 }
 
-function parseSpreadValues(
-  gen: Generation,
-  type: 'iv' | 'ev' | 'dv',
-  compact: boolean,
-  s?: string,
-  checks?: Checks
-) {
+function parseSpreadValues(gen: Generation, type: 'iv' | 'ev' | 'dv', compact: boolean, s?: string, checks?: Checks) {
   let plus: StatID | undefined;
   let minus: StatID | undefined;
   const vals: Partial<StatsTable> = {};
@@ -689,13 +641,7 @@ interface Checks {
 
 const REQUIRED = true;
 
-function build(
-  gen: Generation,
-  gameType: GameType | undefined,
-  phrase: Phrase | undefined,
-  flags: Flags,
-  strict: boolean
-): State {
+function build(gen: Generation, gameType: GameType | undefined, phrase: Phrase | undefined, flags: Flags, strict: boolean): State {
   const conflict = <T>(k: string, a: T | undefined, b: T | undefined, required?: boolean) => {
     if (strict && a && b && toID(a) !== toID(b)) {
       throw new Error(`Conflicting values for ${k}: '${a}' vs. '${b}'`);
@@ -765,25 +711,14 @@ function buildMoveOptions(phrase: Phrase | undefined, flags: Flags, checks: Chec
   return {
     name: checks.conflict('move', phrase?.move.id, flags.move.name, REQUIRED)!,
     hits: checks.number('move hits', flags.move.hits),
-    consecutive: checks.number(
-      'move consecutive',
-      phrase?.move.consecutive,
-      flags.move.consecutive as any
-    ),
+    consecutive: checks.number('move consecutive', phrase?.move.consecutive, flags.move.consecutive as any),
     crit: flags.move.crit ? !!+flags.move.crit : undefined,
     spread: flags.move.spread ? !!+flags.move.spread : undefined,
     useZ: useZ ? !!+useZ : undefined,
   };
 }
 
-function buildSide(
-  gen: Generation,
-  side: Player,
-  move: string,
-  phrase: Phrase | undefined,
-  flags: Flags,
-  checks: Checks
-) {
+function buildSide(gen: Generation, side: Player, move: string, phrase: Phrase | undefined, flags: Flags, checks: Checks) {
   const f = flags[side];
   const p = phrase?.[side];
   const c = f[_];
@@ -854,10 +789,7 @@ function buildSide(
         .filter(Boolean)
         .join(', ')})`;
       checks.error(
-        !!(
-          (plusMinus.plus && plusMinus.plus !== n.plus) ||
-          (plusMinus.minus && plusMinus.minus !== n.minus)
-        ),
+        !!((plusMinus.plus && plusMinus.plus !== n.plus) || (plusMinus.minus && plusMinus.minus !== n.minus)),
         `Conflicting values for ${side} nature: ${f.nature} is not ${expected}`
       );
     }
@@ -867,12 +799,8 @@ function buildSide(
     nature = f.nature;
   }
 
-  const dvs = parseSpreadValues(gen, 'dv', true, f.dvs, checks) as Partial<
-  StatsTable & {spc?: number}
-  >;
-  const ivs = parseSpreadValues(gen, 'iv', true, f.ivs, checks) as Partial<
-  StatsTable & {spc?: number}
-  >;
+  const dvs = parseSpreadValues(gen, 'dv', true, f.dvs, checks) as Partial<StatsTable & {spc?: number}>;
+  const ivs = parseSpreadValues(gen, 'iv', true, f.ivs, checks) as Partial<StatsTable & {spc?: number}>;
   // eslint-disable-next-line @typescript-eslint/no-shadow
   const boosts: Partial<BoostsTable & {spc: number}> = {
     accuracy: checks.number(`${side} accuracy boosts`, f.accuracyboosts),
@@ -967,9 +895,7 @@ function buildSide(
       dvs,
       boosts,
       status: f.status,
-      statusState: f.toxiccounter
-        ? {toxicTurns: checks.number(`${side} toxic counter`, f.toxiccounter)}
-        : undefined,
+      statusState: f.toxiccounter ? {toxicTurns: checks.number(`${side} toxic counter`, f.toxiccounter)} : undefined,
       addedType,
       moveLastTurnResult: f.movelastturn ? asBoolean(f.movelastturn) : undefined,
       hurtThisTurn: f.hurtthisturn ? asBoolean(f.hurtthisturn) : undefined,

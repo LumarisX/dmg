@@ -1,108 +1,12 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from '@pkmn/data';
 
-import {Context} from './context';
-import {encode} from './encode';
-import * as math from './math';
-import {Appliers, HANDLERS, Handlers, NumberDistribution, calculateDamage} from './mechanics';
-import {State} from './state';
+import {Context} from '../../pokemon-draftzone-server/dmg/context';
+import type {Handlers} from './handlers';
+import * as math from '../../pokemon-draftzone-server/dmg/math';
+import {Appliers, HANDLERS, NumberDistribution, calculateDamage} from './mechanics';
+import {Relevancy} from './relevancy';
+import {State} from '../../pokemon-draftzone-server/dmg/state';
 import {DeepReadonly, extend, is} from './utils';
-
-export class Relevancy {
-  gameType: boolean;
-  readonly p1: Relevancy.Side;
-  readonly p2: Relevancy.Side;
-  readonly move: Relevancy.Move;
-  readonly field: Relevancy.Field;
-
-  constructor() {
-    this.gameType = false;
-    this.p1 = {
-      pokemon: {volatiles: {}, stats: {}, boosts: {}},
-      sideConditions: {},
-    };
-    this.p2 = {
-      pokemon: {volatiles: {}, stats: {}, boosts: {}},
-      sideConditions: {},
-    };
-    this.field = {pseudoWeather: {}};
-    this.move = {modified: {}};
-  }
-
-  static simplify(state: DeepReadonly<State>, relevant: Relevancy): State {
-    const gen = state.gen as Generation;
-    return {
-      gen,
-      gameType: relevant.gameType ? state.gameType : 'singles',
-      p1: simplifySide(gen, state.p1, relevant.p1),
-      p2: simplifySide(gen, state.p2, relevant.p2),
-      move: simplifyMove(state.move, relevant.move),
-      field: simplifyField(state.field, relevant.field),
-    };
-  }
-}
-
-export namespace Relevancy {
-  export interface Field {
-    weather?: boolean;
-    terrain?: boolean;
-    pseudoWeather: {[id: string]: boolean};
-  }
-
-  export interface Side {
-    pokemon: Pokemon;
-    sideConditions: {[id: string]: boolean};
-    active?: boolean;
-    team?: boolean;
-  }
-
-  export interface Pokemon {
-    // species is always relevant
-    // level is always relevant (though sometimes elided from the output)
-    // weighthg is relevant for weight based moves, but that's covered by move base power
-
-    item?: boolean;
-    ability?: boolean;
-
-    status?: boolean;
-    // statusData is covered by status: 'tox' already
-    volatiles: {[id: string]: boolean};
-
-    // types are always relevant (though usually elided in output)
-    // addedType is always relevant
-
-    // TODO: hp/maxhp is only relevant for attacker under certain circumstances!
-    // hp is relevant for the defender, but is checked when calculating OHKO chance
-
-    // certain moves/conditions change which stats are relevant
-    stats: Partial<Omit<StatsTable<boolean>, 'hp'>>;
-    // usually only the boosts in the relevant stats matter, but Stored Power etc depends on more
-    boosts: Partial<BoostsTable<boolean>>;
-
-    // position is never relevant, it merely exists as an implementation detail
-
-    // relevant for the specific moves that make use of them
-    gender?: boolean;
-    switching?: boolean;
-    moveLastTurnResult?: boolean;
-    hurtThisTurn?: boolean;
-  }
-
-  export interface Move {
-    modified: {
-      basePower?: boolean;
-      accuracy?: boolean;
-      type?: boolean;
-    };
-    crit?: boolean;
-    hits?: boolean;
-    magnitude?: boolean;
-    consecutive?: boolean;
-    spread?: boolean;
-    useZ?: boolean;
-  }
-}
 
 export type Notation = '%' | '/48' | 'px' | number;
 export type KOType = 'none' | 'hazards' | 'residual' | 'both';
@@ -405,6 +309,8 @@ export class Result {
 
     relevant = extend({}, relevant ?? this.relevant);
     const ko = this.knockout(type, relevant);
+    // Lazy import to avoid circular dependency
+    const {encode} = require('./encode');
     const state = encode(Relevancy.simplify(this.state, relevant!));
     if (!ko.chance) return `${state}: ${damage}`;
 
@@ -473,7 +379,10 @@ export class HitResult {
     return this.damage.expected;
   }
 
-  constructor(public context: Context, handlers: Handlers = HANDLERS) {
+  constructor(
+    public context: Context,
+    handlers: Handlers = HANDLERS
+  ) {
     this.handlers = handlers;
     this.damage = new NumberDistribution(calculateDamage(context));
     // context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
@@ -505,6 +414,8 @@ export class HitResult {
   }
 
   toString() {
+    // Lazy import to avoid circular dependency
+    const {encode} = require('./encode');
     const state = encode(Relevancy.simplify(this.context.toState() as DeepReadonly<State>, this.relevant));
     const rolls = typeof this.damage === 'number' ? this.damage : this.damage.toString();
     return `${state}: [${rolls}]`;

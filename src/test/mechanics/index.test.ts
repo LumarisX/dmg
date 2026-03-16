@@ -4,7 +4,7 @@ import {Data, GenerationNum, Generations, Weather} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 import {inGen, inGens} from '../../gens';
 import {computeModifiedSpeed} from '../../mechanics';
-import {State} from '../../state';
+import {State} from '../../../../pokemon-draftzone-server/dmg/state';
 
 const NATDEX_EXISTS = (d: Data) => {
   if (!d.exists) return false;

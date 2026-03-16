@@ -1,6 +1,6 @@
-import {Applier, Handler} from '.';
-import {Context} from '../context';
-import {floor, max, min} from '../math';
+import {Applier, Handler} from '../handlers';
+import {Context} from '../../../pokemon-draftzone-server/dmg/context';
+import {floor, max, min} from '../../../pokemon-draftzone-server/dmg/math';
 import {has, is} from '../utils';
 
 export const Items: {

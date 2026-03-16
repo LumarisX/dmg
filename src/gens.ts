@@ -1,6 +1,6 @@
 import type {GameType, Generation, GenerationNum, Generations, Specie} from '@pkmn/data';
 
-import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State} from './state';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State} from '../../pokemon-draftzone-server/dmg/state';
 import {Result} from './result';
 import {calculate} from './mechanics';
 
@@ -9,39 +9,39 @@ import * as parser from './parse';
 /** Constructs a `State.Pokemon` in a specific generation `gen`. */
 const pokemon =
   (gen: Generation) =>
-    (name: string, options: PokemonOptions = {}, move: string | {name?: string} = {}) =>
-      State.createPokemon(gen, name, options, move);
+  (name: string, options: PokemonOptions = {}, move: string | {name?: string} = {}) =>
+    State.createPokemon(gen, name, options, move);
 
 /** Constructs a `State.Side` in a specific generation `gen`. */
 const side =
   (gen: Generation) =>
-    (sPokemon: State.Pokemon | string, sideOptions: SideOptions = {}) => {
-      if (typeof sPokemon === 'string') sPokemon = State.createPokemon(gen, sPokemon);
-      return State.createSide(gen, sPokemon, sideOptions);
-    };
+  (sPokemon: State.Pokemon | string, sideOptions: SideOptions = {}) => {
+    if (typeof sPokemon === 'string') sPokemon = State.createPokemon(gen, sPokemon);
+    return State.createSide(gen, sPokemon, sideOptions);
+  };
 
 /** Constructs a `State.Move` in a specific generation `gen`. */
 const createMove =
   (gen: Generation) =>
-    (
-      name: string,
-      options: MoveOptions = {},
-      // eslint-disable-next-line @typescript-eslint/no-shadow
-      pokemon:
+  (
+    name: string,
+    options: MoveOptions = {},
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    pokemon:
       | string
       | {
-        species?: string | Specie;
-        item?: string;
-        ability?: string;
-      } = {}
-    ) =>
-      State.createMove(gen, name, options, pokemon);
+          species?: string | Specie;
+          item?: string;
+          ability?: string;
+        } = {}
+  ) =>
+    State.createMove(gen, name, options, pokemon);
 
 /** Constructs a `State.Field` in a specific generation `gen`. */
 const field =
   (gen: Generation) =>
-    (options: FieldOptions = {}) =>
-      State.createField(gen, options);
+  (options: FieldOptions = {}) =>
+    State.createField(gen, options);
 
 /** Performs a damage calculation in specific generation `gen`. */
 interface Calculate {

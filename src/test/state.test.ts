@@ -1,7 +1,7 @@
 import {Generations, PokemonSet, StatsTable} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
-import {PokemonOptions, State} from '../state';
+import {PokemonOptions, State} from '../../../pokemon-draftzone-server/dmg/state';
 import {DeepPartial, extend} from '../utils';
 
 const gens = new Generations(Dex as any);
@@ -76,7 +76,8 @@ describe('State', () => {
       expect(() =>
         State.createPokemon(gens.get(2), 'Tyranitar', {
           species: gens.get(2).species.get('Pikachu'),
-        })).toThrow('mismatch');
+        })
+      ).toThrow('mismatch');
       expect(State.createPokemon(gens.get(2), 'Tyranitar').species.name).toBe('Tyranitar');
     });
 
@@ -306,11 +307,13 @@ describe('State', () => {
       expect(() =>
         State.createPokemon(gens.get(4), 'Pikachu', {
           stats: {hp: 1, atk: 1, def: 1, spa: 1, spd: 1, spe: 1},
-        })).toThrow('Expected a HP stat of 211, received: 1');
+        })
+      ).toThrow('Expected a HP stat of 211, received: 1');
       expect(() =>
         State.createPokemon(gens.get(4), 'Pikachu', {
           stats: {hp: 211, atk: 146, def: 96, spa: 136, spd: 116, spe: 216},
-        })).not.toThrow();
+        })
+      ).not.toThrow();
     });
 
     test('gender', () => {
@@ -395,7 +398,8 @@ describe('State', () => {
             species: 'Pikachu',
             volatiles: {dynamax: {}},
           }
-        )).toThrow('Max Moves cannot be multi-hit');
+        )
+      ).toThrow('Max Moves cannot be multi-hit');
       expect(() => State.createMove(gens.get(8), 'Tackle', {useZ: true, hits: 3})).toThrow('Z-Moves cannot be multi-hit');
 
       expect(() => State.createMove(gens.get(8), 'Tackle', {hits: 3})).toThrow('Tackle is not multi-hit');

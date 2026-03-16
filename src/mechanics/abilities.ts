@@ -1,6 +1,6 @@
-import {Applier, Handler} from '.';
-import {Context} from '../context';
-import {chainMod} from '../math';
+import {Applier, Handler} from '../handlers';
+import {Context} from '../../../pokemon-draftzone-server/dmg/context';
+import {chainMod} from '../../../pokemon-draftzone-server/dmg/math';
 import {has, is} from '../utils';
 
 export const Abilities: {

@@ -1,8 +1,8 @@
 import {Generation, ID, PokemonSet, Specie} from '@pkmn/data';
 import {Battle, Dex, PRNG, PRNGSeed} from '@pkmn/sim';
 
-import {Conditions} from '../../conditions';
-import {State} from '../../state';
+import {Conditions} from '../../../../pokemon-draftzone-server/dmg/conditions';
+import {State} from '../../../../pokemon-draftzone-server/dmg/state';
 import {Result} from '../../result';
 
 const N = 1000;
