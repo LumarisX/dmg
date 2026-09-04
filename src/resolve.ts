@@ -294,6 +294,7 @@ interface AccuracyBranch {
 export function accuracyBranches(move: State.Move): AccuracyBranch[] {
   const accuracy = move.accuracy;
   if (accuracy === true || accuracy >= 100) return [{lands: true, weight: 1}];
+  if (accuracy <= 0) return [{lands: false, weight: 1}];
 
   const divisor = greatestCommonDivisor(accuracy, 100);
   return [
