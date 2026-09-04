@@ -51,6 +51,7 @@ export interface PokemonOptions extends Partial<
   dvs?: Partial<StatsTable & { spc: number }>;
   boosts?: Partial<BoostsTable & { spc: number }>;
   teraType?: TypeName;
+  terastallized?: boolean;
 }
 
 export interface MoveOptions {
@@ -377,9 +378,8 @@ export class State {
       pokemon.maxhp = options.maxhp;
     }
 
-    //Tera Type
-
-    pokemon.teraType = pokemon.types[0];
+    pokemon.teraType = options.teraType ?? pokemon.types[0];
+    pokemon.terastallized = options.terastallized ?? false;
 
     const computed =
       typeof options.hpPercent === "number"
@@ -708,6 +708,7 @@ export namespace State {
     // Type added by Trick-or-Treat/Forest's Curse etc
     addedType?: TypeName;
     teraType?: TypeName;
+    terastallized?: boolean;
 
     // Base max HP is stats.hp, but max HP may change due to Dynamaxing or Power Contruct etc
     maxhp: number;

@@ -1,32 +1,44 @@
 {
-  "name": "@pkmn/dmg",
-  "version": "0.0.1",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
-  "unpkg": "build/index.umd.js",
-  "bin": {
-    "dmg": "dmg"
-  },
-  "description": "Pokémon damage calculator",
-  "repository": "github:pkmn/dmg",
+  "name": "@pdz/calc",
+  "version": "0.1.0",
+  "description": "Pokémon DraftZone damage calculator - a probability distribution over resulting battle states.",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LumarisX/dmg.git"
+  },
+  "main": "./build/cjs/index.js",
+  "types": "./build/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./build/esm/index.d.ts",
+        "default": "./build/esm/index.js"
+      },
+      "require": {
+        "types": "./build/cjs/index.d.ts",
+        "default": "./build/cjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
   },
   "files": [
-    "build",
-    "!build/test",
-    "src",
-    "!src/test"
+    "build"
   ],
   "dependencies": {
-    "@pkmn/data": "^0.9.20"
+    "@pkmn/data": "^0.10.11"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.23.9",
     "@babel/preset-typescript": "^7.23.3",
+    "@pkmn/dex": "^0.10.11",
     "@pkmn/eslint-config": "^6.6.0",
-    "@pkmn/sim": "^0.9.13",
+    "@pkmn/mods": "^0.10.11",
+    "@pkmn/sim": "^0.10.11",
     "@smogon/calc": "^0.10.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.16.5",
@@ -36,21 +48,19 @@
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jest": "^27.6.3",
     "jest": "^29.7.0",
-    "microbundle": "^0.15.1",
     "typescript": "^5.3.3"
   },
   "scripts": {
     "lint": "eslint --cache src --ext ts",
     "fix": "eslint --fix src --ext ts",
-    "compile": "tsc -p .",
-    "bundle": "microbundle --name dmg --format umd --tsconfig bundle.json --strict",
-    "build": "npm run compile && npm run bundle",
-    "test": "jest",
+    "typecheck": "tsc -p . --noEmit",
+    "build": "npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -p tsconfig.cjs.json && node scripts/write-module-type.mjs cjs commonjs",
+    "build:esm": "tsc -p tsconfig.esm.json && node scripts/write-module-type.mjs esm module",
+    "clean": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\"",
+    "test": "jest --runInBand",
     "test:integration": "npm run test && node integration",
-    "prepare": "npm run build",
-    "pretest": "npm run build",
-    "posttest": "npm run lint",
-    "lumtest": "nodemon ./src/test/lum.ts"
+    "prepare": "npm run build"
   },
   "jest": {
     "testEnvironment": "node",

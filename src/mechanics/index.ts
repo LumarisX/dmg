@@ -133,6 +133,7 @@ export function calculateDamage(context: Context | State): number | number[] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
   if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
+  if (context.field.weather?.onTryImmunity?.(context)) return 0;
   if (context.move.effectiveness === -5) return 0;
   if (context.move.damageCallback) return context.move.damageCallback(context);
 
@@ -156,22 +157,7 @@ export function calculateDamage(context: Context | State): number | number[] {
     baseDamage = applyMod(baseDamage, context.gen.num > 6 ? 0x400 : 0x800);
   }
 
-  // Convert to weather handler
-  if (context.field.weather?.name === 'Sun' && context.move.name === 'Hydro Steam' && context.p1.pokemon.item?.id !== 'Utility Umbrella') {
-    baseDamage = applyMod(baseDamage, 0x1800);
-  } else if (context.p2.pokemon.item?.id !== 'Utility Umbrella') {
-    if (
-      (['Sun', 'Harsh Sunshine'].includes(context.field.weather?.name || '') && context.move.type === 'Fire') ||
-      (['Rain', 'Heavy Rain'].includes(context.field.weather?.name || '') && context.move.type === 'Water')
-    ) {
-      baseDamage = applyMod(baseDamage, 0x1800);
-    } else if (
-      (context.field.weather?.name === 'Sun' && context.move.type === 'Water') ||
-      (context.field.weather?.name === 'Rain' && context.move.type === 'Fire')
-    ) {
-      baseDamage = applyMod(baseDamage, 0x800);
-    }
-  }
+  baseDamage = apply(baseDamage, context.field.weather?.onWeatherModifyDamage?.(context));
   if (context.move.crit) {
     baseDamage = applyMod(baseDamage, 0x1800);
   }
@@ -184,7 +170,7 @@ export function calculateDamage(context: Context | State): number | number[] {
     let damageAmount = floor(trunc(baseDamage * (85 + i), 32) / 100);
     // If the stabMod would not accomplish anything we avoid applying it because it could cause
     // us to calculate damage overflow incorrectly (DaWoblefet)
-    if (stabMod !== 0x1000) damageAmount = trunc(damageAmount * stabMod, 32) / 0x1000;
+    if (stabMod !== 0x1000) damageAmount = applyMod(damageAmount, stabMod);
     damageAmount = floor(trunc(shift(damageAmount, context.move.effectiveness), 32));
     if (context.p1.pokemon.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.p1.pokemon.status?.onModifyAtk(context) || 0x1000);
     if (protect && context.move.zMove) damageAmount = applyMod(damageAmount, 0x400);
@@ -203,21 +189,20 @@ function getBaseDamage(level: number, basePower: number, attack: number, defense
 }
 
 function getStabModifier(context: Context) {
-  let mod = 0x1000;
-  if (context.p1.pokemon.ability?.onModifySTAB) {
-    mod = chain(mod, context.p1.pokemon.ability.onModifySTAB(context.p1.pokemon));
-  } else if (context.p1.pokemon.types.includes(context.move.type)) {
-    mod = chain(mod, 0x1800);
+  const attacker = context.p1.pokemon;
+  const type = context.move.type;
+  if (type === '???') return 0x1000;
+
+  const tera = attacker.terastallized ? attacker.teraType : undefined;
+  const isStab = attacker.types.includes(type) || attacker.baseTypes.includes(type) || is(attacker.ability?.id, 'protean', 'libero');
+
+  let mod = isStab ? 0x1800 : 0x1000;
+  if (tera === type && attacker.baseTypes.includes(type)) mod = 0x2000;
+
+  if (attacker.ability?.onModifySTAB) {
+    const modified = attacker.ability.onModifySTAB(attacker);
+    if (modified !== undefined) mod = modified;
   }
-  // else if (context.p1.pokemon.hasAbility('Protean', 'Libero') && !pokemon.teraType) {
-  //   mod += 0x800;
-  //   desc.attackerAbility = pokemon.ability;
-  // }
-  // const teraType = context.p1.pokemon.teraType;
-  // if (teraType === move.type && teraType !== 'Stellar') {
-  //   mod += 0x800;
-  //   desc.attackerTera = teraType;
-  // }
   return mod;
 }
 

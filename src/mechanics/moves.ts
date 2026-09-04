@@ -1042,6 +1042,16 @@ export const Moves: {
     //     },
     //   },
   },
+  collisioncourse: {
+    onBasePower(data) {
+      if (data.move.effectiveness > 0) return 0x1555;
+    },
+  },
+  electrodrift: {
+    onBasePower(data) {
+      if (data.move.effectiveness > 0) return 0x1555;
+    },
+  },
   electroball: {
     //   basePowerCallback(pokemon, target) {
     //     let ratio = Math.floor(pokemon.getStat('spe') / target.getStat('spe'));

@@ -8,7 +8,11 @@ export const Abilities: {
 } = {
   adaptability: {
     onModifySTAB(pokemon: Context.Pokemon) {
-      if (pokemon.move?.type && pokemon.types.includes(pokemon.move.type)) return 0x2000;
+      const type = pokemon.move?.type;
+      if (!type) return;
+      if (!pokemon.types.includes(type) && !pokemon.baseTypes.includes(type)) return;
+      const tera = pokemon.terastallized ? pokemon.teraType : undefined;
+      return tera === type && pokemon.baseTypes.includes(type) ? 0x2400 : 0x2000;
     },
   },
   aerilate: {

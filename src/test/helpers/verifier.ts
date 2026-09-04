@@ -89,7 +89,8 @@ export function setTeam(player: 'p1' | 'p2', battle: Battle, state: State) {
     evs: state.gen.stats.fill(p.evs || {}, 0),
     ivs: state.gen.stats.fill(p.ivs || {}, 31),
     moves: [state.move.id, 'splash'],
-  };
+    teraType: p.teraType,
+  } as PokemonSet;
   const team = [set];
 
   const t = state[player].team || [];
@@ -157,7 +158,8 @@ export function applySide(player: 'p1' | 'p2', battle: Battle, state: State) {
   if (p.moveLastTurnResult === false) pokemon.moveLastTurnResult = false;
   pokemon.hurtThisTurn = p.hurtThisTurn ? 1 : null;
 
-  const choice = player === 'p1' ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}` : 'move splash';
+  const terastallize = p.terastallized ? ' terastallize' : '';
+  const choice = player === 'p1' ? `move ${state.move.id}${state.move.useZ ? ' zmove' : ''}${terastallize}` : `move splash${terastallize}`;
 
   return {pokemon, choice};
 }

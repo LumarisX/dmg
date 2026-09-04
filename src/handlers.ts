@@ -23,6 +23,7 @@ export interface Handler<S> {
   onResidual(scope: S): number | undefined;
   onModifyDamageAttacker(scope: S): number | undefined;
   onModifyDamageDefender(scope: S): number | undefined;
+  onWeatherModifyDamage(scope: S): number | undefined;
   onUpdate(scope: S): void;
   onModifyMoveStat(scope: S): number | undefined;
   onModifySTAB(scope: S): number | undefined;
@@ -46,6 +47,7 @@ const HANDLER_FN_KEYS: {[K in keyof Handler<unknown>]: true} = {
   onResidual: true,
   onModifyDamageAttacker: true,
   onModifyDamageDefender: true,
+  onWeatherModifyDamage: true,
   onUpdate: true,
   onModifyMoveStat: true,
   onModifySTAB: true,

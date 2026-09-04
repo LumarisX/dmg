@@ -192,8 +192,10 @@ export namespace Context {
     volatiles: {[id: string]: {level?: number} & Partial<Handler<Context>>};
 
     types: [TypeName] | [TypeName, TypeName];
+    baseTypes: [TypeName] | [TypeName, TypeName];
     addedType?: TypeName;
     teraType: TypeName;
+    terastallized: boolean;
 
     maxhp: number;
     hp: number;
@@ -235,6 +237,7 @@ export namespace Context {
       this.level = state.level;
       this.weighthg = state.weighthg;
       this.teraType = state.teraType || state.types[0];
+      this.terastallized = !!state.terastallized;
       const handlers = options.handlers || HANDLERS;
 
       if (state.item) {
@@ -263,7 +266,8 @@ export namespace Context {
         });
       }
 
-      this.types = state.types.slice() as Pokemon['types'];
+      this.baseTypes = state.types.slice() as Pokemon['types'];
+      this.types = this.terastallized ? [this.teraType] : (state.types.slice() as Pokemon['types']);
       this.addedType = state.addedType;
 
       this.maxhp = state.maxhp;
@@ -327,11 +331,12 @@ export namespace Context {
         ability: this.ability?.id,
         gender: this.gender,
         teraType: this.teraType,
+        terastallized: this.terastallized,
         happiness: this.happiness,
         status: this.status?.name,
         statusState: this.statusData && extend({}, this.statusData),
         volatiles,
-        types: this.types.slice() as Pokemon['types'],
+        types: this.baseTypes.slice() as Pokemon['types'],
         addedType: this.addedType,
         maxhp: this.maxhp,
         hp: this.hp,
@@ -372,7 +377,7 @@ export namespace Context {
 
     effectType!: 'Move';
     kind!: 'Move';
-    secondaries!: SecondaryEffect[] | null;
+    secondaries!: SecondaryEffect[];
     flags!: DMove['flags'];
     zMoveEffect?: ID;
     isZ!: boolean | ID;
@@ -408,7 +413,7 @@ export namespace Context {
 
     ohko?: boolean | 'Ice';
     thawsTarget?: boolean;
-    heal?: number[] | null;
+    heal?: number[];
     forceSwitch?: boolean;
     selfSwitch?: boolean | 'copyvolatile';
     selfBoost?: {boosts?: Partial<BoostsTable>};
@@ -418,8 +423,8 @@ export namespace Context {
     drain?: [number, number];
     mindBlownRecoil?: boolean;
     stealsBoosts?: boolean;
-    secondary?: SecondaryEffect | null;
-    self?: HitEffect | null;
+    secondary?: SecondaryEffect;
+    self?: HitEffect;
     struggleRecoil?: boolean;
 
     alwaysHit?: boolean;
@@ -504,6 +509,9 @@ export namespace Context {
     };
 
     updateData(context: Context) {
+      if (context.p1.pokemon.ability?.onModifyMove) context.p1.pokemon.ability.onModifyMove(context.p1.pokemon);
+      if (context.p1.pokemon.item?.onModifyMove) context.p1.pokemon.item.onModifyMove(context.p1.pokemon);
+
       this.effectiveness =
         this.EFFECTIVENESSBIT[context.gen.types.totalEffectiveness(this.type, context.p2.pokemon) as keyof typeof this.EFFECTIVENESSBIT];
       if (context.p2.pokemon.move?.onEffectiveness) {

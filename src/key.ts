@@ -59,6 +59,7 @@ export function pokemonKey(genNum: number, pokemon: State.Pokemon): string {
     pokemon.types.join('/'),
     pokemon.addedType ?? '',
     pokemon.teraType ?? '',
+    pokemon.terastallized ? 'tera' : '',
     hp,
     pokemon.maxhp,
     pokemon.nature ?? '',

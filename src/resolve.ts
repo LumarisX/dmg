@@ -1,6 +1,8 @@
 import {Distribution, Outcome, greatestCommonDivisor} from './distribution';
 import {stateDistribution, stateKey} from './key';
-import {clamp, max} from './math';
+import type {BoostID, SecondaryEffect, TypeName} from '@pkmn/data';
+
+import {clamp, max, min} from './math';
 import {bondsWith, calculateDamage} from './mechanics';
 import {State} from './state';
 
@@ -127,7 +129,19 @@ function unsupportedReasons(state: State): string[] {
 
   if (state.p1.pokemon.boosts.accuracy) reasons.push('accuracy boosts');
   if (state.p2.pokemon.boosts.evasion) reasons.push('evasion boosts');
-  if (move.secondary || move.secondaries?.length) reasons.push('secondary effects');
+  const secondaries = secondaryEffectsOf(move);
+  if (secondaries.length) {
+    const multiHit = !!move.multihit || (move.hits ?? 1) > 1 || state.p1.pokemon.ability === 'parentalbond';
+    if (multiHit) reasons.push('secondary effects on a multi-hit move');
+    if (state.p2.pokemon.ability && UNMODELLED_STATUS_ABILITIES.has(state.p2.pokemon.ability) && secondaries.some(s => s.status)) {
+      reasons.push(`status secondary against '${state.p2.pokemon.ability}'`);
+    }
+    if (state.p2.pokemon.ability && UNMODELLED_BOOST_ABILITIES.has(state.p2.pokemon.ability) && secondaries.some(s => s.boosts)) {
+      reasons.push(`boost secondary against '${state.p2.pokemon.ability}'`);
+    }
+    if (state.field.terrain === 'Misty' && secondaries.some(s => s.status)) reasons.push('status secondary under Misty Terrain');
+    if (state.p2.sideConditions.safeguard && secondaries.some(s => s.status)) reasons.push('status secondary through Safeguard');
+  }
   if (move.self) reasons.push('self effect');
   if (move.recoil || move.struggleRecoil || move.mindBlownRecoil) reasons.push('recoil');
   if (move.drain) reasons.push('drain');
@@ -163,6 +177,113 @@ function withDamage(state: State, damage: number): State {
     hurtThisTurn: damage > 0 ? true : defender.hurtThisTurn,
   };
   return new State(state.gen, state.p1, {...state.p2, pokemon}, state.move, state.field, state.gameType);
+}
+
+const STATUS_TYPE_IMMUNITIES: {[status: string]: TypeName[]} = {
+  brn: ['Fire'],
+  par: ['Electric'],
+  psn: ['Poison', 'Steel'],
+  tox: ['Poison', 'Steel'],
+  frz: ['Ice'],
+};
+
+const UNMODELLED_STATUS_ABILITIES = new Set([
+  'immunity',
+  'limber',
+  'waterveil',
+  'waterbubble',
+  'magmaarmor',
+  'insomnia',
+  'vitalspirit',
+  'comatose',
+  'purifyingsalt',
+  'thermalexchange',
+  'leafguard',
+  'flowerveil',
+  'sweetveil',
+  'shieldsdown',
+  'synchronize',
+]);
+
+const UNMODELLED_BOOST_ABILITIES = new Set(['contrary', 'simple', 'defiant', 'competitive', 'clearbody', 'whitesmoke', 'fullmetalbody', 'mirrorarmor']);
+
+export function secondaryEffectsOf(move: State.Move): SecondaryEffect[] {
+  if (move.secondaries?.length) return move.secondaries;
+  return move.secondary ? [move.secondary] : [];
+}
+
+function effectiveTypes(pokemon: State.Pokemon): TypeName[] {
+  return pokemon.terastallized && pokemon.teraType ? [pokemon.teraType] : [...pokemon.types];
+}
+
+export interface SecondaryBranch {
+  effects: SecondaryEffect[];
+  weight: number;
+}
+
+export function secondaryBranches(state: State): SecondaryBranch[] {
+  const attacker = state.p1.pokemon;
+  const defender = state.p2.pokemon;
+
+  if (attacker.ability === 'sheerforce' || defender.ability === 'shielddust') return [{effects: [], weight: 1}];
+
+  const doubled = attacker.ability === 'serenegrace';
+  let branches: SecondaryBranch[] = [{effects: [], weight: 1}];
+
+  for (const secondary of secondaryEffectsOf(state.move)) {
+    const raw = secondary.chance ?? 100;
+    const chance = min(100, doubled ? raw * 2 : raw);
+
+    if (chance >= 100) {
+      branches = branches.map(branch => ({effects: [...branch.effects, secondary], weight: branch.weight}));
+      continue;
+    }
+
+    const divisor = greatestCommonDivisor(chance, 100);
+    const hits = chance / divisor;
+    const misses = (100 - chance) / divisor;
+
+    branches = branches.flatMap(branch => [
+      {effects: [...branch.effects, secondary], weight: branch.weight * hits},
+      {effects: branch.effects, weight: branch.weight * misses},
+    ]);
+  }
+
+  return branches;
+}
+
+function applySecondaries(state: State, effects: SecondaryEffect[]): State {
+  if (!effects.length) return state;
+
+  let attacker = state.p1.pokemon;
+  let defender = state.p2.pokemon;
+  if (defender.hp <= 0) return state;
+
+  for (const effect of effects) {
+    if (effect.status && !defender.status) {
+      const immune = STATUS_TYPE_IMMUNITIES[effect.status]?.some(type => effectiveTypes(defender).includes(type));
+      if (!immune) defender = {...defender, status: effect.status as State.Pokemon['status']};
+    }
+    if (effect.volatileStatus && !defender.volatiles[effect.volatileStatus]) {
+      defender = {...defender, volatiles: {...defender.volatiles, [effect.volatileStatus]: {}}};
+    }
+    if (effect.boosts) {
+      defender = {...defender, boosts: boostedBy(defender.boosts, effect.boosts)};
+    }
+    if (effect.self?.boosts) {
+      attacker = {...attacker, boosts: boostedBy(attacker.boosts, effect.self.boosts)};
+    }
+  }
+
+  return new State(state.gen, {...state.p1, pokemon: attacker}, {...state.p2, pokemon: defender}, state.move, state.field, state.gameType);
+}
+
+function boostedBy(current: State.Pokemon['boosts'], delta: Partial<Record<BoostID, number>>): State.Pokemon['boosts'] {
+  const boosts = {...current};
+  for (const key of Object.keys(delta) as BoostID[]) {
+    boosts[key] = clamp(-6, (boosts[key] ?? 0) + (delta[key] ?? 0), 6);
+  }
+  return boosts;
 }
 
 interface AccuracyBranch {
@@ -275,6 +396,9 @@ export function resolveMove(state: State): Distribution<State> {
   const wholeMoveAccuracy = usesPerHitAccuracy ? [{lands: true, weight: 1}] : perHit;
   const hitAccuracy = usesPerHitAccuracy ? perHit : [{lands: true, weight: 1}];
 
+  const secondaries = secondaryBranches(state);
+  const secondaryTotal = totalWeight(secondaries);
+
   const expansion = totalWeight(hitAccuracy) * critExp;
   const maxHits = hitBranches.reduce((highest, branch) => max(highest, branch.hits), 0);
   const perResolution = expansion ** maxHits;
@@ -285,7 +409,7 @@ export function resolveMove(state: State): Distribution<State> {
 
   for (const accuracy of wholeMoveAccuracy) {
     if (!accuracy.lands) {
-      const missed = accuracy.weight * hitWeightTotal * perResolution;
+      const missed = accuracy.weight * hitWeightTotal * perResolution * secondaryTotal;
       accumulate(merged, state, missed);
       expectedTotal += missed;
       continue;
@@ -301,9 +425,11 @@ export function resolveMove(state: State): Distribution<State> {
 
       const scale = accuracy.weight * hitBranch.weight * expansion ** (maxHits - hitBranch.hits);
       for (const step of current.values()) {
-        accumulate(merged, step.state, step.count * scale);
+        for (const secondary of secondaries) {
+          accumulate(merged, applySecondaries(step.state, secondary.effects), step.count * scale * secondary.weight);
+        }
       }
-      expectedTotal += accuracy.weight * hitBranch.weight * perResolution;
+      expectedTotal += accuracy.weight * hitBranch.weight * perResolution * secondaryTotal;
     }
   }
 
