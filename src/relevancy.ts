@@ -1,6 +1,6 @@
 import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from '@pkmn/data';
 
-import {State} from '../../pokemon-draftzone-server/dmg/state';
+import {State} from './state';
 import {DeepReadonly, extend} from './utils';
 
 export class Relevancy {

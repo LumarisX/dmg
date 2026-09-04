@@ -25,7 +25,7 @@ import type {
 
 import {TerrainName, WeatherName} from './conditions';
 import {apply, chain} from './math';
-import {HANDLERS, Handler, HandlerKind, Handlers} from './handlers';
+import {HANDLERS, HANDLER_FNS, Handler, HandlerKind, Handlers} from './handlers';
 import {Relevancy} from './relevancy';
 import {State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
@@ -52,11 +52,19 @@ export class Context {
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
     this.move = new Context.Move(state.move, relevant.move, handlers);
+    this.field = new Context.Field(state.field, relevant.field, handlers);
     this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
     this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
-    this.field = new Context.Field(state.field, relevant.field, handlers);
     this.move.updateData(this);
     this.relevant = relevant;
+  }
+
+  get attacker(): Context.Pokemon {
+    return this.p1.pokemon;
+  }
+
+  get target(): Context.Pokemon {
+    return this.p2.pokemon;
   }
 
   toState() {
@@ -435,6 +443,7 @@ export namespace Context {
     infiltrates?: boolean;
     multiaccuracy?: boolean;
     multihit?: number | number[];
+    hit?: number;
     noCopy?: boolean;
     noDamageVariance?: boolean;
     noFaint?: boolean;
@@ -476,16 +485,11 @@ export namespace Context {
 
     effectiveness: number = 0;
 
-    //Lumaris draftzone addition
     constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers = HANDLERS) {
       extend(this, state);
+      for (const fn of HANDLER_FNS) delete (this as Partial<Record<keyof Handler<unknown>, unknown>>)[fn];
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
-    }
-
-    get effectivePower() {
-      if (this.accuracy === true) return this.basePower;
-      return (this.basePower * this.accuracy) / 100;
     }
 
     private EFFECTIVENESSBIT: {[key: number]: number} = {
@@ -528,28 +532,6 @@ export namespace Context {
       this.basePower = apply(this.basePower, basePowerMod);
     }
 
-    pdzUpdateData(gen: Generation, pokemon: Context.Pokemon) {
-      const testData = {attacker: pokemon, move: this, gen};
-      if (this.onModifyMove) this.onModifyMove(testData);
-      if (this.basePowerCallback) this.basePower = this.basePowerCallback(testData);
-
-      let basePowerMod = 0x1000;
-      if (pokemon.ability?.onModifyMove) pokemon.ability.onModifyMove(pokemon);
-      if (pokemon.ability?.onBasePower) {
-        const onBasePower = pokemon.ability.onBasePower(pokemon);
-        if (onBasePower && pokemon.move) pokemon.move.relevant.modified.basePower = true;
-        basePowerMod = chain(basePowerMod, onBasePower);
-      }
-
-      if (pokemon.item?.onBasePower) {
-        basePowerMod = chain(basePowerMod, pokemon.item.onBasePower(pokemon));
-      }
-
-      if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(testData));
-
-      this.basePower = apply(this.basePower, basePowerMod);
-    }
-
     toState(): State.Move {
       return extend({}, this);
     }
@@ -560,7 +542,7 @@ function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon | TestData>
   const handler = handlers[id];
   if (handler) {
     for (const n in handler) {
-      const k = n as keyof Handler<Context | Context.Pokemon | TestData>; // not really, but HANDLER_FNS is checked below
+      const k = n as keyof Handler<Context | Context.Pokemon | TestData>;
       const fn = handler[k];
       if (fn && typeof fn === 'function') {
         obj[k] = (x: Context | Context.Pokemon) => {

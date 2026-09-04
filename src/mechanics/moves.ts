@@ -1,7 +1,7 @@
 import {Generation} from '@pkmn/data';
 import {Applier, Handler} from '../handlers';
-import {Context} from '../../../pokemon-draftzone-server/dmg/context';
-import {floor, random} from '../../../pokemon-draftzone-server/dmg/math';
+import {Context} from '../context';
+import {floor, random} from '../math';
 import {has, is} from '../utils';
 
 export const Moves: {
@@ -5596,10 +5596,15 @@ export const Moves: {
     //     },
     //   },
   },
+  tripleaxel: {
+    basePowerCallback(data) {
+      return data.move.basePower * (data.move.hit ?? 1);
+    },
+  },
   triplekick: {
-    //   basePowerCallback(pokemon, target, move) {
-    //     return 10 * move.hit;
-    //   },
+    basePowerCallback(data) {
+      return data.move.basePower * (data.move.hit ?? 1);
+    },
   },
   trumpcard: {
     //   basePowerCallback(source, target, move) {

@@ -1,4 +1,4 @@
-import {State} from '../../pokemon-draftzone-server/dmg/state';
+import {State} from './state';
 import {Abilities} from './mechanics/abilities';
 import {Conditions} from './mechanics/conditions';
 import {Items} from './mechanics/items';
@@ -30,6 +30,31 @@ export interface Handler<S> {
   onTryImmunity(scope: S): boolean;
   onEat(scope: S): void;
 }
+
+const HANDLER_FN_KEYS: {[K in keyof Handler<unknown>]: true} = {
+  basePowerCallback: true,
+  damageCallback: true,
+  onAnyBasePower: true,
+  onBasePower: true,
+  onModifyMove: true,
+  onModifyAtk: true,
+  onModifySpA: true,
+  onModifyDef: true,
+  onModifySpD: true,
+  onModifySpe: true,
+  onModifyWeight: true,
+  onResidual: true,
+  onModifyDamageAttacker: true,
+  onModifyDamageDefender: true,
+  onUpdate: true,
+  onModifyMoveStat: true,
+  onModifySTAB: true,
+  onEffectiveness: true,
+  onTryImmunity: true,
+  onEat: true,
+};
+
+export const HANDLER_FNS = Object.keys(HANDLER_FN_KEYS) as (keyof Handler<unknown>)[];
 
 export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
 export type Handlers = typeof HANDLERS;

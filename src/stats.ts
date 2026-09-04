@@ -1,7 +1,7 @@
 import type {Generation, StatsTable} from '@pkmn/data';
 
-import {State} from '../../pokemon-draftzone-server/dmg/state';
-import {abs, clamp, floor, trunc} from '../../pokemon-draftzone-server/dmg/math';
+import {State} from './state';
+import {abs, clamp, floor, trunc} from './math';
 
 const LEGACY_BOOSTS = [25, 28, 33, 40, 50, 66, 100, 150, 200, 250, 300, 350, 400];
 

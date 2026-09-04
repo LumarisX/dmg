@@ -1,6 +1,6 @@
 import type {GameType, Generation, GenerationNum, Generations, Specie} from '@pkmn/data';
 
-import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State} from '../../pokemon-draftzone-server/dmg/state';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State} from './state';
 import {Result} from './result';
 import {calculate} from './mechanics';
 

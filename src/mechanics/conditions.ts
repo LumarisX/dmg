@@ -1,5 +1,5 @@
 import {Applier, Handler} from '../handlers';
-import {Context} from '../../../pokemon-draftzone-server/dmg/context';
+import {Context} from '../context';
 import {is} from '../utils';
 
 export const Conditions: {

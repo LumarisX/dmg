@@ -1,11 +1,12 @@
 import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from '@pkmn/data';
 
-import {Context} from '../../pokemon-draftzone-server/dmg/context';
+import {Context} from './context';
 import type {Handlers} from './handlers';
-import * as math from '../../pokemon-draftzone-server/dmg/math';
-import {Appliers, HANDLERS, NumberDistribution, calculateDamage} from './mechanics';
+import * as math from './math';
+import {Appliers, HANDLERS, calculateDamage} from './mechanics';
+import {NumberDistribution} from './distribution';
 import {Relevancy} from './relevancy';
-import {State} from '../../pokemon-draftzone-server/dmg/state';
+import {State} from './state';
 import {DeepReadonly, extend, is} from './utils';
 
 export type Notation = '%' | '/48' | 'px' | number;

@@ -9,10 +9,10 @@ import {
   Terrains,
   Volatiles,
   Weathers,
-} from '../../../../pokemon-draftzone-server/dmg/conditions';
-import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State, setGender} from '../../../../pokemon-draftzone-server/dmg/state';
+} from '../../conditions';
+import {FieldOptions, MoveOptions, PokemonOptions, SideOptions, State, setGender} from '../../state';
 import {is} from '../../utils';
-import * as math from '../../../../pokemon-draftzone-server/dmg/math';
+import * as math from '../../math';
 
 export function generate(gens: Generations, prng: PRNG) {
   const gen = gens.get(range(prng, 1, 8) as GenerationNum);

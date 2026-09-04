@@ -23,7 +23,7 @@ import {
   WeatherName,
 } from "./conditions";
 import { floor, round } from "./math";
-import { DeepPartial, extend, has, is, toID } from "../../dmg/src/utils";
+import { DeepPartial, extend, has, is, toID } from "./utils";
 
 type OverriddenFields =
   | "item"
@@ -738,6 +738,7 @@ export namespace State {
   export interface Move extends DMove {
     crit?: boolean;
     hits?: number;
+    hit?: number;
     magnitude?: number;
     spread?: boolean;
     consecutive?: number;

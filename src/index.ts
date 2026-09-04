@@ -1,6 +1,6 @@
 // core API
 export {calculate} from './mechanics';
-export {State} from '../../pokemon-draftzone-server/dmg/state';
+export {State} from './state';
 export {Result} from './result';
 export {Relevancy} from './relevancy';
 
@@ -12,7 +12,7 @@ export {encode} from './encode';
 export {inGen, inGens, Scope} from './gens';
 
 // UI and mod support
-export * from '../../pokemon-draftzone-server/dmg/conditions';
+export * from './conditions';
 export {override} from './utils';
 export {Applier, Handler, HANDLERS as Handlers} from './mechanics';
 export {computeStats} from './stats';

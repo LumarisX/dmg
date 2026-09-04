@@ -2,8 +2,8 @@
 
 import type {BoostsTable, GameType, GenderName, Generation, GenerationNum, Generations, ID, StatID, StatsTable, TypeName} from '@pkmn/data';
 
-import {ConditionKind, Conditions, Player} from '../../pokemon-draftzone-server/dmg/conditions';
-import {MOVE_SUGAR, State, bounded} from '../../pokemon-draftzone-server/dmg/state';
+import {ConditionKind, Conditions, Player} from './conditions';
+import {MOVE_SUGAR, State, bounded} from './state';
 import {ABILITIES, RBY_STAT_ORDER, STAT_ORDER, decodeURL, getNature} from './encode';
 import {has, is, toID} from './utils';
 

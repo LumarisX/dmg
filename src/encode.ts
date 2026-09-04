@@ -1,9 +1,9 @@
 import type {BoostID, Generation, NatureName, StatID, StatsTable} from '@pkmn/data';
-import {State} from '../../pokemon-draftzone-server/dmg/state';
-import {PseudoWeathers, SideConditions, Statuses, Volatiles} from '../../pokemon-draftzone-server/dmg/conditions';
+import {State} from './state';
+import {PseudoWeathers, SideConditions, Statuses, Volatiles} from './conditions';
 import {has, is, toID} from './utils';
 import {computeStats} from './stats';
-import * as math from '../../pokemon-draftzone-server/dmg/math';
+import * as math from './math';
 
 const FORWARD = {
   '/': '$',

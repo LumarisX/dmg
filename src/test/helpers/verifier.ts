@@ -1,8 +1,8 @@
 import {Generation, ID, PokemonSet, Specie} from '@pkmn/data';
 import {Battle, Dex, PRNG, PRNGSeed} from '@pkmn/sim';
 
-import {Conditions} from '../../../../pokemon-draftzone-server/dmg/conditions';
-import {State} from '../../../../pokemon-draftzone-server/dmg/state';
+import {Conditions} from '../../conditions';
+import {State} from '../../state';
 import {Result} from '../../result';
 
 const N = 1000;
@@ -19,9 +19,12 @@ export function verify(state: State, result: Result, num = N, seed = SEED) {
       const battle = new Battle({format, formatid: format.id, seed: prng.getSeed()});
       battle.trunc = Dex.trunc.bind(Dex); // Custom Game formats don't use proper truncation...
 
+      setTeam('p1', battle, state);
+      setTeam('p2', battle, state);
+      startBattle(battle);
       const players = {
-        p1: setSide('p1', battle, state),
-        p2: setSide('p2', battle, state),
+        p1: applySide('p1', battle, state),
+        p2: applySide('p2', battle, state),
       };
       setField(battle, state.field);
       battle.makeChoices(players.p1.choice, players.p2.choice);
@@ -72,7 +75,7 @@ function isSupported(state: State) {
   return true;
 }
 
-function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
+export function setTeam(player: 'p1' | 'p2', battle: Battle, state: State) {
   const p = state[player].pokemon;
   const set: PokemonSet = {
     name: p.species.name,
@@ -114,7 +117,14 @@ function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
   }
 
   battle.setPlayer(player, {team});
+}
 
+export function startBattle(battle: Battle) {
+  if (battle.requestState === 'teampreview') battle.makeChoices('default', 'default');
+}
+
+export function applySide(player: 'p1' | 'p2', battle: Battle, state: State) {
+  const p = state[player].pokemon;
   const side = battle.sides[player === 'p1' ? 0 : 1];
   for (let id in state[player].sideConditions) {
     id = Conditions.toPS(id);
@@ -152,7 +162,7 @@ function setSide(player: 'p1' | 'p2', battle: Battle, state: State) {
   return {pokemon, choice};
 }
 
-function setField(battle: Battle, field: State.Field) {
+export function setField(battle: Battle, field: State.Field) {
   if (field.weather) {
     battle.field.setWeather(Conditions.toPS(field.weather), 'debug');
   } else {
