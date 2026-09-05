@@ -1,7 +1,7 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 import {computeModifiedSpeed} from '../../mechanics';
-import {State} from '../../../../pokemon-draftzone-server/dmg/state';
+import {State} from '../../state';
 
 const gens = new Generations(Dex as any);
 
@@ -9,7 +9,7 @@ describe('Mechanics', () => {
   test('Modified Speeds', () => {
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Deoxys', {
             boosts: {spe: 1},
@@ -21,7 +21,7 @@ describe('Mechanics', () => {
     ).toBe(504);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Deoxys', {
             boosts: {spe: 5},
@@ -33,7 +33,7 @@ describe('Mechanics', () => {
     ).toBe(1176);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Deoxys', {
             boosts: {spe: -6},

@@ -680,9 +680,9 @@ function build(gen: Generation, gameType: GameType | undefined, phrase: Phrase |
 
   const p1 = buildSide(gen, 'p1', moveName, phrase, flags, checks);
   const p2 = buildSide(gen, 'p2', moveName, phrase, flags, checks);
-  const move = State.createMove(gen, moveName, moveOptions, p1.pokemon);
+  const move = State.createMove(gen, moveName, moveOptions, p1.active[0]);
 
-  return {gameType, gen, field, p1, p2, move};
+  return State.oneOnOne(gen, p1, p2, move, field, gameType);
 }
 
 function buildField(gen: Generation, flags: Flags, checks: Checks) {

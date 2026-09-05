@@ -101,14 +101,15 @@ function dmg(state: pkmn.State): ResultBreakdown {
 }
 
 function calc(state: pkmn.State): ResultBreakdown {
-  const {gameType, gen, p1, p2} = state;
+  const {gameType, gen} = state;
+  const [p1, p2] = state.sides;
 
   const move = new smogon.Move(state.gen, state.move.name, {
-    ability: gen.abilities.get(p1.pokemon.ability || '')?.name,
-    item: gen.items.get(p1.pokemon.item || '')?.name,
-    species: p1.pokemon.species.name,
+    ability: gen.abilities.get(p1.active[0].ability || '')?.name,
+    item: gen.items.get(p1.active[0].item || '')?.name,
+    species: p1.active[0].species.name,
     useZ: state.move.useZ,
-    useMax: !!p1.pokemon.volatiles.dynamax,
+    useMax: !!p1.active[0].volatiles.dynamax,
     isCrit: state.move.crit,
     hits: state.move.hits,
     timesUsedWithMetronome: state.move.consecutive,
@@ -143,16 +144,16 @@ function calc(state: pkmn.State): ResultBreakdown {
 
 function calcSideAndPokemon(gen: Generation, state: pkmn.State.Side) {
   const isReflect = !!(gen.num <= 2
-    ? state.pokemon.volatiles.reflect
+    ? state.active[0].volatiles.reflect
     : state.sideConditions.reflect);
   const isLightScreen = !!(gen.num <= 2
-    ? state.pokemon.volatiles.lightscreen
+    ? state.active[0].volatiles.lightscreen
     : state.sideConditions.lightscreen);
-  const isFriendGuard = !!state.active?.some(
-    p => p?.ability === 'friendguard' && !p.fainted && p.position !== state.pokemon.position
+  const isFriendGuard = !!state.allies?.some(
+    p => p?.ability === 'friendguard' && !p.fainted && p.position !== state.active[0].position
   );
-  const isBattery = !!state.active?.some(
-    p => p?.ability === 'battery' && !p.fainted && p.position !== state.pokemon.position
+  const isBattery = !!state.allies?.some(
+    p => p?.ability === 'battery' && !p.fainted && p.position !== state.active[0].position
   );
 
   const side = new smogon.Side({
@@ -165,31 +166,31 @@ function calcSideAndPokemon(gen: Generation, state: pkmn.State.Side) {
     isSR: !!state.sideConditions.stealthrock,
     isReflect,
     isLightScreen,
-    isProtected: !!state.pokemon.volatiles.protect,
-    isSeeded: !!state.pokemon.volatiles.leechseed,
-    isForesight: !!state.pokemon.volatiles.foresight,
+    isProtected: !!state.active[0].volatiles.protect,
+    isSeeded: !!state.active[0].volatiles.leechseed,
+    isForesight: !!state.active[0].volatiles.foresight,
     isTailwind: !!state.sideConditions.tailwind,
-    isHelpingHand: !!state.pokemon.volatiles.foresight,
+    isHelpingHand: !!state.active[0].volatiles.foresight,
     isFriendGuard,
     isAuroraVeil: !!state.sideConditions.auroraveil,
     isBattery,
-    isSwitching: state.pokemon.switching,
+    isSwitching: state.active[0].switching,
   });
 
-  const pokemon = new smogon.Pokemon(gen, state.pokemon.species.name, {
-    level: state.pokemon.level,
-    ability: gen.abilities.get(state.pokemon.ability || '')?.name,
-    abilityOn: !!(state.pokemon.ability && state.pokemon.volatiles[state.pokemon.ability]),
-    item: gen.items.get(state.pokemon.item || '')?.name,
-    isDynamaxed: !!state.pokemon.volatiles.dynamax,
-    gender: state.pokemon.gender,
-    nature: state.pokemon.nature,
-    ivs: state.pokemon.ivs,
-    evs: state.pokemon.evs,
-    boosts: state.pokemon.boosts,
+  const pokemon = new smogon.Pokemon(gen, state.active[0].species.name, {
+    level: state.active[0].level,
+    ability: gen.abilities.get(state.active[0].ability || '')?.name,
+    abilityOn: !!(state.active[0].ability && state.active[0].volatiles[state.active[0].ability]),
+    item: gen.items.get(state.active[0].item || '')?.name,
+    isDynamaxed: !!state.active[0].volatiles.dynamax,
+    gender: state.active[0].gender,
+    nature: state.active[0].nature,
+    ivs: state.active[0].ivs,
+    evs: state.active[0].evs,
+    boosts: state.active[0].boosts,
     // BUG: maxhp + hp vs. originalCurHP ¯\_(ツ)_/¯
-    status: state.pokemon.status,
-    toxicCounter: state.pokemon.statusState?.toxicTurns,
+    status: state.active[0].status,
+    toxicCounter: state.active[0].statusState?.toxicTurns,
   });
 
   return [side, pokemon] as [smogon.Side, smogon.Pokemon];

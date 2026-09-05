@@ -5,7 +5,7 @@ import {is} from '../utils';
 const UMBRELLA = 'utilityumbrella';
 
 function shieldedFromSun(context: Context): boolean {
-  return context.p2.pokemon.item?.id === UMBRELLA;
+  return context.target.item?.id === UMBRELLA;
 }
 
 export const Conditions: {
@@ -24,7 +24,7 @@ export const Conditions: {
   },
   sun: {
     onWeatherModifyDamage(context: Context) {
-      if (is(context.move.id, 'hydrosteam') && context.p1.pokemon.item?.id !== UMBRELLA) return 0x1800;
+      if (is(context.move.id, 'hydrosteam') && context.attacker.item?.id !== UMBRELLA) return 0x1800;
       if (shieldedFromSun(context)) return undefined;
       if (is(context.move.type, 'Fire')) return 0x1800;
       if (is(context.move.type, 'Water')) return 0x800;
@@ -44,7 +44,7 @@ export const Conditions: {
       return is(context.move.type, 'Water') && !is(context.move.category, 'Status');
     },
     onWeatherModifyDamage(context: Context) {
-      if (is(context.move.id, 'hydrosteam') && context.p1.pokemon.item?.id !== UMBRELLA) return 0x1800;
+      if (is(context.move.id, 'hydrosteam') && context.attacker.item?.id !== UMBRELLA) return 0x1800;
       if (shieldedFromSun(context)) return undefined;
       if (is(context.move.type, 'Fire')) return 0x1800;
       return undefined;

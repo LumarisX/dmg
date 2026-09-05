@@ -1,7 +1,7 @@
 import {Generations, PokemonSet, StatsTable} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
-import {PokemonOptions, State} from '../../../pokemon-draftzone-server/dmg/state';
+import {PokemonOptions, State} from '../state';
 import {DeepPartial, extend} from '../utils';
 
 const gens = new Generations(Dex as any);
@@ -9,7 +9,7 @@ const gens = new Generations(Dex as any);
 describe('State', () => {
   test('toJSON', () => {
     const gen = gens.get(4);
-    const state = new State(gen, State.createPokemon(gen, 'Gengar'), State.createPokemon(gen, 'Clefable'), State.createMove(gen, 'Thunderbolt'));
+    const state = State.oneOnOne(gen, State.createPokemon(gen, 'Gengar'), State.createPokemon(gen, 'Clefable'), State.createMove(gen, 'Thunderbolt'));
     expect(() => JSON.stringify(State.toJSON(state))).not.toThrow();
   });
 
@@ -46,7 +46,7 @@ describe('State', () => {
       expect(() => State.createSide(gens.get(3), pokemon, {sideConditions: {mudsport: {}}})).toThrow('not a Side Condition');
 
       let side = State.createSide(gens.get(7), pokemon);
-      expect(side).toEqual({sideConditions: {}, pokemon});
+      expect(side).toEqual({sideConditions: {}, active: [pokemon]});
       side = State.createSide(gens.get(7), pokemon, {sideConditions: ['tailwind', 'stealthrock']});
       expect(side.sideConditions).toEqual({tailwind: {}, stealthrock: {}});
       side = State.createSide(gens.get(7), pokemon, {sideConditions: {spikes: {level: 3}}});
@@ -55,7 +55,7 @@ describe('State', () => {
 
     test('abilities', () => {
       const side = State.createSide(gens.get(7), pokemon, {abilities: ['Battery', 'Fairy Aura']});
-      expect(side.active).toEqual([
+      expect(side.allies).toEqual([
         {ability: 'battery', position: 0},
         {ability: 'fairyaura', position: 1},
       ]);

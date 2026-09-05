@@ -32,20 +32,9 @@ export interface SearchResult {
 const DEFAULT_EPSILON = 1e-9;
 
 function startOfTurn(state: State): State {
-  const defender = state.p2.pokemon;
+  const defender = state.target;
   if (!defender.hurtThisTurn) return state;
-  return new State(
-    state.gen,
-    state.p1,
-    {...state.p2, pokemon: {...defender, hurtThisTurn: undefined}},
-    state.move,
-    state.field,
-    state.gameType
-  );
-}
-
-function withMove(state: State, move: State.Move): State {
-  return move === state.move ? state : new State(state.gen, state.p1, state.p2, move, state.field, state.gameType);
+  return state.withPokemonAt(state.action.target, {...defender, hurtThisTurn: undefined});
 }
 
 export function search(state: State, options: SearchOptions): SearchResult {
@@ -62,12 +51,12 @@ export function search(state: State, options: SearchOptions): SearchResult {
     const next = new Map<string, SearchOutcome>();
 
     for (const outcome of current.values()) {
-      if (outcome.state.p2.pokemon.hp <= 0) {
+      if (outcome.state.target.hp <= 0) {
         accumulate(next, outcome.state, outcome.probability);
         continue;
       }
 
-      const opening = withMove(startOfTurn(outcome.state), policy.chooseMove(outcome.state, turn));
+      const opening = startOfTurn(outcome.state).withMove(policy.chooseMove(outcome.state, turn));
       const resolved = resolveMove(opening);
       const total = resolved.totalOutcomes;
 
@@ -119,7 +108,7 @@ function capOutcomes(
 function knockedOutMass(outcomes: Map<string, SearchOutcome>): number {
   let mass = 0;
   for (const outcome of outcomes.values()) {
-    if (outcome.state.p2.pokemon.hp <= 0) mass += outcome.probability;
+    if (outcome.state.target.hp <= 0) mass += outcome.probability;
   }
   return mass;
 }

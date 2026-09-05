@@ -27,7 +27,7 @@ import {TerrainName, WeatherName} from './conditions';
 import {apply, chain} from './math';
 import {HANDLERS, HANDLER_FNS, Handler, HandlerKind, Handlers} from './handlers';
 import {Relevancy} from './relevancy';
-import {State} from './state';
+import {Action, Slot, State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
 
 interface TestData {
@@ -41,34 +41,65 @@ interface TestData {
 export class Context {
   gameType: GameType;
   gen: Generation;
-  p1: Context.Side;
-  p2: Context.Side;
+  attackerSide: Context.Side;
+  targetSide: Context.Side;
   move: Context.Move;
   field: Context.Field;
 
   readonly relevant: Relevancy;
+  private readonly source: DeepReadonly<State>;
 
-  constructor(state: DeepReadonly<State>, handlers: Handlers = HANDLERS, relevant: Relevancy = new Relevancy()) {
+  constructor(
+    state: DeepReadonly<State>,
+    handlers: Handlers = HANDLERS,
+    relevant: Relevancy = new Relevancy(state.sides.length)
+  ) {
+    this.source = state;
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
-    this.move = new Context.Move(state.move, relevant.move, handlers);
+    const actor = state.action.actor as Slot;
+    const target = state.action.target as Slot;
+    this.move = new Context.Move(state.action.move, relevant.move, handlers);
     this.field = new Context.Field(state.field, relevant.field, handlers);
-    this.p1 = new Context.Side(this, state.p1, relevant.p1, handlers);
-    this.p2 = new Context.Side(this, state.p2, relevant.p2, handlers);
+    this.attackerSide = new Context.Side(this, state.sides[actor.side], actor, relevant, handlers);
+    this.targetSide = new Context.Side(this, state.sides[target.side], target, relevant, handlers);
     this.move.updateData(this);
     this.relevant = relevant;
   }
 
   get attacker(): Context.Pokemon {
-    return this.p1.pokemon;
+    return this.attackerSide.pokemon;
   }
 
   get target(): Context.Pokemon {
-    return this.p2.pokemon;
+    return this.targetSide.pokemon;
   }
 
-  toState() {
-    return new State(this.gen, this.p1.toState(), this.p2.toState(), this.move.toState(), this.field.toState(), this.gameType);
+  get action(): Action {
+    return this.source.action as Action;
+  }
+
+  get relevantAttacker(): Relevancy.Pokemon {
+    return this.relevant.pokemon(this.source.action.actor as Slot);
+  }
+
+  get relevantTarget(): Relevancy.Pokemon {
+    return this.relevant.pokemon(this.source.action.target as Slot);
+  }
+
+  toState(): State {
+    const actor = this.source.action.actor as Slot;
+    const target = this.source.action.target as Slot;
+    let state = new State(
+      this.gen,
+      this.source.sides as State.Side[],
+      {actor, target, move: this.move.toState()},
+      this.field.toState(),
+      this.gameType
+    );
+    state = state.withSideAt(actor.side, this.attackerSide.toState(state.sides[actor.side], actor.active));
+    state = state.withSideAt(target.side, this.targetSide.toState(state.sides[target.side], target.active));
+    return state;
   }
 
   toJSON() {
@@ -135,7 +166,7 @@ export namespace Context {
     sideConditions: {
       [id: string]: {level?: number} & Partial<Handler<Context>>;
     };
-    active?: Array<{
+    allies?: Array<{
       ability?: ID;
       position?: number;
       fainted?: boolean;
@@ -149,30 +180,31 @@ export namespace Context {
     readonly relevant: Relevancy.Side;
     readonly field?: Context.Field;
 
-    constructor(context: Context, side: DeepReadonly<State.Side>, relevant: Relevancy.Side, handlers: Handlers) {
-      this.relevant = relevant;
+    constructor(context: Context, side: DeepReadonly<State.Side>, slot: Slot, relevant: Relevancy, handlers: Handlers) {
+      this.relevant = relevant.side(slot.side);
       this.field = context.field;
-      this.pokemon = new Pokemon(context.gen, side.pokemon, relevant.pokemon, {handlers, move: context.move, side: this});
+      this.pokemon = new Pokemon(context.gen, side.active[slot.active], relevant.pokemon(slot), {
+        handlers,
+        move: context.move,
+        side: this,
+      });
       this.sideConditions = {};
       for (const sc in side.sideConditions) {
         this.sideConditions[sc] = reify(extend({}, side.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
           this.relevant.sideConditions[sc] = true;
         });
       }
-      this.active = this.active?.map(p => extend({}, p));
-      this.team = this.team?.map(p => extend({}, p));
+      this.allies = side.allies?.map(p => extend({}, p));
+      this.team = side.team?.map(p => extend({}, p)) as Side['team'];
     }
 
-    toState(): State.Side {
-      const sideConditions: {[id: string]: {level?: number}} = {};
-      for (const sc in this.sideConditions) {
-        sideConditions[sc] = 'level' in this.sideConditions[sc] ? {level: this.sideConditions[sc].level} : {};
-      }
+    toState(base: State.Side, index: number): State.Side {
       return {
-        pokemon: this.pokemon.toState(),
+        ...base,
+        active: base.active.map((pokemon, i) => (i === index ? this.pokemon.toState() : pokemon)),
         sideConditions: extend({}, this.sideConditions),
-        active: this.active?.map(p => extend({}, p)),
-        team: this.team?.map(p => extend({}, p)),
+        allies: this.allies?.map(p => extend({}, p)),
+        team: this.team?.map(p => extend({}, p)) as State.Side['team'],
       };
     }
   }
@@ -509,17 +541,17 @@ export namespace Context {
     };
 
     updateData(context: Context) {
-      if (context.p1.pokemon.ability?.onModifyMove) context.p1.pokemon.ability.onModifyMove(context.p1.pokemon);
-      if (context.p1.pokemon.item?.onModifyMove) context.p1.pokemon.item.onModifyMove(context.p1.pokemon);
+      if (context.attacker.ability?.onModifyMove) context.attacker.ability.onModifyMove(context.attacker);
+      if (context.attacker.item?.onModifyMove) context.attacker.item.onModifyMove(context.attacker);
 
       this.effectiveness =
-        this.EFFECTIVENESSBIT[context.gen.types.totalEffectiveness(this.type, context.p2.pokemon) as keyof typeof this.EFFECTIVENESSBIT];
-      if (context.p2.pokemon.move?.onEffectiveness) {
-        let effectiveness = context.p2.pokemon.move.onEffectiveness(context);
+        this.EFFECTIVENESSBIT[context.gen.types.totalEffectiveness(this.type, context.target) as keyof typeof this.EFFECTIVENESSBIT];
+      if (context.target.move?.onEffectiveness) {
+        let effectiveness = context.target.move.onEffectiveness(context);
         if (effectiveness !== undefined) this.effectiveness = effectiveness;
       }
-      if (context.p2.pokemon.item?.onEffectiveness) {
-        let effectiveness = context.p2.pokemon.item.onEffectiveness(context.p2.pokemon);
+      if (context.target.item?.onEffectiveness) {
+        let effectiveness = context.target.item.onEffectiveness(context.target);
         if (effectiveness !== undefined) this.effectiveness = effectiveness;
       }
 
@@ -527,12 +559,12 @@ export namespace Context {
       if (this.basePowerCallback) this.basePower = this.basePowerCallback(context);
 
       let basePowerMod = 0x1000;
-      if (context.p1.pokemon.ability?.onBasePower) {
-        basePowerMod = chain(basePowerMod, context.p1.pokemon.ability.onBasePower(context.p1.pokemon));
+      if (context.attacker.ability?.onBasePower) {
+        basePowerMod = chain(basePowerMod, context.attacker.ability.onBasePower(context.attacker));
       }
 
-      if (context.p1.pokemon.item?.onBasePower) {
-        basePowerMod = chain(basePowerMod, context.p1.pokemon.item.onBasePower(context.p1.pokemon));
+      if (context.attacker.item?.onBasePower) {
+        basePowerMod = chain(basePowerMod, context.attacker.item.onBasePower(context.attacker));
       }
 
       if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(context));

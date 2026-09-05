@@ -18,21 +18,20 @@ export function assertStateEqual(a: State, b: State) {
   assert.strictEqual(a.gameType, b.gameType);
   assert.deepStrictEqual(a.field, b.field);
 
-  const A = {p1: a.p1.pokemon.species, p2: a.p2.pokemon.species};
-  const B = {p1: b.p1.pokemon.species, p2: b.p2.pokemon.species};
+  const A = {p1: a.attacker.species, p2: a.target.species};
+  const B = {p1: b.attacker.species, p2: b.target.species};
   try {
-    assert.strictEqual(a.p1.pokemon.species, b.p1.pokemon.species);
-    a.p1.pokemon.species = b.p1.pokemon.species = undefined! as Specie;
-    assert.strictEqual(a.p2.pokemon.species, b.p2.pokemon.species);
-    a.p2.pokemon.species = b.p2.pokemon.species = undefined! as Specie;
+    assert.strictEqual(a.attacker.species, b.attacker.species);
+    a.attacker.species = b.attacker.species = undefined! as Specie;
+    assert.strictEqual(a.target.species, b.target.species);
+    a.target.species = b.target.species = undefined! as Specie;
 
-    assert.deepStrictEqual(a.p1, b.p1);
-    assert.deepStrictEqual(a.p2, b.p2);
+    assert.deepStrictEqual(a.sides, b.sides);
     assert.deepStrictEqual(a.move, b.move);
   } finally {
-    a.p1.pokemon.species = A.p1;
-    a.p2.pokemon.species = A.p2;
-    b.p1.pokemon.species = B.p1;
-    b.p2.pokemon.species = B.p2;
+    a.attacker.species = A.p1;
+    a.target.species = A.p2;
+    b.attacker.species = B.p1;
+    b.target.species = B.p2;
   }
 }

@@ -3,6 +3,8 @@ import {Battle, Dex, PRNG, PRNGSeed} from '@pkmn/sim';
 
 import {Conditions} from '../../conditions';
 import {State} from '../../state';
+
+const sideOf = (state: State, p: 'p1' | 'p2') => state.sides[p === 'p1' ? 0 : 1];
 import {Result} from '../../result';
 
 const N = 1000;
@@ -66,17 +68,17 @@ function isSupported(state: State) {
   // Guaranteeing a certain number of hits for multihit moves is not tractable
   if (state.move.multihit || (state.move.hits && state.move.hits > 1)) return false;
   // Setting up the scenario where a certain mon is switching in or out is too difficult
-  if (state.p1.pokemon.switching || state.p2.pokemon.switching) return false;
+  if (state.attacker.switching || state.target.switching) return false;
   // Non-trivial active/team scenarios are a headache to attempt to set up
-  if (state.p1.active?.find(p => p === null || p.fainted)) return false;
-  if (state.p2.active?.find(p => p === null || p.fainted)) return false;
-  if (state.p1.team?.find(p => p.status || p.fainted)) return false;
-  if (state.p2.team?.find(p => p.status || p.fainted)) return false;
+  if (state.sides[0].allies?.find(p => p === null || p.fainted)) return false;
+  if (state.sides[1].allies?.find(p => p === null || p.fainted)) return false;
+  if (state.sides[0].team?.find(p => p.status || p.fainted)) return false;
+  if (state.sides[1].team?.find(p => p.status || p.fainted)) return false;
   return true;
 }
 
 export function setTeam(player: 'p1' | 'p2', battle: Battle, state: State) {
-  const p = state[player].pokemon;
+  const p = sideOf(state, player).active[0];
   const set: PokemonSet = {
     name: p.species.name,
     species: p.species.name,
@@ -93,9 +95,10 @@ export function setTeam(player: 'p1' | 'p2', battle: Battle, state: State) {
   } as PokemonSet;
   const team = [set];
 
-  const t = state[player].team || [];
-  if (state[player].active) {
-    for (const active of state[player].active) {
+  const t = sideOf(state, player).team || [];
+  const allies = sideOf(state, player).allies;
+  if (allies) {
+    for (const active of allies) {
       if (!active) continue;
       if ('position' in active) {
         if (active.position === p.position) continue;
@@ -125,11 +128,11 @@ export function startBattle(battle: Battle) {
 }
 
 export function applySide(player: 'p1' | 'p2', battle: Battle, state: State) {
-  const p = state[player].pokemon;
+  const p = sideOf(state, player).active[0];
   const side = battle.sides[player === 'p1' ? 0 : 1];
-  for (let id in state[player].sideConditions) {
+  for (let id in sideOf(state, player).sideConditions) {
     id = Conditions.toPS(id);
-    const sc = state[player].sideConditions[id];
+    const sc = sideOf(state, player).sideConditions[id];
     side.addSideCondition(id, 'debug');
     if (sc.level && sc.level > 1) {
       (side.getSideCondition(id) as any).layers = sc.level;

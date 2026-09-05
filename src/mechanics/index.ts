@@ -76,7 +76,7 @@ export function calculate(...args: any[]) {
   let state: State;
   let handlers = HANDLERS;
   if (args.length > 3) {
-    state = new State(args[0], args[1], args[2], args[3], args[4], args[5]);
+    state = State.oneOnOne(args[0], args[1], args[2], args[3], args[4], args[5]);
   } else if (typeof args[1] === 'string') {
     state = parse(args[0], args[1]);
   } else {
@@ -116,7 +116,7 @@ function defensiveStatId(move: Context['move']): StatID | undefined {
 function offensiveBoost(context: Context, stat: StatID): number {
   const move = context.move;
   if (move.ignoreOffensive || stat === 'hp') return 0;
-  const boost = context.p1.pokemon.boosts[stat] ?? 0;
+  const boost = context.attacker.boosts[stat] ?? 0;
   if (boost < 0 && (move.ignoreNegativeOffensive || move.crit)) return 0;
   return boost;
 }
@@ -124,7 +124,7 @@ function offensiveBoost(context: Context, stat: StatID): number {
 function defensiveBoost(context: Context, stat: StatID): number {
   const move = context.move;
   if (move.ignoreDefensive || stat === 'hp') return 0;
-  const boost = context.p2.pokemon.boosts[stat] ?? 0;
+  const boost = context.target.boosts[stat] ?? 0;
   if (boost > 0 && (move.ignorePositiveDefensive || move.crit)) return 0;
   return boost;
 }
@@ -141,19 +141,19 @@ export function calculateDamage(context: Context | State): number | number[] {
   const defensiveStat = defensiveStatId(context.move);
 
   const attackStat = offensiveStat
-    ? computeBoostedStat(context.p1.pokemon.stats[offensiveStat], offensiveBoost(context, offensiveStat), context.gen)
+    ? computeBoostedStat(context.attacker.stats[offensiveStat], offensiveBoost(context, offensiveStat), context.gen)
     : 0;
   const defenseStat = defensiveStat
-    ? computeBoostedStat(context.p2.pokemon.stats[defensiveStat], defensiveBoost(context, defensiveStat), context.gen)
+    ? computeBoostedStat(context.target.stats[defensiveStat], defensiveBoost(context, defensiveStat), context.gen)
     : 0;
 
-  let baseDamage = getBaseDamage(context.p1.pokemon.level, context.move.basePower, attackStat, defenseStat);
+  let baseDamage = getBaseDamage(context.attacker.level, context.move.basePower, attackStat, defenseStat);
   const isSpread = context.gameType !== 'singles' && ['allAdjacent', 'allAdjacentFoes'].includes(context.move.target);
   if (isSpread) {
     baseDamage = applyMod(baseDamage, 0xc00);
   }
 
-  if (context.p1.pokemon.ability?.id === 'parentalbond' && (context.move.hit ?? 1) > 1 && bondsWith(context.move)) {
+  if (context.attacker.ability?.id === 'parentalbond' && (context.move.hit ?? 1) > 1 && bondsWith(context.move)) {
     baseDamage = applyMod(baseDamage, context.gen.num > 6 ? 0x400 : 0x800);
   }
 
@@ -172,7 +172,7 @@ export function calculateDamage(context: Context | State): number | number[] {
     // us to calculate damage overflow incorrectly (DaWoblefet)
     if (stabMod !== 0x1000) damageAmount = applyMod(damageAmount, stabMod);
     damageAmount = floor(trunc(shift(damageAmount, context.move.effectiveness), 32));
-    if (context.p1.pokemon.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.p1.pokemon.status?.onModifyAtk(context) || 0x1000);
+    if (context.attacker.status?.onModifyAtk) damageAmount = applyMod(damageAmount, context.attacker.status?.onModifyAtk(context) || 0x1000);
     if (protect && context.move.zMove) damageAmount = applyMod(damageAmount, 0x400);
     damage.push(trunc(roundDown(max(1, trunc(damageAmount * finalMod, 32) / 0x1000)), 16));
   }
@@ -189,7 +189,7 @@ function getBaseDamage(level: number, basePower: number, attack: number, defense
 }
 
 function getStabModifier(context: Context) {
-  const attacker = context.p1.pokemon;
+  const attacker = context.attacker;
   const type = context.move.type;
   if (type === '???') return 0x1000;
 
@@ -210,34 +210,34 @@ function getFinalModifier(context: Context): number {
   let mod = 0x1000;
   if (
     !context.move.crit &&
-    context.p1.pokemon.ability?.id !== 'infiltrator' &&
-    ('Aurora Veil' in context.p2.sideConditions ||
-      (context.move.category === 'Physical' && 'Reflect' in context.p2.sideConditions) ||
-      (context.move.category === 'Special' && 'Light Screen' in context.p2.sideConditions))
+    context.attacker.ability?.id !== 'infiltrator' &&
+    ('Aurora Veil' in context.targetSide.sideConditions ||
+      (context.move.category === 'Physical' && 'Reflect' in context.targetSide.sideConditions) ||
+      (context.move.category === 'Special' && 'Light Screen' in context.targetSide.sideConditions))
   ) {
     mod = chain(mod, context.gameType === 'singles' ? 0x800 : 0xaac);
   }
 
-  if (context.p1.pokemon.ability?.onModifyDamageAttacker) {
-    mod = chain(mod, context.p1.pokemon.ability.onModifyDamageAttacker(context.p1.pokemon));
+  if (context.attacker.ability?.onModifyDamageAttacker) {
+    mod = chain(mod, context.attacker.ability.onModifyDamageAttacker(context.attacker));
   }
 
-  if (context.p2.pokemon.volatiles.dynamax && ['Dynamax Cannon', 'Behemoth Blade', 'Behemoth Bash'].includes(context.move.name)) {
+  if (context.target.volatiles.dynamax && ['Dynamax Cannon', 'Behemoth Blade', 'Behemoth Bash'].includes(context.move.name)) {
     mod = chain(mod, 0x2000);
   }
 
-  if (context.p2.pokemon.ability?.onModifyDamageDefender) {
-    mod = chain(mod, context.p2.pokemon.ability.onModifyDamageDefender(context.p1.pokemon));
+  if (context.target.ability?.onModifyDamageDefender) {
+    mod = chain(mod, context.target.ability.onModifyDamageDefender(context.attacker));
   }
 
-  if (context.p2.active?.some(active => active?.ability === 'friendguard')) mod = chain(mod, 0xc00);
+  if (context.targetSide.allies?.some(ally => ally?.ability === 'friendguard')) mod = chain(mod, 0xc00);
 
-  if (context.p1.pokemon.item?.onModifyDamageAttacker) {
-    mod = chain(mod, context.p1.pokemon.item.onModifyDamageAttacker(context.p1.pokemon));
+  if (context.attacker.item?.onModifyDamageAttacker) {
+    mod = chain(mod, context.attacker.item.onModifyDamageAttacker(context.attacker));
   }
 
-  if (context.p2.pokemon.item?.onModifyDamageDefender) {
-    mod = chain(mod, context.p2.pokemon.item.onModifyDamageDefender(context.p1.pokemon));
+  if (context.target.item?.onModifyDamageDefender) {
+    mod = chain(mod, context.target.item.onModifyDamageDefender(context.attacker));
   }
 
   // double damage moves ie minimize and body slam dragon rush etc, or dive and surf or whirlpool or dig and eq
@@ -246,15 +246,16 @@ function getFinalModifier(context: Context): number {
 
 export function computeModifiedSpeed(context: Context | State) {
   context = 'relevant' in context ? context : Context.fromState(context);
-  const {p1} = context;
-  let spe = computeBoostedStat(p1.pokemon.stats?.spe || 0, p1.pokemon.boosts.spe || 0, context.gen);
+  const side = context.attackerSide;
+  const pokemon = context.attacker;
+  let spe = computeBoostedStat(pokemon.stats?.spe || 0, pokemon.boosts.spe || 0, context.gen);
   let mod = 0x1000;
-  const ability = p1.pokemon.ability && Abilities[p1.pokemon.ability.id];
-  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(p1.pokemon));
-  const item = p1.pokemon.item && Items[p1.pokemon.item.id];
-  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(p1.pokemon));
-  if (p1.sideConditions['tailwind']) mod = chain(mod, 0x2000);
-  if (p1.sideConditions['grasspledge']) mod = chain(mod, 0x400);
+  const ability = pokemon.ability && Abilities[pokemon.ability.id];
+  if (ability?.onModifySpe) mod = chain(mod, ability.onModifySpe(pokemon));
+  const item = pokemon.item && Items[pokemon.item.id];
+  if (item?.onModifySpe) mod = chain(mod, item.onModifySpe(pokemon));
+  if (side.sideConditions['tailwind']) mod = chain(mod, 0x2000);
+  if (side.sideConditions['grasspledge']) mod = chain(mod, 0x400);
   spe = trunc(apply(spe, mod), 16);
   return context.gen.num <= 2 ? min(max(spe, 1), 999) : min(spe, 10000);
 }

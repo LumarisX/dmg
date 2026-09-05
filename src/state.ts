@@ -87,15 +87,47 @@ export const MOVE_SUGAR = /^\s*(Z\s*-?\s*)?(\D*)(\d+)?\s*$/i;
  * concepts in Pokémon Showdown for easy interoperability. Most users should use the `create` helper
  * methods or simply `parse` the `State` from a string representation.
  */
+export interface Slot {
+  side: number;
+  active: number;
+}
+
+export interface Action {
+  actor: Slot;
+  target: Slot;
+  move: State.Move;
+}
+
+export const SLOT_ATTACKER: Slot = { side: 0, active: 0 };
+export const SLOT_TARGET: Slot = { side: 1, active: 0 };
+
+function asSide(x: State.Side | State.Pokemon): State.Side {
+  return "active" in x ? x : { active: [x], sideConditions: {} };
+}
+
 export class State {
   readonly gameType: GameType;
   readonly gen: Generation;
-  readonly p1: State.Side;
-  readonly p2: State.Side;
-  readonly move: State.Move;
+  readonly sides: State.Side[];
+  readonly action: Action;
   readonly field: State.Field;
 
   constructor(
+    gen: Generation,
+    sides: State.Side[],
+    action: Action,
+    field: State.Field = { pseudoWeather: {} },
+    gameType: GameType = "singles",
+  ) {
+    this.gameType = gameType;
+    this.gen = gen;
+    this.sides = sides;
+    this.action = action;
+    this.field = field;
+  }
+
+  /** Builds the single-attacker, single-defender case that most calculations are. */
+  static oneOnOne(
     gen: Generation,
     attacker: State.Side | State.Pokemon,
     defender: State.Side | State.Pokemon,
@@ -103,18 +135,66 @@ export class State {
     field: State.Field = { pseudoWeather: {} },
     gameType: GameType = "singles",
   ) {
-    this.gameType = gameType;
-    this.gen = gen;
-    this.p1 =
-      "pokemon" in attacker
-        ? attacker
-        : { pokemon: attacker, sideConditions: {} };
-    this.p2 =
-      "pokemon" in defender
-        ? defender
-        : { pokemon: defender, sideConditions: {} };
-    this.move = move;
-    this.field = field;
+    return new State(
+      gen,
+      [asSide(attacker), asSide(defender)],
+      { actor: SLOT_ATTACKER, target: SLOT_TARGET, move },
+      field,
+      gameType,
+    );
+  }
+
+  get attackerSide(): State.Side {
+    return this.sides[this.action.actor.side];
+  }
+
+  get targetSide(): State.Side {
+    return this.sides[this.action.target.side];
+  }
+
+  get attacker(): State.Pokemon {
+    return this.attackerSide.active[this.action.actor.active];
+  }
+
+  get target(): State.Pokemon {
+    return this.targetSide.active[this.action.target.active];
+  }
+
+  get move(): State.Move {
+    return this.action.move;
+  }
+
+  at(slot: Slot): State.Pokemon {
+    return this.sides[slot.side].active[slot.active];
+  }
+
+  private derive(sides: State.Side[], action: Action): State {
+    return new State(this.gen, sides, action, this.field, this.gameType);
+  }
+
+  withPokemonAt(slot: Slot, pokemon: State.Pokemon): State {
+    const sides = this.sides.map((side, i) =>
+      i === slot.side
+        ? {
+            ...side,
+            active: side.active.map((p, j) => (j === slot.active ? pokemon : p)),
+          }
+        : side,
+    );
+    return this.derive(sides, this.action);
+  }
+
+  withSideAt(index: number, side: State.Side): State {
+    return this.derive(
+      this.sides.map((s, i) => (i === index ? side : s)),
+      this.action,
+    );
+  }
+
+  withMove(move: State.Move): State {
+    return move === this.action.move
+      ? this
+      : this.derive(this.sides, { ...this.action, move });
   }
 
   /** Serializes State, collapsing immutable data structures that have circular references. */
@@ -138,15 +218,11 @@ export class State {
     return {
       gen: s.gen.num,
       gameType: s.gameType,
-      p1: {
-        ...s.p1,
-        pokemon: { ...s.p1.pokemon, species: s.p1.pokemon.species.name },
-      },
-      p2: {
-        ...s.p2,
-        pokemon: { ...s.p2.pokemon, species: s.p2.pokemon.species.name },
-      },
-      move,
+      sides: s.sides.map((side) => ({
+        ...side,
+        active: side.active.map((p) => ({ ...p, species: p.species.name })),
+      })),
+      action: { actor: s.action.actor, target: s.action.target, move },
       field: s.field,
     };
   }
@@ -188,8 +264,8 @@ export class State {
         "Side Condition",
         options.sideConditions,
       ),
-      pokemon,
-      active: options.abilities?.map((name, i) => {
+      active: [pokemon],
+      allies: options.abilities?.map((name, i) => {
         const ability = gen.abilities.get(name);
         if (!ability) invalid(gen, "ability", name);
         return { ability: ability.id, position: i };
@@ -659,11 +735,11 @@ export namespace State {
   }
 
   export interface Side {
-    pokemon: Pokemon;
+    active: Pokemon[];
     sideConditions: { [id: string]: { level?: number } };
     // Rarely useful, but required for ally-affecting abilities like Plus/Minus or Fairy Aura etc.
     // Must be a subset of State.Pokemon so that a State.Pokemon object could be used in this array
-    active?: Array<{
+    allies?: Array<{
       ability?: ID;
       // Used to differentiate the attacker/defender from their allies if they are also
       // included in the active array
@@ -753,7 +829,7 @@ const BOUNDS: { [key: string]: [number, number] } = {
   evs: [0, 255],
   ivs: [0, 31],
   dvs: [0, 15],
-  gen: [1, 8],
+  gen: [1, 9],
   boosts: [-6, 6],
   toxicCounter: [0, 15],
   happiness: [0, 255],

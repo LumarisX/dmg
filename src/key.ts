@@ -2,7 +2,7 @@ import type {BoostID, StatID} from '@pkmn/data';
 
 import {Distribution} from './distribution';
 import {clamp, max} from './math';
-import {State} from './state';
+import {Action, Slot, State} from './state';
 import {DeepReadonly} from './utils';
 
 const BOOST_ORDER: BoostID[] = ['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion'];
@@ -74,9 +74,9 @@ export function pokemonKey(genNum: number, pokemon: State.Pokemon): string {
   ].join(';');
 }
 
-function activeKey(side: State.Side): string {
-  if (!side.active) return '';
-  return side.active.map(ally => (ally ? `${ally.ability ?? ''}@${ally.position ?? ''}${ally.fainted ? '!' : ''}` : '-')).join(',');
+function alliesKey(side: State.Side): string {
+  if (!side.allies) return '';
+  return side.allies.map(ally => (ally ? `${ally.ability ?? ''}@${ally.position ?? ''}${ally.fainted ? '!' : ''}` : '-')).join(',');
 }
 
 function teamKey(side: State.Side): string {
@@ -85,7 +85,8 @@ function teamKey(side: State.Side): string {
 }
 
 export function sideKey(genNum: number, side: State.Side): string {
-  return [pokemonKey(genNum, side.pokemon), conditionsKey(side.sideConditions), activeKey(side), teamKey(side)].join('|');
+  const active = side.active.map(pokemon => pokemonKey(genNum, pokemon)).join('&');
+  return [active, conditionsKey(side.sideConditions), alliesKey(side), teamKey(side)].join('|');
 }
 
 export function fieldKey(field: State.Field): string {
@@ -106,9 +107,15 @@ export function moveKey(move: State.Move): string {
   ].join(';');
 }
 
+export function actionKey(action: Action): string {
+  const slot = (s: Slot) => `${s.side}.${s.active}`;
+  return [slot(action.actor), slot(action.target), moveKey(action.move)].join('>');
+}
+
 export function stateKey(state: State): string {
   const genNum = state.gen.num;
-  return [genNum, state.gameType, sideKey(genNum, state.p1), sideKey(genNum, state.p2), moveKey(state.move), fieldKey(state.field)].join('#');
+  const sides = state.sides.map(side => sideKey(genNum, side)).join('#');
+  return [genNum, state.gameType, sides, actionKey(state.action), fieldKey(state.field)].join('#');
 }
 
 export function stateDistribution(states?: State | State[]): Distribution<State> {

@@ -23,7 +23,7 @@ export function generate(gens: Generations, prng: PRNG) {
   const defender = generateSide(gen, gameType, prng);
   const move = generateMove(gen, gameType, attacker, prng);
 
-  return new State(gen, attacker, defender, move, field, gameType);
+  return State.oneOnOne(gen, attacker, defender, move, field, gameType);
 }
 
 function generateField(gen: Generation, prng: PRNG) {
@@ -189,7 +189,7 @@ function generatePokemon(gen: Generation, prng: PRNG) {
 }
 
 function generateMove(gen: Generation, gameType: GameType, side: State.Side, prng: PRNG) {
-  const pokemon = side.pokemon;
+  const pokemon = side.active[0];
 
   const options: MoveOptions = {};
   const status = prng.randomChance(1, 200);
@@ -248,7 +248,7 @@ function generateMove(gen: Generation, gameType: GameType, side: State.Side, prn
     for (let i = 0; i < range(prng, 0, 5); i++) atks.push(range(prng, 30, 150));
     side = State.createSide(gen, pokemon, {
       sideConditions: side.sideConditions,
-      abilities: side.active?.map(p => p?.ability).filter(Boolean) as string[] | undefined,
+      abilities: side.allies?.map(p => p?.ability).filter(Boolean) as string[] | undefined,
       atks,
     });
   } else if (is(move.id, 'return', 'frustration') && prng.randomChance(1, 10)) {

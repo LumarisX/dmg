@@ -127,20 +127,20 @@ function unsupportedReasons(state: State): string[] {
   const move = state.move;
   const reasons: string[] = [];
 
-  if (state.p1.pokemon.boosts.accuracy) reasons.push('accuracy boosts');
-  if (state.p2.pokemon.boosts.evasion) reasons.push('evasion boosts');
+  if (state.attacker.boosts.accuracy) reasons.push('accuracy boosts');
+  if (state.target.boosts.evasion) reasons.push('evasion boosts');
   const secondaries = secondaryEffectsOf(move);
   if (secondaries.length) {
-    const multiHit = !!move.multihit || (move.hits ?? 1) > 1 || state.p1.pokemon.ability === 'parentalbond';
+    const multiHit = !!move.multihit || (move.hits ?? 1) > 1 || state.attacker.ability === 'parentalbond';
     if (multiHit) reasons.push('secondary effects on a multi-hit move');
-    if (state.p2.pokemon.ability && UNMODELLED_STATUS_ABILITIES.has(state.p2.pokemon.ability) && secondaries.some(s => s.status)) {
-      reasons.push(`status secondary against '${state.p2.pokemon.ability}'`);
+    if (state.target.ability && UNMODELLED_STATUS_ABILITIES.has(state.target.ability) && secondaries.some(s => s.status)) {
+      reasons.push(`status secondary against '${state.target.ability}'`);
     }
-    if (state.p2.pokemon.ability && UNMODELLED_BOOST_ABILITIES.has(state.p2.pokemon.ability) && secondaries.some(s => s.boosts)) {
-      reasons.push(`boost secondary against '${state.p2.pokemon.ability}'`);
+    if (state.target.ability && UNMODELLED_BOOST_ABILITIES.has(state.target.ability) && secondaries.some(s => s.boosts)) {
+      reasons.push(`boost secondary against '${state.target.ability}'`);
     }
     if (state.field.terrain === 'Misty' && secondaries.some(s => s.status)) reasons.push('status secondary under Misty Terrain');
-    if (state.p2.sideConditions.safeguard && secondaries.some(s => s.status)) reasons.push('status secondary through Safeguard');
+    if (state.targetSide.sideConditions.safeguard && secondaries.some(s => s.status)) reasons.push('status secondary through Safeguard');
   }
   if (move.self) reasons.push('self effect');
   if (move.recoil || move.struggleRecoil || move.mindBlownRecoil) reasons.push('recoil');
@@ -148,7 +148,8 @@ function unsupportedReasons(state: State): string[] {
   if (move.hasCrashDamage) reasons.push('crash damage');
   if (move.ohko) reasons.push('OHKO');
   if (move.selfdestruct) reasons.push('self-destruct');
-  if (move.flags?.contact && punishesContact(state.p2.pokemon)) reasons.push('contact against a target that punishes it');
+  if (move.flags?.contact && punishesContact(state.target)) reasons.push('contact against a target that punishes it');
+  if (state.target.item === 'focusband') reasons.push('Focus Band');
   if (state.gameType !== 'singles') reasons.push(`game type '${state.gameType}'`);
 
   return reasons;
@@ -161,22 +162,35 @@ export function assertSupported(state: State): void {
 
 function damageRolls(state: State, crit: boolean, hitNumber = 1): number[] {
   const move: State.Move = {...state.move, crit, hit: hitNumber};
-  const damage = calculateDamage(new State(state.gen, state.p1, state.p2, move, state.field, state.gameType));
+  const damage = calculateDamage(state.withMove(move));
   return Array.isArray(damage) ? damage : [damage];
 }
 
+const MOLD_BREAKERS = new Set(['moldbreaker', 'teravolt', 'turboblaze']);
+
+function endures(state: State, damage: number): 'sturdy' | 'focussash' | undefined {
+  const defender = state.target;
+  if (defender.hp !== defender.maxhp || damage < defender.hp) return undefined;
+  const suppressed = state.move.ignoreAbility || MOLD_BREAKERS.has(state.attacker.ability ?? '');
+  if (defender.ability === 'sturdy' && !suppressed) return 'sturdy';
+  if (defender.item === 'focussash') return 'focussash';
+  return undefined;
+}
+
 function withDamage(state: State, damage: number): State {
-  const defender = state.p2.pokemon;
-  const hp = max(0, defender.hp - damage);
+  const defender = state.target;
+  const endured = endures(state, damage);
+  const hp = endured ? 1 : max(0, defender.hp - damage);
   const boosts = hp > 0 && damage > 0 && defender.ability === 'stamina' ? {...defender.boosts, def: clamp(-6, (defender.boosts.def ?? 0) + 1, 6)} : defender.boosts;
 
   const pokemon: State.Pokemon = {
     ...defender,
     hp,
     boosts,
+    item: endured === 'focussash' ? undefined : defender.item,
     hurtThisTurn: damage > 0 ? true : defender.hurtThisTurn,
   };
-  return new State(state.gen, state.p1, {...state.p2, pokemon}, state.move, state.field, state.gameType);
+  return state.withPokemonAt(state.action.target, pokemon);
 }
 
 const STATUS_TYPE_IMMUNITIES: {[status: string]: TypeName[]} = {
@@ -222,8 +236,8 @@ export interface SecondaryBranch {
 }
 
 export function secondaryBranches(state: State): SecondaryBranch[] {
-  const attacker = state.p1.pokemon;
-  const defender = state.p2.pokemon;
+  const attacker = state.attacker;
+  const defender = state.target;
 
   if (attacker.ability === 'sheerforce' || defender.ability === 'shielddust') return [{effects: [], weight: 1}];
 
@@ -255,8 +269,8 @@ export function secondaryBranches(state: State): SecondaryBranch[] {
 function applySecondaries(state: State, effects: SecondaryEffect[]): State {
   if (!effects.length) return state;
 
-  let attacker = state.p1.pokemon;
-  let defender = state.p2.pokemon;
+  let attacker = state.attacker;
+  let defender = state.target;
   if (defender.hp <= 0) return state;
 
   for (const effect of effects) {
@@ -275,7 +289,7 @@ function applySecondaries(state: State, effects: SecondaryEffect[]): State {
     }
   }
 
-  return new State(state.gen, {...state.p1, pokemon: attacker}, {...state.p2, pokemon: defender}, state.move, state.field, state.gameType);
+  return state.withPokemonAt(state.action.actor, attacker).withPokemonAt(state.action.target, defender);
 }
 
 function boostedBy(current: State.Pokemon['boosts'], delta: Partial<Record<BoostID, number>>): State.Pokemon['boosts'] {
@@ -364,7 +378,7 @@ function advance(
   const expansion = totalWeight(perHitAccuracy) * critExpansion;
 
   for (const step of current.values()) {
-    if (step.finished || step.state.p2.pokemon.hp <= 0) {
+    if (step.finished || step.state.target.hp <= 0) {
       accumulateStep(next, step.state, step.count * expansion, true);
       continue;
     }
@@ -389,7 +403,7 @@ export function resolveMove(state: State): Distribution<State> {
   assertSupported(state);
 
   const crits = critBranches(state);
-  const hitBranches = hitCountBranches(state.gen.num, state.move, state.p1.pokemon);
+  const hitBranches = hitCountBranches(state.gen.num, state.move, state.attacker);
   const critExp = critExpansion(state, crits);
 
   const perHit = accuracyBranches(state.move);

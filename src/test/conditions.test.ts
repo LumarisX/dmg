@@ -1,7 +1,7 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
-import {Conditions} from '../../../pokemon-draftzone-server/dmg/conditions';
+import {Conditions} from '../conditions';
 
 const gens = new Generations(Dex as any);
 

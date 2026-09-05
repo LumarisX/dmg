@@ -1,8 +1,10 @@
 describe('Context', () => {
+  test.todo('restore Field/Side/Pokemon/Move coverage — see docs/PLAN.md Phase 2');
+
   // test("Field", () => {
   //   const { context, state, relevancy } = newContext();
   //   const before = serialize(state);
-  //   const p1 = context.p1.pokemon;
+  //   const p1 = context.attacker;
   //   expect(context.field.weather?.basePowerCallback?.(context)).toBeUndefined();
   //   expect(relevancy.field.weather).toBeUndefined();
   //   expect(context.field.weather?.onModifyAtk?.(context)).toBe(1);
@@ -24,22 +26,22 @@ describe('Context', () => {
   // test("Side", () => {
   //   const { context, state, relevancy } = newContext();
   //   const before = serialize(state);
-  //   const p1 = context.p1.pokemon;
+  //   const p1 = context.attacker;
   //   expect(
-  //     context.p2.sideConditions["stealthrock"]?.onModifyAtk?.(p1)
+  //     context.sides[1].sideConditions["stealthrock"]?.onModifyAtk?.(p1)
   //   ).toBeUndefined();
-  //   expect(relevancy.p2.sideConditions["stealthrock"]).toBeUndefined();
-  //   expect(context.p1.sideConditions["tailwind"]?.onModifySpe?.(p1)).toBe(0);
-  //   expect(relevancy.p1.sideConditions["tailwind"]).toBe(true);
+  //   expect(relevancy.sides[1].sideConditions["stealthrock"]).toBeUndefined();
+  //   expect(context.sides[0].sideConditions["tailwind"]?.onModifySpe?.(p1)).toBe(0);
+  //   expect(relevancy.sides[0].sideConditions["tailwind"]).toBe(true);
   //   context.p1.active = [{ ability: "friendguard" as ID }];
-  //   context.p2.team = [];
+  //   context.sides[1].team = [];
   //   expect(serialize(state)).toEqual(before);
   // });
   // test("Pokemon", () => {
   //   const { context, state, relevancy } = newContext();
   //   const before = serialize(state);
-  //   const p1 = context.p1.pokemon;
-  //   const p2 = context.p2.pokemon;
+  //   const p1 = context.attacker;
+  //   const p2 = context.target;
   //   expect(p1.status?.onModifyAtk?.(p1)).toBe(4);
   //   expect(p2.status?.onModifyAtk?.(p1)).toBeUndefined();
   //   expect(p1.ability?.onBasePower?.(context)).toBe(6);
@@ -50,14 +52,14 @@ describe('Context', () => {
   //   expect(p2.volatiles["foo"]?.onResidual?.(p1)).toBeUndefined();
   //   expect(p2.volatiles["leechseed"]?.onResidual?.(p1)).toBe(7);
   //   p1;
-  //   expect(relevancy.p1.pokemon.status).toBe(true);
-  //   expect(relevancy.p1.pokemon.ability).toBe(true);
-  //   expect(relevancy.p1.pokemon.item).toBeUndefined();
-  //   expect(relevancy.p1.pokemon.volatiles["electrify"]).toBeUndefined();
-  //   expect(relevancy.p2.pokemon.status).toBeUndefined();
-  //   expect(relevancy.p2.pokemon.ability).toBeUndefined();
-  //   expect(relevancy.p2.pokemon.item).toBe(true);
-  //   expect(relevancy.p2.pokemon.volatiles["leechseed"]).toBe(true);
+  //   expect(relevancy.attacker.status).toBe(true);
+  //   expect(relevancy.attacker.ability).toBe(true);
+  //   expect(relevancy.attacker.item).toBeUndefined();
+  //   expect(relevancy.attacker.volatiles["electrify"]).toBeUndefined();
+  //   expect(relevancy.target.status).toBeUndefined();
+  //   expect(relevancy.target.ability).toBeUndefined();
+  //   expect(relevancy.target.item).toBe(true);
+  //   expect(relevancy.target.volatiles["leechseed"]).toBe(true);
   //   p2.gender = "M";
   //   p1.addedType = "Grass";
   //   expect(serialize(state)).toEqual(before);
@@ -65,7 +67,7 @@ describe('Context', () => {
   // test("Move", () => {
   //   const { context, state } = newContext();
   //   const before = serialize(state);
-  //   const p1 = context.p1.pokemon;
+  //   const p1 = context.attacker;
   //   expect(context.move.onModifyAtk?.(p1)).toBeUndefined();
   //   expect(context.move.basePowerCallback?.(context)).toBe(4);
   //   context.move.crit = true;
@@ -81,7 +83,7 @@ describe('Context', () => {
 //   const gen = gens.get(7);
 //   const relevancy = new Relevancy();
 
-//   const state = new State(
+//   const state = State.oneOnOne(
 //     gen,
 //     {
 //       pokemon: State.createPokemon(gen, 'Gengar', {

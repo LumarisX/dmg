@@ -4,7 +4,7 @@ import {Data, GenerationNum, Generations, Weather} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 import {inGen, inGens} from '../../gens';
 import {computeModifiedSpeed} from '../../mechanics';
-import {State} from '../../../../pokemon-draftzone-server/dmg/state';
+import {State} from '../../state';
 
 const NATDEX_EXISTS = (d: Data) => {
   if (!d.exists) return false;
@@ -34,7 +34,7 @@ const gens = new Generations(Dex as any, NATDEX_EXISTS);
 //   test('Modified Speeds', () => {
 //     expect(
 //       computeModifiedSpeed(
-//         new State(
+//         State.oneOnOne(
 //           gens.get(9),
 //           State.createPokemon(gens.get(9), 'Deoxys', {
 //             boosts: {spe: 1},
@@ -46,7 +46,7 @@ const gens = new Generations(Dex as any, NATDEX_EXISTS);
 //     ).toBe(504);
 //     expect(
 //       computeModifiedSpeed(
-//         new State(
+//         State.oneOnOne(
 //           gens.get(9),
 //           State.createPokemon(gens.get(9), 'Deoxys', {
 //             boosts: {spe: 5},
@@ -58,7 +58,7 @@ const gens = new Generations(Dex as any, NATDEX_EXISTS);
 //     ).toBe(1176);
 //     expect(
 //       computeModifiedSpeed(
-//         new State(
+//         State.oneOnOne(
 //           gens.get(9),
 //           State.createPokemon(gens.get(9), 'Deoxys', {
 //             boosts: {spe: -6},
@@ -1418,6 +1418,7 @@ describe('Gen 9', () => {
       expect(calc(fusionBolt)).not.toEqual(se);
       // tera should be able to revoke the boost
       defender.teraType = 'Normal';
+      defender.terastallized = true;
       expect(calc()).toEqual(neutral);
       // check if secondary type resist is handled
       const cc = Move('Collision Course'); // Fighting type
@@ -1425,6 +1426,7 @@ describe('Gen 9', () => {
       expect(calc(cc)).toEqual(neutral);
       // tera should cause the boost to be applied
       defender.teraType = 'Normal';
+      defender.terastallized = true;
       expect(calc(cc)).toEqual(se);
     });
     // function testQP(
@@ -1560,7 +1562,7 @@ describe('Gen 9', () => {
       const result = calculate(gen)(Side(attacker, {sideConditions: ['Tailwind']}), defender, Move('Power Whip'), field);
 
       expect(attacker.boosts.atk ?? 0).toBe(0);
-      // expect(result.context.p1.pokemon.boosts.atk).toBe(1);
+      // expect(result.context.attacker.boosts.atk).toBe(1);
     });
 
     //   describe("Tera Stellar", () => {

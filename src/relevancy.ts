@@ -1,39 +1,50 @@
 import type {BoostID, BoostsTable, Generation, Specie, StatID, StatsTable} from '@pkmn/data';
 
-import {State} from './state';
+import {Slot, State} from './state';
 import {DeepReadonly, extend} from './utils';
 
 export class Relevancy {
   gameType: boolean;
-  readonly p1: Relevancy.Side;
-  readonly p2: Relevancy.Side;
+  readonly sides: Relevancy.Side[];
   readonly move: Relevancy.Move;
   readonly field: Relevancy.Field;
 
-  constructor() {
+  constructor(sides = 2, activePerSide = 1) {
     this.gameType = false;
-    this.p1 = {
-      pokemon: {volatiles: {}, stats: {}, boosts: {}},
+    this.sides = Array.from({length: sides}, () => ({
+      active: Array.from({length: activePerSide}, () => ({volatiles: {}, stats: {}, boosts: {}}) as Relevancy.Pokemon),
       sideConditions: {},
-    };
-    this.p2 = {
-      pokemon: {volatiles: {}, stats: {}, boosts: {}},
-      sideConditions: {},
-    };
+    }));
     this.field = {pseudoWeather: {}};
     this.move = {modified: {}};
   }
 
+  side(index: number): Relevancy.Side {
+    let side = this.sides[index];
+    if (!side) side = this.sides[index] = {active: [], sideConditions: {}};
+    return side;
+  }
+
+  pokemon(slot: Slot): Relevancy.Pokemon {
+    const side = this.side(slot.side);
+    let pokemon = side.active[slot.active];
+    if (!pokemon) pokemon = side.active[slot.active] = {volatiles: {}, stats: {}, boosts: {}};
+    return pokemon;
+  }
+
   static simplify(state: DeepReadonly<State>, relevant: Relevancy): State {
     const gen = state.gen as Generation;
-    return {
+    return new State(
       gen,
-      gameType: relevant.gameType ? state.gameType : 'singles',
-      p1: simplifySide(gen, state.p1, relevant.p1),
-      p2: simplifySide(gen, state.p2, relevant.p2),
-      move: simplifyMove(state.move, relevant.move),
-      field: simplifyField(state.field, relevant.field),
-    };
+      state.sides.map((side, i) => simplifySide(gen, side, relevant.side(i))),
+      {
+        actor: state.action.actor as Slot,
+        target: state.action.target as Slot,
+        move: simplifyMove(state.action.move, relevant.move),
+      },
+      simplifyField(state.field, relevant.field),
+      relevant.gameType ? state.gameType : 'singles'
+    );
   }
 }
 
@@ -45,9 +56,9 @@ export namespace Relevancy {
   }
 
   export interface Side {
-    pokemon: Pokemon;
+    active: Pokemon[];
     sideConditions: {[id: string]: boolean};
-    active?: boolean;
+    allies?: boolean;
     team?: boolean;
   }
 
@@ -112,9 +123,11 @@ function simplifyField(state: DeepReadonly<State.Field>, relevant: Relevancy.Fie
 
 function simplifySide(gen: Generation, state: DeepReadonly<State.Side>, relevant: Relevancy.Side) {
   const side: State.Side = {
-    pokemon: simplifyPokemon(gen, state.pokemon, relevant.pokemon),
+    active: state.active.map((pokemon, i) =>
+      simplifyPokemon(gen, pokemon, relevant.active[i] ?? {volatiles: {}, stats: {}, boosts: {}})
+    ),
     sideConditions: {},
-    active: relevant.active ? state.active!.map(p => extend({}, p)) : undefined,
+    allies: relevant.allies ? state.allies!.map(p => extend({}, p)) : undefined,
     team: relevant.team ? state.team!.map(p => extend({}, p)) : undefined,
   };
   for (const id in state.sideConditions) {

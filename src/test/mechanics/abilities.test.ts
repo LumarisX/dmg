@@ -1,6 +1,6 @@
 import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
-import {State} from '../../../../pokemon-draftzone-server/dmg/state';
+import {State} from '../../state';
 import {computeModifiedSpeed} from '../../mechanics';
 
 const gens = new Generations(Dex as any);
@@ -9,7 +9,7 @@ describe('Abilities', () => {
   test('Weather Speed', () => {
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Poliwrath', {
             ability: 'Swift Swim',
@@ -22,7 +22,7 @@ describe('Abilities', () => {
     ).toBe(352);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Lilligant', {
             ability: 'Chlorophyll',
@@ -35,7 +35,7 @@ describe('Abilities', () => {
     ).toBe(432);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Cetitan', {
             ability: 'Slush Rush',
@@ -48,7 +48,7 @@ describe('Abilities', () => {
     ).toBe(364);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(7),
           State.createPokemon(gens.get(7), 'Beartic', {
             ability: 'Slush Rush',
@@ -61,7 +61,7 @@ describe('Abilities', () => {
     ).toBe(272);
     expect(
       computeModifiedSpeed(
-        new State(
+        State.oneOnOne(
           gens.get(9),
           State.createPokemon(gens.get(9), 'Excadrill', {
             ability: 'Sand Rush',

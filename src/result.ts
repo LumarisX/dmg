@@ -81,8 +81,8 @@ export class Result {
     // Assume at least the minimum damage from the previous hit has occured. This is important
     // as it might place the defender in range to cause an effect to activate.
     const min = prev.range[0];
-    state.p2.pokemon.hp -= min;
-    if (min > 0) state.p2.pokemon.hurtThisTurn = true;
+    state.target.hp -= min;
+    if (min > 0) state.target.hurtThisTurn = true;
 
     apply(this.appliers, state);
 
@@ -128,18 +128,22 @@ export class Result {
     return (this.cache.range = [min, max]);
   }
 
+  private relevantAttacker(relevant: Relevancy) {
+    return relevant.pokemon(this.context.action.actor);
+  }
+
   recoil(relevant?: Relevancy) {
     if (this.cache.recoil && !relevant) return this.cache.recoil;
-    const {gen, p1, p2, move} = this.context;
+    const {gen, attacker, target, move} = this.context;
 
     let recoil: number | [number, number] | undefined;
 
     if (move.recoil) {
-      if (is(p1.pokemon.ability?.id, 'rockhead', 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
+      if (is(attacker.ability?.id, 'rockhead', 'magicguard')) {
+        if (relevant) this.relevantAttacker(relevant).ability = true;
       } else {
         const damage = move.recoil[0] / move.recoil[1];
-        const max = p2.pokemon.hp * damage;
+        const max = target.hp * damage;
         for (const hit of this.hits) {
           if (!recoil) recoil = [0, 0];
           const range = hit.range;
@@ -151,14 +155,14 @@ export class Result {
     } else if (move.struggleRecoil) {
       const round = gen.num === 4 ? math.roundDown : math.round;
       for (let i = 0; i < this.hits.length; i++) {
-        recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + round(p1.pokemon.maxhp / 4));
+        recoil = math.min(attacker.maxhp, ((recoil as number) || 0) + round(attacker.maxhp / 4));
       }
     } else if (move.mindBlownRecoil) {
-      if (is(p1.pokemon.ability?.id, 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
+      if (is(attacker.ability?.id, 'magicguard')) {
+        if (relevant) this.relevantAttacker(relevant).ability = true;
       } else {
         for (let i = 0; i < this.hits.length; i++) {
-          recoil = math.min(p1.pokemon.maxhp, ((recoil as number) || 0) + math.round(p1.pokemon.maxhp / 2));
+          recoil = math.min(attacker.maxhp, ((recoil as number) || 0) + math.round(attacker.maxhp / 2));
         }
       }
     }
@@ -168,21 +172,21 @@ export class Result {
 
   crash(relevant?: Relevancy) {
     if (this.cache.crash && !relevant) return this.cache.crash;
-    const {gen, p1, p2, move} = this.context;
+    const {gen, attacker, target, move} = this.context;
 
     let crash: number | [number, number] | undefined;
 
     if (move.hasCrashDamage) {
-      if (is(p1.pokemon.ability?.id, 'magicguard')) {
-        if (relevant) relevant.p1.pokemon.ability = true;
+      if (is(attacker.ability?.id, 'magicguard')) {
+        if (relevant) this.relevantAttacker(relevant).ability = true;
       } else {
         if (gen.num === 1) {
           crash = 1;
         } else if (gen.num <= 4) {
           // Gen 2 and 3 inflict no crash damage if the move failed due to type immunity
-          if (gen.num === 4 || !gen.types.canDamage(move, p2.pokemon.types)) {
+          if (gen.num === 4 || !gen.types.canDamage(move, target.types)) {
             const denominator = gen.num === 2 ? 8 : 2;
-            const max = math.roundDown(p2.pokemon.hp / denominator);
+            const max = math.roundDown(target.hp / denominator);
             // NOTE: No Parental Bond before Gen 6 means we are guaranteed to have only one hit.
             // Similarly, we know damage must be a range because only Jump Kick and HJK can crash.
             const hit = this.hits[0];
@@ -193,7 +197,7 @@ export class Result {
           }
         } else {
           for (let i = 0; i < this.hits.length; i++) {
-            crash = math.min(p1.pokemon.maxhp, ((crash as number) || 0) + math.round(p1.pokemon.maxhp / 2));
+            crash = math.min(attacker.maxhp, ((crash as number) || 0) + math.round(attacker.maxhp / 2));
           }
         }
       }
@@ -204,15 +208,15 @@ export class Result {
 
   recovery(relevant?: Relevancy) {
     if (this.cache.recovery && !relevant) return this.cache.recovery;
-    const {gen, p1, p2, move} = this.context;
+    const {gen, attacker, target, move} = this.context;
 
     let recovery: number | [number, number] | undefined;
 
     const ignored = gen.num === 3 && is(move.id, 'doomdesire', 'futuresight');
-    if (is(p1.pokemon.item?.id, 'shellbell') && !ignored) {
-      if (relevant) relevant.p1.pokemon.item = true;
+    if (is(attacker.item?.id, 'shellbell') && !ignored) {
+      if (relevant) this.relevantAttacker(relevant).item = true;
 
-      const max = math.roundDown(p2.pokemon.hp / 8);
+      const max = math.roundDown(target.hp / 8);
       for (const hit of this.hits) {
         if (!recovery) recovery = [0, 0];
         const range = hit.range;
@@ -223,7 +227,7 @@ export class Result {
     }
 
     if (is(move.id, 'gmaxfinale')) {
-      const healed = math.round(p1.pokemon.maxhp / 6);
+      const healed = math.round(attacker.maxhp / 6);
       if (Array.isArray(recovery)) {
         recovery[0] += healed;
         recovery[1] += healed;
@@ -232,12 +236,12 @@ export class Result {
       }
     } else if (move.drain) {
       let mod: number | undefined;
-      if (is(p1.pokemon.item?.id, 'bigroot')) {
-        if (relevant) relevant.p1.pokemon.item = true;
+      if (is(attacker.item?.id, 'bigroot')) {
+        if (relevant) this.relevantAttacker(relevant).item = true;
         mod = 0x14cc;
       }
       const healed = math.apply(move.drain[0] / move.drain[1], mod);
-      const max = math.round(p2.pokemon.maxhp * healed);
+      const max = math.round(target.maxhp * healed);
       for (const hit of this.hits) {
         if (!recovery) recovery = [0, 0];
         const range = hit.range;
@@ -252,7 +256,7 @@ export class Result {
 
   // chain (if same turn, wont be taking hazards), if second term just nothing / residual
   knockout(type: KOType = 'both', relevant = extend({}, this.relevant)) {
-    const n = this.damage.max > 0 ? math.ceil(this.context.p2.pokemon.hp / this.damage.max) : Infinity;
+    const n = this.damage.max > 0 ? math.ceil(this.context.target.hp / this.damage.max) : Infinity;
     if (n === Infinity || n < 1) {
       return {
         n: Infinity,
@@ -260,7 +264,7 @@ export class Result {
         exact: true,
       };
     } else if (n === 1) {
-      const chance = this.damage.probabilityOfAtLeast(this.context.p2.pokemon.hp);
+      const chance = this.damage.probabilityOfAtLeast(this.context.target.hp);
       return {
         n: 1,
         chance,
@@ -269,7 +273,7 @@ export class Result {
     }
     const distributions = new Array(n).fill(this.damage);
     const d = NumberDistribution.chain(...distributions);
-    const chance = d.probabilityOfAtLeast(this.context.p2.pokemon.hp);
+    const chance = d.probabilityOfAtLeast(this.context.target.hp);
 
     return {
       n,
@@ -291,8 +295,8 @@ export class Result {
   }
 
   moveText(notation: Notation = '%', relevant?: Relevancy) {
-    const min = this.display(notation, this.range[0], this.state.p2.pokemon.maxhp);
-    const max = this.display(notation, this.range[1], this.state.p2.pokemon.maxhp);
+    const min = this.display(notation, this.range[0], this.state.target.maxhp);
+    const max = this.display(notation, this.range[1], this.state.target.maxhp);
 
     const recovery = this.recoveryText(notation, relevant);
     const recoil = this.recoilText(notation, relevant);
@@ -303,9 +307,9 @@ export class Result {
 
   text(type: KOType = 'both', notation: Notation = '%', relevant?: Relevancy) {
     const range = this.range;
-    const min = this.display(notation, range[0], this.state.p2.pokemon.maxhp);
-    const max = this.display(notation, range[1], this.state.p2.pokemon.maxhp);
-    const expected = this.display(notation, this.damage.expected, this.state.p2.pokemon.maxhp);
+    const min = this.display(notation, range[0], this.state.target.maxhp);
+    const max = this.display(notation, range[1], this.state.target.maxhp);
+    const expected = this.display(notation, this.damage.expected, this.state.target.maxhp);
     const damage = `${this.damage.expected.toFixed(1)} [${range[0]}-${range[1]}] (${expected}${notation} [${min}-${max}${notation}])`;
 
     relevant = extend({}, relevant ?? this.relevant);
@@ -335,11 +339,11 @@ export class Result {
   private describe(notation: Notation, n: number | [number, number] | undefined, s: string) {
     if (n !== undefined) {
       if (Array.isArray(n)) {
-        const min = this.display(notation, n[0], this.state.p1.pokemon.maxhp);
-        const max = this.display(notation, n[1], this.state.p1.pokemon.maxhp);
+        const min = this.display(notation, n[0], this.state.attacker.maxhp);
+        const max = this.display(notation, n[1], this.state.attacker.maxhp);
         return `${min} - ${max}${notation} ${s}`;
       } else {
-        const amount = this.display(notation, n, this.state.p1.pokemon.maxhp);
+        const amount = this.display(notation, n, this.state.attacker.maxhp);
         return `${amount}${notation} ${s}`;
       }
     }
@@ -387,7 +391,7 @@ export class HitResult {
     this.handlers = handlers;
     this.damage = new NumberDistribution(calculateDamage(context));
     // context.p2.pokemon.hp = context.p2.pokemon.hp - (Array.isArray(hitDamage) ? hitDamage[0] : hitDamage);
-    if (this.context.p2.pokemon.item?.onUpdate) this.context.p2.pokemon.item.onUpdate(this.context.p2.pokemon);
+    if (this.context.target.item?.onUpdate) this.context.target.item.onUpdate(this.context.target);
   }
 
   // PRECONDITION: this.damage has been finalized
@@ -479,10 +483,11 @@ function apply(appliers: Appliers, state: State) {
   // Apply any *guaranteed* effects of the move/abilities/items, potentially triggering things
   // like Stamina or Foul Play into Defeatist.
   appliers.apply('Moves', 'p1', state.move.id, state, true);
-  for (const side of ['p1', 'p2'] as const) {
+  for (const [index, side] of (['p1', 'p2'] as const).entries()) {
     // TODO: this should only proc flashfire if not guaranteed (only if state.move.type === Fire)
-    appliers.apply('Abilities', side, state[side].pokemon.ability, state, true);
-    appliers.apply('Items', side, state[side].pokemon.item, state, true);
+    const pokemon = state.sides[index].active[0];
+    appliers.apply('Abilities', side, pokemon.ability, state, true);
+    appliers.apply('Items', side, pokemon.item, state, true);
   }
 }
 
@@ -493,8 +498,9 @@ interface Trace {
 function combine(a: Relevancy, b: Relevancy) {
   a.gameType = a.gameType || b.gameType;
   // NOTE: This is safe, Typescript just complains about missing index signatures
-  merge(a.p1 as unknown as Trace, b.p1 as unknown as Trace);
-  merge(a.p2 as unknown as Trace, b.p2 as unknown as Trace);
+  for (let i = 0; i < math.max(a.sides.length, b.sides.length); i++) {
+    merge(a.side(i) as unknown as Trace, b.side(i) as unknown as Trace);
+  }
   merge(a.field as unknown as Trace, b.field as unknown as Trace);
   merge(a.move as unknown as Trace, b.move as unknown as Trace);
 }
@@ -529,9 +535,11 @@ function simplifyField(state: DeepReadonly<State.Field>, relevant: Relevancy.Fie
 
 function simplifySide(gen: Generation, state: DeepReadonly<State.Side>, relevant: Relevancy.Side) {
   const side: State.Side = {
-    pokemon: simplifyPokemon(gen, state.pokemon, relevant.pokemon),
+    active: state.active.map((pokemon, i) =>
+      simplifyPokemon(gen, pokemon, relevant.active[i] ?? {volatiles: {}, stats: {}, boosts: {}})
+    ),
     sideConditions: {},
-    active: relevant.active ? state.active!.map(p => extend({}, p)) : undefined,
+    allies: relevant.allies ? state.allies!.map(p => extend({}, p)) : undefined,
     team: relevant.team ? state.team!.map(p => extend({}, p)) : undefined,
   };
   for (const id in state.sideConditions) {

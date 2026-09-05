@@ -63,11 +63,11 @@ describe('parse', () => {
     expect(state.gameType).toBe('doubles');
     expect(state.field.weather).toBe('Sun');
     expect(state.field.pseudoWeather.magicroom).toEqual({});
-    expect(state.p1.pokemon.ability).toBe('levitate');
-    expect(state.p2.pokemon.evs!.atk).toBe(12);
+    expect(state.attacker.ability).toBe('levitate');
+    expect(state.target.evs!.atk).toBe(12);
 
     expect(
-      parse(gens, '(gen 6) absol-mega [sucker punch] vs. clefable').p1.pokemon.species.name
+      parse(gens, '(gen 6) absol-mega [sucker punch] vs. clefable').attacker.species.name
     ).toBe('Absol-Mega');
 
     parse(gens, `${FLAGS} attackerFoo:0`, "Unknown flag 'attackerfoo'");
@@ -86,7 +86,7 @@ describe('parse', () => {
       parse(gens, `${FLAGS} weather:Sun +Rain`, 'Conflicting values for flag').field.weather
     ).toBe('Rain');
     expect(
-      parse(gens, `${FLAGS} spikes:3 spikes:2`, 'Conflicting values for condition').p2
+      parse(gens, `${FLAGS} spikes:3 spikes:2`, 'Conflicting values for condition').sides[1]
         .sideConditions.spikes
     ).toEqual({level: 2});
     parse(gens, `${FLAGS} foo:5`, "Unrecognized or invalid condition 'foo'");
@@ -114,21 +114,21 @@ describe('parse', () => {
       '+2 Lvl 20 120- Atk / 60 Spe Type:Null @ Leftovers [Self-Destruct] ' +
         'vs -1 Lvl 30 48 HP / 0- Def / 20 SpD 95% Unnerve Mewtwo @ Choice Specs'
     );
-    expect(state.p1.pokemon.species.id).toBe('typenull');
-    expect(state.p1.pokemon.level).toBe(20);
-    expect(state.p1.pokemon.boosts).toEqual({atk: 2});
-    expect(state.p1.pokemon.evs).toEqual(gens.get(8).stats.fill({atk: 120, spe: 60}, 0));
-    expect(state.p1.pokemon.nature).toBe('Modest');
-    expect(state.p1.pokemon.item).toBe('leftovers');
+    expect(state.attacker.species.id).toBe('typenull');
+    expect(state.attacker.level).toBe(20);
+    expect(state.attacker.boosts).toEqual({atk: 2});
+    expect(state.attacker.evs).toEqual(gens.get(8).stats.fill({atk: 120, spe: 60}, 0));
+    expect(state.attacker.nature).toBe('Modest');
+    expect(state.attacker.item).toBe('leftovers');
     expect(state.move.id).toBe('selfdestruct');
-    expect(state.p2.pokemon.species.id).toBe('mewtwo');
-    expect(state.p2.pokemon.ability).toBe('unnerve');
-    expect(state.p2.pokemon.level).toBe(30);
-    expect(state.p2.pokemon.hp).toBe(110);
-    expect(state.p2.pokemon.boosts).toEqual({def: -1});
-    expect(state.p2.pokemon.evs).toEqual(gens.get(8).stats.fill({hp: 48, spd: 20}, 0));
-    expect(state.p2.pokemon.nature).toBe('Mild');
-    expect(state.p2.pokemon.item).toBe('choicespecs');
+    expect(state.target.species.id).toBe('mewtwo');
+    expect(state.target.ability).toBe('unnerve');
+    expect(state.target.level).toBe(30);
+    expect(state.target.hp).toBe(110);
+    expect(state.target.boosts).toEqual({def: -1});
+    expect(state.target.evs).toEqual(gens.get(8).stats.fill({hp: 48, spd: 20}, 0));
+    expect(state.target.nature).toBe('Mild');
+    expect(state.target.item).toBe('choicespecs');
   });
 
   describe('build', () => {
@@ -143,22 +143,22 @@ describe('parse', () => {
         `${FLAGS} p2=leechseed,powerspot,reflect,lightscreen,spikes=2 ` +
           'p1Allies=aurabreak,battery,50,100,fairyaura,80 +friendguard p1=reflect p1Status=burned'
       );
-      expect(state.p1.sideConditions.reflect).toEqual({});
-      expect(state.p2.sideConditions.reflect).toEqual({});
-      expect(state.p2.sideConditions.lightscreen).toEqual({});
-      expect(state.p2.sideConditions.spikes).toEqual({level: 2});
-      expect(state.p1.pokemon.status).toBe('brn');
-      expect(state.p2.pokemon.volatiles.leechseed).toEqual({});
-      expect(state.p2.active!.map(p => p!.ability)).toEqual(['friendguard', 'powerspot']);
-      expect(state.p1.active!.map(p => p!.ability)).toEqual(['aurabreak', 'battery', 'fairyaura']);
-      expect(state.p1.team!.map(p => p.species.baseStats.atk)).toEqual([50, 100, 80]);
+      expect(state.sides[0].sideConditions.reflect).toEqual({});
+      expect(state.sides[1].sideConditions.reflect).toEqual({});
+      expect(state.sides[1].sideConditions.lightscreen).toEqual({});
+      expect(state.sides[1].sideConditions.spikes).toEqual({level: 2});
+      expect(state.attacker.status).toBe('brn');
+      expect(state.target.volatiles.leechseed).toEqual({});
+      expect(state.sides[1].allies!.map(p => p!.ability)).toEqual(['friendguard', 'powerspot']);
+      expect(state.sides[0].allies!.map(p => p!.ability)).toEqual(['aurabreak', 'battery', 'fairyaura']);
+      expect(state.sides[0].team!.map(p => p.species.baseStats.atk)).toEqual([50, 100, 80]);
 
       expect(() => parse(gens, `${PHRASE} p1allies=foo`)).toThrow('Unsupported or invalid ability');
       expect(() => parse(gens, `${PHRASE} p1allies=-1`)).toThrow('stat -1 is not within [0,255]');
       parse(gens, `${PHRASE} p1=fairyaura:yes,fairyaura:no`, 'Conflicting values');
 
       expect(
-        parse(gens, `${PHRASE} p2allies=fairyaura isFairyaura:0`, 'Conflicting values').p2.active
+        parse(gens, `${PHRASE} p2allies=fairyaura isFairyaura:0`, 'Conflicting values').sides[1].allies
       ).toBeUndefined();
     });
 
@@ -168,7 +168,7 @@ describe('parse', () => {
           gens,
           `252+ SpA ${PHRASE} p1Nature=Timid`,
           'Conflicting values for p1 nature: Timid is not (+SpA)'
-        ).p1.pokemon.nature
+        ).attacker.nature
       ).toBe('Timid');
 
       expect(() => parse(gens, `${FLAGS} p1AccuracyBoosts=y`)).toThrow(
@@ -182,7 +182,7 @@ describe('parse', () => {
       );
 
       expect(
-        parse(gens, `${FLAGS} p1AccuracyBoosts=1 p1EvasionBoosts=2 p1SpABoosts=3`).p1.pokemon.boosts
+        parse(gens, `${FLAGS} p1AccuracyBoosts=1 p1EvasionBoosts=2 p1SpABoosts=3`).attacker.boosts
       ).toEqual({accuracy: 1, evasion: 2, spa: 3});
 
       expect(() => parse(gens, `${FLAGS} p1AtkEv=y`)).toThrow('Expected number for p1 Atk EVs');
@@ -192,10 +192,10 @@ describe('parse', () => {
       expect(() => parse(gens, `${FLAGS} p2SpeIvs=foo`)).toThrow('Expected number for p2 Spe IVs');
 
       const state = parse(gens, `gen:1 ${PHRASE} p1AtkEVs=4 p2SpcDV=3 p2SpeIVs=31`);
-      expect(state.p1.pokemon.evs!.atk).toBe(4);
-      expect(state.p2.pokemon.ivs!.spa).toBe(7);
-      expect(state.p2.pokemon.ivs!.spd).toBe(7);
-      expect(state.p2.pokemon.ivs!.spe).toBe(31);
+      expect(state.attacker.evs!.atk).toBe(4);
+      expect(state.target.ivs!.spa).toBe(7);
+      expect(state.target.ivs!.spd).toBe(7);
+      expect(state.target.ivs!.spe).toBe(31);
     });
 
     test('move', () => {
@@ -210,13 +210,13 @@ describe('parse', () => {
         parse(gens, 'machamp @ metronome [mach punch] vs. vaporeon consecutive:3').move.consecutive
       ).toBe(3);
 
-      expect(parse(gens, '+1 gengar [shadow ball] vs. clefable').p1.pokemon.boosts).toEqual({
+      expect(parse(gens, '+1 gengar [shadow ball] vs. clefable').attacker.boosts).toEqual({
         spa: 1,
       });
       expect(() => parse(gens, '+1 gengar [none] vs. clefable', 'Ambiguous boosts')).toThrow(
         'invalid move'
       );
-      expect(parse(gens, 'keldeo [secret sword] vs. +1 blissey').p2.pokemon.boosts).toEqual({
+      expect(parse(gens, 'keldeo [secret sword] vs. +1 blissey').target.boosts).toEqual({
         def: 1,
       });
 
@@ -233,7 +233,7 @@ describe('parse', () => {
       expect(state.move.useZ).toBe(true);
 
       state = parse(gens, 'Gengar @ Metronome:5 [Lick] vs Clefable');
-      expect(state.p1.pokemon.item).toBe('metronome');
+      expect(state.attacker.item).toBe('metronome');
       expect(state.move.consecutive).toBe(5);
 
       state = parse(
@@ -241,7 +241,7 @@ describe('parse', () => {
         'Gengar @ Metronome:5 [Lick] vs Clefable consecutive:4',
         'Conflicting values for move consecutive'
       );
-      expect(state.p1.pokemon.item).toBe('metronome');
+      expect(state.attacker.item).toBe('metronome');
       expect(state.move.consecutive).toBe(5);
       expect(() => parse(gens, 'Gengar @ Metronome:foo [Lick] vs Clefable')).toThrow(
         'Unsupported or invalid item'
@@ -250,48 +250,48 @@ describe('parse', () => {
 
     test('pokemon', () => {
       expect(
-        parse(gens, `p1Species:Mew ${PHRASE}`, 'Conflicting values').p1.pokemon.species.id
+        parse(gens, `p1Species:Mew ${PHRASE}`, 'Conflicting values').attacker.species.id
       ).toBe('gengar');
       expect(() => parse(gens, `attackerLevel:foo ${FLAGS}`)).toThrow(
         'Expected number for p1 level'
       );
       expect(
-        parse(gens, `${PHRASE} p2Level=90 p2Level:80`, 'Conflicting values').p2.pokemon.level
+        parse(gens, `${PHRASE} p2Level=90 p2Level:80`, 'Conflicting values').target.level
       ).toBe(80);
       expect(() => parse(gens, `p1Happiness:foo  ${PHRASE}`)).toThrow('Expected number');
       expect(
-        parse(gens, `p1Happiness:100 ${FLAGS} attackerHappiness=250`, 'Conflicting values').p1
-          .pokemon.happiness
+        parse(gens, `p1Happiness:100 ${FLAGS} attackerHappiness=250`, 'Conflicting values').sides[0]
+          .active[0].happiness
       ).toBe(250);
       expect(parse(gens, `+gravity ${PHRASE}`).field.pseudoWeather.gravity).toEqual({});
       parse(gens, `p1gender:X ${PHRASE}`, 'Invalid gender');
       expect(
-        parse(gens, `${PHRASE} p1HPPercent:80 p1HP:70%`, 'Conflicting values').p1.pokemon.hp
+        parse(gens, `${PHRASE} p1HPPercent:80 p1HP:70%`, 'Conflicting values').attacker.hp
       ).toBe(209);
 
       parse(gens, `p1AddedType:Foo ${PHRASE}`, "'Foo' is not a valid addedType");
-      expect(parse(gens, `p1AddedType:fire ${PHRASE}`).p1.pokemon.addedType).toBe('Fire');
+      expect(parse(gens, `p1AddedType:fire ${PHRASE}`).attacker.addedType).toBe('Fire');
 
       expect(() => parse(gens, `${FLAGS} p2WeightKg:foo`)).toThrow('Expected number for p2 weight');
-      expect(parse(gens, `${FLAGS} p2Weight:10`).p2.pokemon.weighthg).toBe(100);
+      expect(parse(gens, `${FLAGS} p2Weight:10`).target.weighthg).toBe(100);
       expect(() => parse(gens, `attackerHP:foo ${PHRASE}`)).toThrow('Expected number');
       expect(
-        parse(gens, `attackerHP:100 attackerHP:10 ${FLAGS}`, 'Conflicting values').p1.pokemon.hp
+        parse(gens, `attackerHP:100 attackerHP:10 ${FLAGS}`, 'Conflicting values').attacker.hp
       ).toBe(10);
       expect(() => parse(gens, `attackerToxicCounter:foo ${PHRASE}`)).toThrow('Expected number');
       expect(
-        parse(gens, `p2ToxicCounter:3 p2Status=tox:5 ${FLAGS}`, 'Conflicting values').p2.pokemon
+        parse(gens, `p2ToxicCounter:3 p2Status=tox:5 ${FLAGS}`, 'Conflicting values').target
           .statusState?.toxicTurns
       ).toBe(5);
 
-      expect(parse(gens, `${PHRASE} --noAttackerMoveLastTurn`).p1.pokemon.moveLastTurnResult).toBe(
+      expect(parse(gens, `${PHRASE} --noAttackerMoveLastTurn`).attacker.moveLastTurnResult).toBe(
         false
       );
-      expect(parse(gens, `${PHRASE} p2HurtThisTurn:false`).p2.pokemon.hurtThisTurn).toBe(false);
-      expect(parse(gens, `${PHRASE} p1Switching:in`).p1.pokemon.switching).toBe('in');
-      expect(parse(gens, `${PHRASE} switching:in`).p2.pokemon.switching).toBe('in');
+      expect(parse(gens, `${PHRASE} p2HurtThisTurn:false`).target.hurtThisTurn).toBe(false);
+      expect(parse(gens, `${PHRASE} p1Switching:in`).attacker.switching).toBe('in');
+      expect(parse(gens, `${PHRASE} switching:in`).target.switching).toBe('in');
       expect(() => parse(gens, `${PHRASE} p1Switching:foo`)).toThrow('Invalid boolean flag value');
-      expect(parse(gens, `${PHRASE} +switching`).p2.pokemon.switching).toBe('out');
+      expect(parse(gens, `${PHRASE} +switching`).target.switching).toBe('out');
     });
 
     test('spread', () => {

@@ -26,6 +26,10 @@ export function greatestCommonDivisor(a: number, b: number): number {
   return a;
 }
 
+export function leastCommonMultiple(a: number, b: number): number {
+  return (a / greatestCommonDivisor(a, b)) * b;
+}
+
 export function defaultKeyer<T>(value: T): string {
   if (typeof value === 'object' && value !== null) {
     throw new TypeError('A Distribution over object values requires an explicit keyer; String() would merge every value into one bucket');
@@ -116,6 +120,36 @@ export class Distribution<T> {
 
   mapped(mapFunction: (value: T) => T): this {
     return this.derive(Distribution.collapse(this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count})), this.keyer));
+  }
+
+  flatMap(f: (value: T) => Distribution<T>): this {
+    const expanded = this.outcomes.map(outcome => ({outcome, sub: f(outcome.data)}));
+
+    let common = 1;
+    for (const {sub} of expanded) {
+      const total = sub.totalOutcomes;
+      if (total) common = leastCommonMultiple(common, total);
+    }
+
+    const merged = new Map<string, Outcome<T>>();
+    let expectedTotal = 0;
+    for (const {outcome, sub} of expanded) {
+      const total = sub.totalOutcomes;
+      if (!total) continue;
+      const scale = (common / total) * outcome.count;
+      expectedTotal += outcome.count * common;
+      for (const inner of sub.outcomes) {
+        const key = this.keyer(inner.data);
+        const existing = merged.get(key);
+        if (existing) {
+          existing.count += inner.count * scale;
+        } else {
+          merged.set(key, {data: inner.data, count: inner.count * scale});
+        }
+      }
+    }
+
+    return this.derive([...merged.values()]).assertExact(expectedTotal).normalize();
   }
 
   filter(predicate: (value: T) => boolean): this {

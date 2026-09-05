@@ -46,11 +46,19 @@ export function decodeURL(s: string) {
 
 const display = (s: string) => s.replace(/\W+/g, '');
 
+const PLAYER_INDEX: {[p in 'p1' | 'p2']: number} = {p1: 0, p2: 1};
+
+function sideOf(state: State, p: 'p1' | 'p2'): State.Side {
+  return state.sides[PLAYER_INDEX[p]];
+}
+
 export function encode(state: State, url = false) {
   const buf: string[] = [];
 
-  const {gen, gameType, p1, p2, move, field} = state;
-  const [stats, normal] = getStats(gen, p1.pokemon, p2.pokemon, move);
+  const {gen, gameType, move, field} = state;
+  const p1 = sideOf(state, 'p1');
+  const p2 = sideOf(state, 'p2');
+  const [stats, normal] = getStats(gen, p1.active[0], p2.active[0], move);
 
   if (gen.num !== 8 || gameType !== 'singles') {
     buf.push(`(Gen ${gen.num}${gameType === 'doubles' ? ' Doubles' : ''})`);
@@ -121,7 +129,8 @@ function encodeSide(
   state: State,
   buf: string[]
 ) {
-  const pokemon = state[p].pokemon;
+  const side = sideOf(state, p);
+  const pokemon = side.active[0];
   const order = gen.num === 1 ? RBY_STAT_ORDER : STAT_ORDER;
 
   // Boosts
@@ -196,7 +205,7 @@ function encodeSide(
   }
 
   // Gender
-  if (pokemon.gender && pokemon.gender !== pokemon.species.gender && is('rivalry', state.p1.pokemon.ability)) {
+  if (pokemon.gender && pokemon.gender !== pokemon.species.gender && is('rivalry', sideOf(state, 'p1').active[0].ability)) {
     buf.push(`Gender:${pokemon.gender}`);
   }
 
@@ -269,13 +278,13 @@ function encodeSide(
   // Allies
   let eligible = true;
   const allies = [];
-  for (const active of state[p].active || []) {
-    if (active?.ability) {
-      if (!ABILITIES[active.ability]) eligible = false;
-      allies.push(display(gen.abilities.get(active.ability)!.name));
+  for (const ally of side.allies || []) {
+    if (ally?.ability) {
+      if (!ABILITIES[ally.ability]) eligible = false;
+      allies.push(display(gen.abilities.get(ally.ability)!.name));
     }
   }
-  for (const member of state[p].team || []) {
+  for (const member of side.team || []) {
     eligible = false;
     allies.push(member.species.baseStats.atk);
   }
@@ -288,8 +297,8 @@ function encodeSide(
   }
 
   // Side Conditions
-  for (const id in state[p].sideConditions) {
-    const sc = state[p].sideConditions[id];
+  for (const id in side.sideConditions) {
+    const sc = side.sideConditions[id];
     const name = display(SideConditions[id][0]);
     buf.push(sc.level && sc.level > 1 ? `${name}:${sc.level}` : `+${name}`);
   }
