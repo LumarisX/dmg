@@ -11,7 +11,7 @@ roadmap, and the open decisions. This file holds only the conventions and traps.
 ## Current status
 
 **Phases 0-3 complete, Phase 4 largely complete (2026-09-04).** `npx tsc -p . --noEmit` is
-clean, and 22 of 24 Jest suites pass — 266 passed, 1 todo, 2 failed (2026-09-05).
+clean, and 22 of 24 Jest suites pass — 269 passed, 1 todo, 2 failed (2026-09-05).
 
 `resolveTurns()` (`src/turns.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
 injected `Policy`, epsilon/outcome pruning, and per-turn KO chances. It works in **float**
@@ -135,6 +135,20 @@ commit → push → repin the sha in the server's `package.json` → `npm instal
 pin is invisible until it throws: on 2026-09-05 the server was still on `656b5c5`, four commits
 back, and reported a `Population Bomb` crash that had already been fixed here. **When a server
 stack trace disagrees with this repo's source, check the pinned sha before debugging anything.**
+
+**For local development, link instead of repinning:**
+
+```
+cd dmg && npm link
+cd pokemon-draftzone-server && npm link @pdz/calc
+```
+
+That points `node_modules/@pdz/calc` at this working copy and leaves `package.json` and
+`package-lock.json` untouched, so prod keeps installing the pinned sha — which matters, because the
+deploy workflow runs `npm install` from both files. Re-run the second command after any `npm install`
+in the server, and **`npm run build` here after every change** — the server loads `build/cjs`, not
+`src`. Linking is also the fastest way to find API drift: it surfaced ten type errors in the server's
+`/calc` endpoint that the stale pin had been hiding.
 
 `npm run build` runs both tsc passes; `prepare` runs it on install, so a type error in `src`
 breaks `npm install` in both repos. There is **no UMD/browser bundle** — microbundle was
@@ -277,6 +291,13 @@ These will each cost you an afternoon if you trust appearances.
   tolerance beyond, and **any hit count resolves**. `assertExact` keeps the strict contract and
   still throws `ExactHorizonError`; `Distribution.exact` says which régime a result is in. Note the
   oracle does not cover 7+ hit moves, so those are self-consistent but not sim-verified.
+
+- **Multi-turn KO on a multi-hit move is not reachable.** `resolveTurns` costs one `resolveMove` per
+  carried state per turn, and a 2-5 hit move produces ~500 outcomes on turn 1 at ~130ms each — so
+  turn 2 alone is a minute. Use `TurnsOptions.maxResolves` to bound it; exhausted states are carried
+  forward *unadvanced* rather than dropped, so mass stays exact and KO chances become an honest lower
+  bound (`TurnsResult.unexpandedMass` says how much was frozen). Tuning the budget does not fix this,
+  it only makes the failure fast and legible — the fix is HP binning, see `docs/PLAN.md`.
 
 - **`resolveTurns`'s `maxOutcomes` cannot be given a default.** `capOutcomes` keeps the top N by
   probability, which is wrong for a smooth HP distribution: capping Rock Blast to 100 discards 52%

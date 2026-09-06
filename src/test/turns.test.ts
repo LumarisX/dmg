@@ -90,6 +90,48 @@ describe('resolveTurns', () => {
     expect(result.outcomes.every(o => o.state.target.hp >= 0)).toBe(true);
   });
 
+  test('a resolve budget bounds the work and reports what it froze', () => {
+    const attacker = State.createPokemon(gen, 'Maushold', {
+      nature: 'Adamant',
+      evs: { atk: 252 },
+    });
+    const target = State.createPokemon(gen, 'Blissey', {
+      evs: { hp: 252, def: 252 },
+    });
+    const state = State.oneOnOne(
+      gen,
+      attacker,
+      target,
+      State.createMove(gen, 'Population Bomb'),
+      State.createField(gen, {})
+    );
+
+    const result = resolveTurns(state, { turns: 10, maxResolves: 12 });
+
+    expect(result.resolves).toBeLessThanOrEqual(12);
+    expect(result.unexpandedMass).toBeGreaterThan(0);
+    expect(totalMass(result)).toBeCloseTo(1, 9);
+  });
+
+  test('an unbudgeted run reports no frozen mass', () => {
+    const result = resolveTurns(build(), { turns: 3 });
+    expect(result.unexpandedMass).toBe(0);
+    expect(result.resolves).toBeGreaterThan(0);
+    expect(totalMass(result)).toBeCloseTo(1, 9);
+  });
+
+  test('a budget only ever understates the knockout chance', () => {
+    const state = build();
+    const full = resolveTurns(state, { turns: 4 });
+    const budgeted = resolveTurns(state, { turns: 4, maxResolves: 3 });
+
+    for (let i = 0; i < full.knockoutByTurn.length; i++) {
+      expect(budgeted.knockoutByTurn[i]).toBeLessThanOrEqual(
+        full.knockoutByTurn[i] + 1e-12
+      );
+    }
+  });
+
   test('hurtThisTurn does not leak across turns', () => {
     const result = resolveTurns(build(), {turns: 2});
     expect(result.outcomes.every(o => o.state.target.hurtThisTurn === true)).toBe(true);

@@ -15,6 +15,7 @@ export interface TurnsOptions {
   policy?: Policy;
   epsilon?: number;
   maxOutcomes?: number;
+  maxResolves?: number;
 }
 
 export interface TurnsOutcome {
@@ -26,6 +27,8 @@ export interface TurnsResult {
   turns: number;
   outcomes: TurnsOutcome[];
   prunedMass: number;
+  unexpandedMass: number;
+  resolves: number;
   knockoutByTurn: number[];
 }
 
@@ -45,10 +48,14 @@ export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
   current.set(stateKey(state), {state, probability: 1});
 
   let prunedMass = 0;
+  let unexpandedMass = 0;
+  let resolves = 0;
+  const budget = options.maxResolves ?? Infinity;
   const knockoutByTurn: number[] = [];
 
   for (let turn = 1; turn <= options.turns; turn++) {
     const next = new Map<string, TurnsOutcome>();
+    unexpandedMass = 0;
 
     for (const outcome of current.values()) {
       if (outcome.state.target.hp <= 0) {
@@ -56,7 +63,14 @@ export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
         continue;
       }
 
+      if (resolves >= budget) {
+        unexpandedMass += outcome.probability;
+        accumulate(next, outcome.state, outcome.probability);
+        continue;
+      }
+
       const opening = startOfTurn(outcome.state).withMove(policy.chooseMove(outcome.state, turn));
+      resolves++;
       const resolved = resolveMove(opening);
       const total = resolved.totalOutcomes;
 
@@ -78,6 +92,8 @@ export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
     turns: options.turns,
     outcomes: [...current.values()].sort((a, b) => b.probability - a.probability),
     prunedMass,
+    unexpandedMass,
+    resolves,
     knockoutByTurn,
   };
 }

@@ -1337,8 +1337,27 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       The missing half is *merging*: bin nearby HP values into one representative instead of dropping
       the tail, which conserves mass. That is a real departure from decision #3 (*"nodes merge on
       resulting state, never on path"*) — binning merges states that are genuinely distinct — so it
-      needs deciding rather than sliding in. A cheaper interim: report KO chance as the interval
-      `[ko, ko + prunedMass]` so an aggressive budget cannot be mistaken for a precise answer.
+      needs deciding rather than sliding in.
+
+      **Interim, shipped 2026-09-05: `TurnsOptions.maxResolves`.** A `resolveMove` budget. When it is
+      exhausted, remaining states are carried forward *unadvanced* rather than dropped, so mass is
+      conserved exactly and knockout chances become an honest **lower bound** instead of a distorted
+      one. `TurnsResult` gained `unexpandedMass` (frozen mass at the horizon, reset per turn) and
+      `resolves` (what it actually spent). Default is unlimited, so library behaviour is unchanged;
+      the `/calc` endpoint sets one.
+
+      **This confirmed the limit rather than removing it.** The endpoint sizes the budget from the
+      measured cost of the first resolve (`floor(1500ms / resolveMs)`), which yields:
+
+      | | first resolve | budget | result |
+      | --- | --- | --- | --- |
+      | Aura Sphere | 0.4ms | ~3750 | fully resolved, 62ms, 4HKO |
+      | Rock Blast | 130ms | 11 | turn 1 only — turn 2 alone needs ~500 |
+      | Population Bomb | 200ms | 7 | turn 1 only |
+
+      Turn 2 of a multi-hit move needs one `resolveMove` per turn-1 outcome — 500+ of them at 130ms
+      each. **Multi-turn KO for multi-hit moves is not reachable by tuning; it needs the merging
+      above.** The budget's job is to fail fast and say so, which it now does.
 
 - [ ] **`Result.toString()` is broken for every state — a Slice B regression hiding behind a red
       test.** Found while establishing the baseline for the work above. `Result.text()` does
