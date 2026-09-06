@@ -2,7 +2,7 @@ import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
 import {State} from '../state';
-import {guaranteedKnockoutTurn, knockoutChances, search} from '../search';
+import {guaranteedKnockoutTurn, knockoutChances, resolveTurns} from '../turns';
 
 const gens = new Generations(Dex as any);
 const gen = gens.get(9);
@@ -14,19 +14,19 @@ function build(moveName = 'Aura Sphere', defenderHp?: number, defender = 'Blisse
   return State.oneOnOne(gen, attacker, target, State.createMove(gen, moveName), State.createField(gen, {}));
 }
 
-function totalMass(result: ReturnType<typeof search>) {
+function totalMass(result: ReturnType<typeof resolveTurns>) {
   return result.outcomes.reduce((sum, o) => sum + o.probability, 0) + result.prunedMass;
 }
 
-describe('search', () => {
+describe('resolveTurns', () => {
   test('a single turn reproduces resolveMove', () => {
-    const result = search(build(), {turns: 1});
+    const result = resolveTurns(build(), {turns: 1});
     expect(totalMass(result)).toBeCloseTo(1, 9);
     expect(result.knockoutByTurn).toHaveLength(1);
   });
 
   test('probability mass is conserved across turns, pruned mass included', () => {
-    const result = search(build(), {turns: 4});
+    const result = resolveTurns(build(), {turns: 4});
     expect(totalMass(result)).toBeCloseTo(1, 9);
   });
 
@@ -49,7 +49,7 @@ describe('search', () => {
   });
 
   test('fainted states are terminal and stop absorbing turns', () => {
-    const result = search(build('Aura Sphere', 10), {turns: 3});
+    const result = resolveTurns(build('Aura Sphere', 10), {turns: 3});
     const fainted = result.outcomes.filter(o => o.state.target.hp === 0);
     expect(fainted).toHaveLength(1);
     expect(fainted[0].probability).toBeCloseTo(1, 9);
@@ -66,13 +66,13 @@ describe('search', () => {
   });
 
   test('epsilon pruning is accounted for rather than silently dropped', () => {
-    const loose = search(build(), {turns: 4, epsilon: 1e-4});
+    const loose = resolveTurns(build(), {turns: 4, epsilon: 1e-4});
     expect(loose.prunedMass).toBeGreaterThan(0);
     expect(totalMass(loose)).toBeCloseTo(1, 9);
   });
 
   test('an outcome cap also reports what it discarded', () => {
-    const capped = search(build(), {turns: 3, maxOutcomes: 5});
+    const capped = resolveTurns(build(), {turns: 3, maxOutcomes: 5});
     expect(capped.outcomes.length).toBeLessThanOrEqual(5);
     expect(totalMass(capped)).toBeCloseTo(1, 9);
   });
@@ -81,7 +81,7 @@ describe('search', () => {
     const state = build('Aura Sphere');
     const vacuumWave = State.createMove(gen, 'Vacuum Wave');
 
-    const result = search(state, {
+    const result = resolveTurns(state, {
       turns: 2,
       policy: {chooseMove: (_s, turn) => (turn === 1 ? state.move : vacuumWave)},
     });
@@ -91,7 +91,7 @@ describe('search', () => {
   });
 
   test('hurtThisTurn does not leak across turns', () => {
-    const result = search(build(), {turns: 2});
+    const result = resolveTurns(build(), {turns: 2});
     expect(result.outcomes.every(o => o.state.target.hurtThisTurn === true)).toBe(true);
   });
 });

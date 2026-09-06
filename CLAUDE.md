@@ -11,25 +11,39 @@ roadmap, and the open decisions. This file holds only the conventions and traps.
 ## Current status
 
 **Phases 0-3 complete, Phase 4 largely complete (2026-09-04).** `npx tsc -p . --noEmit` is
-clean, and 21 of 23 Jest suites pass — 238 passed, 1 todo, 2 failed.
+clean, and 22 of 24 Jest suites pass — 266 passed, 1 todo, 2 failed (2026-09-05).
 
-`search()` (`src/search.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
+`resolveTurns()` (`src/turns.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
 injected `Policy`, epsilon/outcome pruning, and per-turn KO chances. It works in **float**
 probabilities on purpose — pruning abandons exactness anyway — and always reports `prunedMass`
 so `Σ outcomes + prunedMass === 1` holds. End-of-turn residuals and hazards are **not** modelled
 yet, so its KO chances understate attrition.
+
+**It was called `search` until 2026-09-05 and the rename was the point.** It does not search:
+there is no exploration, no objective, no game tree, and it never chooses anything — the
+`Policy` is injected and it does as told (`repeatMove`, the only implementation, returns the
+same move forever). It pushes a probability distribution forward N steps, which is a Markov
+chain evolution. The old name described what tier 3 might grow into once `Policy` becomes a
+solver. Only one side acts, a "turn" means "one more use of this move", and `startOfTurn`
+clearing `hurtThisTurn` is the entire between-turn model.
 
 `resolveMove` (`src/resolve.ts`) turns one move into a merged `Distribution<State>` and is
 verified against `@pkmn/sim` branch-by-branch. It **rejects anything outside its supported move
 class** with `UnsupportedMoveError` rather than guessing — Phase 3 removes one restriction per
 rung. See `docs/PLAN.md`.
 
-The 3 remaining failures are **genuine mechanics gaps, not build breakage.** Treat them as the
-baseline, not a regression you introduced:
+The 2 remaining failures are the baseline, not a regression you introduced:
 
-- `mechanics/index.test.ts` — Collision Course / Electro Drift super-effective boost is not
-  implemented, and Flower Gift / Power Spot / Battery encoding has a spacing bug.
-- `parse.test.ts` — `powerspot` is dropped from `p2.active` when parsing allies.
+- `parse.test.ts` — `powerspot` is dropped from `sides[1].allies` when parsing allies. A genuine
+  mechanics gap.
+- `mechanics/index.test.ts` — **no longer the spacing bug it is named after.** It now fails with
+  `TypeError: relevant.side is not a function`, and that is a live regression from the Slice B
+  reshape, not a mechanics gap: `Result.text()` does `extend({}, relevant)` (`result.ts:315`, and
+  again at `:107`), which flattens the `Relevancy` into a plain object and drops the `side()` /
+  `pokemon()` **methods** the reshape added. `Relevancy` used to be pure data, so flattening it was
+  safe; it is not any more. **`Result.toString()` therefore throws for every state**, not just this
+  test's — the whole human-facing output path of `calculate()` is down, and an already-red test is
+  hiding it. See `docs/PLAN.md`.
 
 Nothing consumes the damage path yet. The only live consumer of anything in this repo is the
 server's `speedchart.ts`, which uses `computeStats` and `State` only.
@@ -80,6 +94,10 @@ src/
   encode.ts       State → text
   math.ts         cartridge integer math (trunc, chainMod, roundDown)
   gens.ts         inGen / inGens scoping helpers
+  distribution.ts Distribution<T> / NumberDistribution — counts, merging, exactness
+  key.ts          stateKey — the canonical merge key that makes branches collapse
+  resolve.ts      tier 2 — resolveMove, one move to a Distribution<State>
+  turns.ts        tier 3 — resolveTurns, resolveMove iterated over N turns
   test/helpers/   differential test infra against @pkmn/sim — currently dead
 docs/             PLAN.md, CONTRIBUTING.md, PARSING.md, TESTING.md
 wip/              dead prototype code, predates everything. Ignore it.
@@ -89,11 +107,11 @@ wip/              dead prototype code, predates everything. Ignore it.
 
 Three tiers. The middle one does not exist yet and is the keystone.
 
-| Tier | Signature | Status |
-| --- | --- | --- |
-| 1 — damage | `calculateDamage(Context) → Distribution<number>` | exists |
-| 2 — one move | `resolveMove(State, action) → Distribution<State>` | to build |
-| 3 — turns / game | `search(State, policy, depth) → Distribution<State>` | later |
+| Tier | File | Signature | Status |
+| --- | --- | --- | --- |
+| 1 — damage | `mechanics/index.ts` | `calculateDamage(Context) → number[]` | exists |
+| 2 — one move | `resolve.ts` | `resolveMove(State) → Distribution<State>` | exists |
+| 3 — turns | `turns.ts` | `resolveTurns(State, TurnsOptions) → TurnsResult` | exists, one-sided |
 
 `Relevancy` is what `@smogon/calc` structurally cannot do — it hardcodes a `desc` builder.
 Keep it.
@@ -107,10 +125,16 @@ Dual `build/cjs` + `build/esm` with an `exports` map, mirroring `@pdz/sets`.
 that way — calculator results reach the browser over HTTP. Do not add `@pkmn/dex` to the client
 bundle without revisiting that decision in `docs/PLAN.md`.
 
-`pokemon-draftzone-server` depends on it as `file:../dmg` and `speedchart.ts` imports
-`{State, computeStats} from '@pdz/calc'`. **`pokemon-draftzone-server/dmg/` no longer exists** —
-do not recreate it. The release form is a tag (`git tag v0.1.0`, then
-`git+file:///.../dmg#v0.1.0`), matching `@pdz/sets`.
+`pokemon-draftzone-server` depends on it as a **pinned GitHub commit**, not `file:../dmg`:
+`"@pdz/calc": "git+https://github.com/LumarisX/dmg.git#<sha>"`. `speedchart.ts` and the `/calc`
+endpoint import from `@pdz/calc`. **`pokemon-draftzone-server/dmg/` no longer exists** — do not
+recreate it.
+
+**This means editing this repo changes nothing the server runs.** Getting a change over there is
+commit → push → repin the sha in the server's `package.json` → `npm install` → restart. A stale
+pin is invisible until it throws: on 2026-09-05 the server was still on `656b5c5`, four commits
+back, and reported a `Population Bomb` crash that had already been fixed here. **When a server
+stack trace disagrees with this repo's source, check the pinned sha before debugging anything.**
 
 `npm run build` runs both tsc passes; `prepare` runs it on install, so a type error in `src`
 breaks `npm install` in both repos. There is **no UMD/browser bundle** — microbundle was
@@ -209,6 +233,56 @@ These will each cost you an afternoon if you trust appearances.
   `trunc(d * mod, 32) / 0x1000` and deferring to a later `floor`, which truncated instead of
   rounding — off by one on 4 of 16 rolls at 2.25× STAB, and invisible at 1.5× whenever the
   intermediate value happened to be even.
+
+- **`extend` returns dictionary-mode objects.** It grows its target through a megamorphic keyed
+  store, which V8 answers by normalising the result to slow properties — after which every copy of
+  that object costs roughly **90×** more (`{...state.move}` measured 5.06µs against 0.05µs for the
+  same 45 keys). `State.createMove` now passes its result through `fastProperties` (`utils.ts`) for
+  exactly this reason, and a `{...obj}` that looks like a no-op is load-bearing. If you build
+  something with `extend` that then gets copied on a branch path, do the same.
+
+- **`resolve.ts` reuses `Context` sub-objects, and the rule is reference identity.** `Reification`
+  (`context.ts`) hands out one `Context` per distinct `State` and reuses `Context.Field` plus each
+  side's `sideConditions` / `allies` / `team` when the source `State` fragment is the *same object* —
+  which holds because `withPokemonAt` / `withMove` share what they don't touch. Two constraints ride
+  on it: reuse is refused unless the `Relevancy` is the same object (a reified handler closes over
+  the fragment it was built against, so crossing relevancies would record provenance into the wrong
+  one), and `Context.Pokemon` is never reused because it holds `side` / `move` back-pointers. A
+  `Reification` hands out one live `Context` at a time — do not keep a previous one and calculate
+  off it.
+
+- **Crit is applied after `updateData`, not before.** `damageRolls` sets `context.move.crit` on an
+  already-built context; nothing in move-data resolution may read it. That matches the cartridge
+  (crit is rolled after the move's data is resolved) and it is what lets one `Context` serve both
+  crit branches. `sniper` reads `move.crit` at *damage* time, which is fine. A new
+  `basePowerCallback` that reads `crit` would break it — `context.test.ts` pins the invariant.
+
+- **`stateKey` is the hot spot on the resolve path, not `Context` construction.** It was 40,050
+  calls / 239ms of a 301ms Rock Blast resolve before being rewritten to build by concatenation
+  (5.45µs → 1.63µs) and to memoise `sideKey` on object identity. Keep it allocation-free; a
+  `map`/`join`/`sort` reintroduced here costs more than any mechanic in the loop.
+
+- **The key memo is on `sideKey` only, deliberately.** Memoising `pokemonKey` too made resolves
+  *slower* — in a resolve the target Pokémon is a fresh object on every branch, so it paid a
+  `WeakMap.set` that was never read, and a memo-hit `sideKey` returns before it would ever call
+  `pokemonKey` anyway. Memoise the fragment that repeats, not the one that changes. **The contract:
+  a `State.Side` must not be mutated once it has been keyed** — construction-time mutation is fine.
+  `Appliers.apply` is the one thing that mutates a `State` in place; a new `apply` must return a new
+  `State`, not mutate a keyed one.
+
+- **Exactness ends at 6 hits, and that is handled, not an error.** Counts leave the safe-integer
+  range at hit 7 for any move (the gcd of the branch counts is 1 at every pass, so normalising
+  cannot help). Past that, probabilities stay correct to ~1e-16 relative — summing positive floats
+  has no cancellation — so `assertMassConserved` checks mass exactly while it fits and by relative
+  tolerance beyond, and **any hit count resolves**. `assertExact` keeps the strict contract and
+  still throws `ExactHorizonError`; `Distribution.exact` says which régime a result is in. Note the
+  oracle does not cover 7+ hit moves, so those are self-consistent but not sim-verified.
+
+- **`resolveTurns`'s `maxOutcomes` cannot be given a default.** `capOutcomes` keeps the top N by
+  probability, which is wrong for a smooth HP distribution: capping Rock Blast to 100 discards 52%
+  of the probability mass and drops the 4-turn KO chance from 0.92 to 0.47. `prunedMass` reports it,
+  but `knockoutByTurn` silently becomes a lower bound. It was tried as a default and reverted
+  2026-09-05. Bounding tier 3 needs *merging* (binning nearby HP), not more pruning.
 
 - **Watch constructor ordering in `Context`.** `Context.Side` copies `context.field` in its
   own constructor, so `field` must be built *before* `p1`/`p2`. It wasn't, which silently

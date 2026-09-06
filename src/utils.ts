@@ -22,6 +22,10 @@ export function override<T extends object>(obj: T, overrides: any): T {
   return extend(copy, obj, overrides);
 }
 
+export function fastProperties<T extends object>(obj: T): T {
+  return {...obj};
+}
+
 /** Convenience function used to determine whether one of `xs` is equal to `x`. */
 export function is(x: string | undefined, xs: (string | undefined)[]): boolean;
 export function is(x: string | undefined, ...xs: (string | undefined)[]): boolean;

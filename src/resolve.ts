@@ -2,6 +2,7 @@ import {Distribution, Outcome, greatestCommonDivisor} from './distribution';
 import {stateDistribution, stateKey} from './key';
 import type {BoostID, SecondaryEffect, TypeName} from '@pkmn/data';
 
+import {Context, Reification} from './context';
 import {clamp, max, min} from './math';
 import {bondsWith, calculateDamage} from './mechanics';
 import {State} from './state';
@@ -160,9 +161,13 @@ export function assertSupported(state: State): void {
   if (reasons.length) throw new UnsupportedMoveError(state.move.name, reasons);
 }
 
-function damageRolls(state: State, crit: boolean, hitNumber = 1): number[] {
-  const move: State.Move = {...state.move, crit, hit: hitNumber};
-  const damage = calculateDamage(state.withMove(move));
+function forHit(state: State, hitNumber: number): State {
+  return state.withMove({...state.move, hit: hitNumber});
+}
+
+function damageRolls(context: Context, crit: boolean): number[] {
+  context.move.crit = crit;
+  const damage = calculateDamage(context);
   return Array.isArray(damage) ? damage : [damage];
 }
 
@@ -359,8 +364,9 @@ function accumulateStep(into: Map<string, Step>, state: State, count: number, fi
   }
 }
 
-function critExpansion(state: State, crits: CritBranch[]): number {
-  return crits.reduce((sum, branch) => sum + branch.weight * damageRolls(state, branch.crit).length, 0);
+function critExpansion(reification: Reification, state: State, crits: CritBranch[]): number {
+  const context = reification.of(forHit(state, 1));
+  return crits.reduce((sum, branch) => sum + branch.weight * damageRolls(context, branch.crit).length, 0);
 }
 
 function totalWeight(branches: {weight: number}[]): number {
@@ -368,6 +374,7 @@ function totalWeight(branches: {weight: number}[]): number {
 }
 
 function advance(
+  reification: Reification,
   current: Map<string, Step>,
   crits: CritBranch[],
   perHitAccuracy: AccuracyBranch[],
@@ -383,13 +390,15 @@ function advance(
       continue;
     }
 
+    const context = reification.of(forHit(step.state, hitNumber));
+
     for (const accuracy of perHitAccuracy) {
       if (!accuracy.lands) {
         accumulateStep(next, step.state, step.count * accuracy.weight * critExpansion, true);
         continue;
       }
       for (const branch of crits) {
-        for (const damage of damageRolls(step.state, branch.crit, hitNumber)) {
+        for (const damage of damageRolls(context, branch.crit)) {
           accumulateStep(next, withDamage(step.state, damage), step.count * accuracy.weight * branch.weight, false);
         }
       }
@@ -402,9 +411,10 @@ function advance(
 export function resolveMove(state: State): Distribution<State> {
   assertSupported(state);
 
+  const reification = new Reification();
   const crits = critBranches(state);
   const hitBranches = hitCountBranches(state.gen.num, state.move, state.attacker);
-  const critExp = critExpansion(state, crits);
+  const critExp = critExpansion(reification, state, crits);
 
   const perHit = accuracyBranches(state.move);
   const usesPerHitAccuracy = !!state.move.multiaccuracy;
@@ -435,7 +445,7 @@ export function resolveMove(state: State): Distribution<State> {
       accumulateStep(current, state, 1, false);
 
       for (let hit = 1; hit <= hitBranch.hits; hit++) {
-        current = advance(current, crits, hitAccuracy, critExp, hit);
+        current = advance(reification, current, crits, hitAccuracy, critExp, hit);
       }
 
       const scale = accuracy.weight * hitBranch.weight * expansion ** (maxHits - hitBranch.hits);
@@ -450,5 +460,5 @@ export function resolveMove(state: State): Distribution<State> {
 
   const result = stateDistribution();
   result.outcomes = [...merged.values()];
-  return result.assertExact(expectedTotal).normalize();
+  return result.assertMassConserved(expectedTotal).normalize();
 }

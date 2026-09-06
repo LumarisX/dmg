@@ -10,21 +10,21 @@ export const repeatMove: Policy = {
   chooseMove: state => state.move,
 };
 
-export interface SearchOptions {
+export interface TurnsOptions {
   turns: number;
   policy?: Policy;
   epsilon?: number;
   maxOutcomes?: number;
 }
 
-export interface SearchOutcome {
+export interface TurnsOutcome {
   state: State;
   probability: number;
 }
 
-export interface SearchResult {
+export interface TurnsResult {
   turns: number;
-  outcomes: SearchOutcome[];
+  outcomes: TurnsOutcome[];
   prunedMass: number;
   knockoutByTurn: number[];
 }
@@ -37,18 +37,18 @@ function startOfTurn(state: State): State {
   return state.withPokemonAt(state.action.target, {...defender, hurtThisTurn: undefined});
 }
 
-export function search(state: State, options: SearchOptions): SearchResult {
+export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
   const policy = options.policy ?? repeatMove;
   const epsilon = options.epsilon ?? DEFAULT_EPSILON;
 
-  let current = new Map<string, SearchOutcome>();
+  let current = new Map<string, TurnsOutcome>();
   current.set(stateKey(state), {state, probability: 1});
 
   let prunedMass = 0;
   const knockoutByTurn: number[] = [];
 
   for (let turn = 1; turn <= options.turns; turn++) {
-    const next = new Map<string, SearchOutcome>();
+    const next = new Map<string, TurnsOutcome>();
 
     for (const outcome of current.values()) {
       if (outcome.state.target.hp <= 0) {
@@ -82,7 +82,7 @@ export function search(state: State, options: SearchOptions): SearchResult {
   };
 }
 
-function accumulate(into: Map<string, SearchOutcome>, state: State, probability: number) {
+function accumulate(into: Map<string, TurnsOutcome>, state: State, probability: number) {
   const key = stateKey(state);
   const existing = into.get(key);
   if (existing) {
@@ -93,10 +93,10 @@ function accumulate(into: Map<string, SearchOutcome>, state: State, probability:
 }
 
 function capOutcomes(
-  outcomes: Map<string, SearchOutcome>,
+  outcomes: Map<string, TurnsOutcome>,
   maxOutcomes: number | undefined,
   onPruned: (mass: number) => void
-): Map<string, SearchOutcome> {
+): Map<string, TurnsOutcome> {
   if (!maxOutcomes || outcomes.size <= maxOutcomes) return outcomes;
 
   const sorted = [...outcomes.entries()].sort((a, b) => b[1].probability - a[1].probability);
@@ -105,7 +105,7 @@ function capOutcomes(
   return new Map(kept);
 }
 
-function knockedOutMass(outcomes: Map<string, SearchOutcome>): number {
+function knockedOutMass(outcomes: Map<string, TurnsOutcome>): number {
   let mass = 0;
   for (const outcome of outcomes.values()) {
     if (outcome.state.target.hp <= 0) mass += outcome.probability;
@@ -113,11 +113,11 @@ function knockedOutMass(outcomes: Map<string, SearchOutcome>): number {
   return mass;
 }
 
-export function knockoutChances(state: State, turns: number, options: Omit<SearchOptions, 'turns'> = {}): number[] {
-  return search(state, {...options, turns}).knockoutByTurn;
+export function knockoutChances(state: State, turns: number, options: Omit<TurnsOptions, 'turns'> = {}): number[] {
+  return resolveTurns(state, {...options, turns}).knockoutByTurn;
 }
 
-export function guaranteedKnockoutTurn(state: State, turns: number, options: Omit<SearchOptions, 'turns'> = {}): number | undefined {
+export function guaranteedKnockoutTurn(state: State, turns: number, options: Omit<TurnsOptions, 'turns'> = {}): number | undefined {
   const chances = knockoutChances(state, turns, options);
   const index = chances.findIndex(chance => chance >= 1);
   return index === -1 ? undefined : index + 1;

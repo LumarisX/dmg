@@ -21,6 +21,13 @@ export class ExactHorizonError extends Error {
   }
 }
 
+const MASS_TOLERANCE = 1e-9;
+
+function massMatches(total: number, expected: number): boolean {
+  if (Number.isSafeInteger(total) && Number.isSafeInteger(expected)) return total === expected;
+  return Math.abs(total - expected) <= MASS_TOLERANCE * max(Math.abs(total), Math.abs(expected));
+}
+
 export function greatestCommonDivisor(a: number, b: number): number {
   while (b !== 0) [a, b] = [b, a % b];
   return a;
@@ -83,8 +90,13 @@ export class Distribution<T> {
     return this.outcomes.flatMap(entry => Array(entry.count).fill(entry.data));
   }
 
+  get exact(): boolean {
+    if (!Number.isSafeInteger(this.totalOutcomes)) return false;
+    return this.outcomes.every(outcome => Number.isSafeInteger(outcome.count));
+  }
+
   normalize(): this {
-    if (this.outcomes.length === 0) return this;
+    if (this.outcomes.length === 0 || !this.exact) return this;
     let divisor = this.outcomes[0].count;
     for (const outcome of this.outcomes) {
       divisor = greatestCommonDivisor(divisor, outcome.count);
@@ -96,12 +108,27 @@ export class Distribution<T> {
     return this;
   }
 
+  assertMassConserved(expectedTotal?: number): this {
+    const total = this.totalOutcomes;
+    if (!Number.isFinite(total) || total <= 0) throw new ProbabilityMassError(expectedTotal ?? total, total);
+    if (expectedTotal !== undefined && !massMatches(total, expectedTotal)) {
+      throw new ProbabilityMassError(expectedTotal, total);
+    }
+    for (const outcome of this.outcomes) {
+      if (!Number.isFinite(outcome.count) || outcome.count <= 0) {
+        throw new ProbabilityMassError(total, outcome.count);
+      }
+    }
+    return this;
+  }
+
   assertExact(expectedTotal?: number): this {
     const total = this.totalOutcomes;
+    if (!Number.isSafeInteger(total)) throw new ExactHorizonError(total);
+    if (expectedTotal !== undefined && !Number.isSafeInteger(expectedTotal)) throw new ExactHorizonError(expectedTotal);
     if (expectedTotal !== undefined && total !== expectedTotal) {
       throw new ProbabilityMassError(expectedTotal, total);
     }
-    if (!Number.isSafeInteger(total)) throw new ExactHorizonError(total);
     for (const outcome of this.outcomes) {
       if (!Number.isSafeInteger(outcome.count) || outcome.count <= 0) {
         throw new ProbabilityMassError(total, outcome.count);
@@ -149,7 +176,7 @@ export class Distribution<T> {
       }
     }
 
-    return this.derive([...merged.values()]).assertExact(expectedTotal).normalize();
+    return this.derive([...merged.values()]).assertMassConserved(expectedTotal).normalize();
   }
 
   filter(predicate: (value: T) => boolean): this {
@@ -302,7 +329,7 @@ export class NumberDistribution extends Distribution<number> {
       }
     }
     result.outcomes = [...merged].map(([data, count]) => ({data, count}));
-    return result.assertExact(this.totalOutcomes * other.totalOutcomes).normalize();
+    return result.assertMassConserved(this.totalOutcomes * other.totalOutcomes).normalize();
   }
 
   toString(notation: '%' | '#' | 'e' | '%%' = '%'): string {
@@ -328,7 +355,7 @@ export class NumberDistribution extends Distribution<number> {
         }
       }
       result.outcomes = [...next].map(([data, count]) => ({data, count}));
-      result.assertExact(expectedTotal).normalize();
+      result.assertMassConserved(expectedTotal).normalize();
     }
 
     return result;

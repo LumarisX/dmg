@@ -1,3 +1,122 @@
+import {Generations} from '@pkmn/data';
+import {Dex} from '@pkmn/sim';
+
+import {Context, Reification} from '../context';
+import {calculateDamage} from '../mechanics';
+import {State} from '../state';
+
+const gens = new Generations(Dex as any);
+const gen = gens.get(9);
+
+function build(moveName: string, options: {allies?: string[]; atks?: number[]; weather?: 'Sun' | 'Rain'} = {}) {
+  const attacker = State.createPokemon(gen, 'Cloyster', {evs: {atk: 252}});
+  const defender = State.createPokemon(gen, 'Blissey', {evs: {hp: 252}});
+  const side = {abilities: options.allies, atks: options.atks};
+  return State.oneOnOne(
+    gen,
+    State.createSide(gen, attacker, {...side, sideConditions: {reflect: {}}}),
+    State.createSide(gen, defender, side),
+    State.createMove(gen, moveName),
+    State.createField(gen, {weather: options.weather})
+  );
+}
+
+function damaged(state: State, hp: number): State {
+  return state.withPokemonAt(state.action.target, {...state.target, hp});
+}
+
+describe('Reification', () => {
+  test('a derived context calculates identically to a freshly built one', () => {
+    const state = build('Rock Blast', {allies: ['Friend Guard'], atks: [100, 80]});
+    const reification = new Reification();
+
+    for (let hp = 100; hp <= 400; hp += 37) {
+      for (const crit of [false, true]) {
+        const next = damaged(state, hp);
+
+        const fresh = Context.fromState(next.withMove({...next.move, crit}));
+        const derived = reification.of(next);
+        derived.move.crit = crit;
+
+        expect(calculateDamage(derived)).toEqual(calculateDamage(fresh));
+      }
+    }
+  });
+
+  test('reuses the sub-contexts whose state fragment is unchanged by reference', () => {
+    const state = build('Rock Blast', {allies: ['Friend Guard'], atks: [100, 80]});
+    const reification = new Reification();
+
+    const first = reification.of(state);
+    const second = reification.of(damaged(state, 200));
+
+    expect(second.field).toBe(first.field);
+    expect(second.attackerSide).not.toBe(first.attackerSide);
+    expect(second.attackerSide.sideConditions).toBe(first.attackerSide.sideConditions);
+    expect(second.attackerSide.allies).toBe(first.attackerSide.allies);
+    expect(second.attackerSide.team).toBe(first.attackerSide.team);
+    expect(second.targetSide.allies).toBe(first.targetSide.allies);
+  });
+
+  test('rebuilds the fragments that did change', () => {
+    const state = build('Rock Blast', {allies: ['Friend Guard'], atks: [100, 80]});
+    const reification = new Reification();
+
+    const first = reification.of(state);
+    const second = reification.of(
+      state.withSideAt(1, {...state.sides[1], allies: [{ability: 'levitate' as never, position: 0}]})
+    );
+
+    expect(second.targetSide.allies).not.toBe(first.targetSide.allies);
+    expect(second.field).toBe(first.field);
+  });
+
+  test('never reuses across a different Relevancy', () => {
+    const state = build('Rock Blast');
+    const first = Context.fromState(state);
+    const second = Context.fromState(state);
+
+    expect(second.field).not.toBe(first.field);
+    expect(second.relevant).not.toBe(first.relevant);
+  });
+
+  test('a reused sub-context still records relevancy against the shared Relevancy', () => {
+    const state = build('Rock Blast', {weather: 'Rain'});
+    const reification = new Reification();
+
+    const first = reification.of(state);
+    const second = reification.of(damaged(state, 200));
+
+    expect(second.field).toBe(first.field);
+    second.field.weather?.onWeatherModifyDamage?.(second);
+    expect(second.relevant.field.weather).toBe(first.relevant.field.weather);
+  });
+});
+
+describe('Context.Move', () => {
+  test('resolves move data without reading the crit flag', () => {
+    for (const name of ['Rock Blast', 'Aura Sphere', 'Triple Axel', 'Facade', 'Eruption', 'Weather Ball', 'Avalanche']) {
+      const state = build(name);
+      const without = Context.fromState(state.withMove({...state.move, crit: false}));
+      const with_ = Context.fromState(state.withMove({...state.move, crit: true}));
+
+      expect({
+        basePower: with_.move.basePower,
+        type: with_.move.type,
+        accuracy: with_.move.accuracy,
+        multihit: with_.move.multihit,
+        effectiveness: with_.move.effectiveness,
+      }).toEqual({
+        basePower: without.move.basePower,
+        type: without.move.type,
+        accuracy: without.move.accuracy,
+        multihit: without.move.multihit,
+        effectiveness: without.move.effectiveness,
+      });
+    }
+  });
+});
+
 describe('Context', () => {
   test.todo('restore Field/Side/Pokemon/Move coverage — see docs/PLAN.md Phase 2');
 

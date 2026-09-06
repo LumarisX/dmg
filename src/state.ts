@@ -23,7 +23,7 @@ import {
   WeatherName,
 } from "./conditions";
 import { floor, round } from "./math";
-import { DeepPartial, extend, has, is, toID } from "./utils";
+import { DeepPartial, extend, fastProperties, has, is, toID } from "./utils";
 
 type OverriddenFields =
   | "item"
@@ -632,7 +632,7 @@ export class State {
     }
     move.consecutive = options.consecutive;
 
-    return move as State.Move;
+    return fastProperties(move) as State.Move;
   }
 
   /** Mutates `pokemon` by merging in the details from the set from `sets` which best matches. */

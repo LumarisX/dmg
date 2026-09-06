@@ -123,6 +123,36 @@ describe('stateKey', () => {
   });
 });
 
+describe('key memoisation', () => {
+  test('distinct objects with identical content still key identically', () => {
+    const first = build(undefined, 200);
+    const second = build(undefined, 200);
+    expect(first.target).not.toBe(second.target);
+    expect(stateKey(first)).toBe(stateKey(second));
+  });
+
+  test('a derived state keys off its own values, not the object it was spread from', () => {
+    const base = build(undefined, 200);
+    stateKey(base);
+
+    const hurt = base.withPokemonAt(base.action.target, {...base.target, hp: 199});
+    expect(stateKey(hurt)).not.toBe(stateKey(base));
+    expect(stateKey(hurt)).toBe(stateKey(build(undefined, 199)));
+  });
+
+  test('an unchanged side keys identically across derived states', () => {
+    const base = build(undefined, 200);
+    const hurt = base.withPokemonAt(base.action.target, {...base.target, hp: 150});
+    expect(hurt.attackerSide).toBe(base.attackerSide);
+    expect(stateKey(hurt)).not.toBe(stateKey(base));
+  });
+
+  test('the same Pokemon keys identically under a repeated read', () => {
+    const state = build(undefined, 123);
+    expect(stateKey(state)).toBe(stateKey(state));
+  });
+});
+
 describe('stateDistribution', () => {
   test('overkill collapses sixteen rolls into one certain outcome', () => {
     const hp = 80;

@@ -81,7 +81,7 @@ Three tiers. The middle one does not exist yet and is the keystone.
 | --- | --- | --- |
 | 1 — damage | `calculateDamage(Context) → Distribution<number>` | exists, roughly works |
 | 2 — **one move** | `resolveMove(State, action) → Distribution<State>` | **to build** |
-| 3 — turns / game | `search(State, policy, depth) → Distribution<State>` | later |
+| 3 — turns / game | `resolveTurns(State, policy, depth) → Distribution<State>` | later |
 
 **Tier 1 must stay tree-unaware.** The moment tree logic leaks into `calculateDamage`, the
 damage formula can no longer be differentially tested against `@pkmn/sim` in isolation, and
@@ -410,10 +410,16 @@ Dropped along the way, since the package is server-only:
 - **The `posttest: lint` gate**, so tests no longer fail on the pre-existing lint breakage.
   Lint is now `npm run lint`, deliberately separate.
 
-**The dependency is `file:../dmg`, not a tag.** That was chosen so the wiring could be verified
-end to end immediately. `@pdz/sets` uses `git+file:...#v0.1.4`; switching to that form is the
-release step — commit, `git tag v0.1.0`, then change the server's dependency to
-`git+file:///C:/Users/garre/Documents/GitHub/pokemon-draftzone/dmg#v0.1.0`.
+**The dependency was `file:../dmg` when this was written; it is now a pinned GitHub commit** —
+`git+https://github.com/LumarisX/dmg.git#<sha>` — which is the release form this section
+anticipated, reached via GitHub rather than `git+file:`.
+
+**The cost of that is a slow loop, and it bites.** Every change here needs commit → push → repin
+→ `npm install` → restart before the server sees it, and a stale pin fails silently until it
+throws. On 2026-09-05 the server was four commits behind and reported a `Population Bomb` crash
+that had been fixed here hours earlier. Worth solving properly: either a local-only `file:`
+override for development (it must not reach the deployed `package.json`, since `dmg` does not
+exist on the box) or an npm script that rebuilds and installs into the server's `node_modules`.
 
 **Known ESM caveat:** the `build/esm` output keeps extensionless relative specifiers, which
 real Node ESM rejects — it is usable by bundlers, not by `node --input-type=module` directly.
@@ -724,15 +730,16 @@ state, not a smaller sum — today it silently returns a plausible-looking wrong
 
 # Phase 4 — Beyond (largely done 2026-09-04)
 
-**238 tests passing across 21 suites.** New suites: `tera`, `secondaries`, `weather`, `search`.
-New modules: `src/search.ts`. The public entry point (`src/index.ts`) now exports the whole
-node-model API — `resolveMove`, `search`, the distributions and the key functions.
+**238 tests passing across 21 suites.** New suites: `tera`, `secondaries`, `weather`, `turns`.
+New modules: `src/turns.ts`. The public entry point (`src/index.ts`) now exports the whole
+node-model API — `resolveMove`, `resolveTurns`, the distributions and the key functions.
+(Both were named `resolveTurns` until the 2026-09-05 rename recorded below.)
 
 | Item | Status |
 | --- | --- |
 | 1. Widen the branch cascade | **secondaries done**; Sash/Sturdy, berry procs and contact recoil still open |
 | 2. `apply` coverage | partial — Stamina, secondary status/boosts; still the long tail |
-| 3. Tier-3 search | ✅ `src/search.ts` |
+| 3. Tier 3 — turns | ✅ `src/turns.ts` |
 | 4. `Result.knockout` | superseded, see below |
 | 5. Gen 9 essentials | ✅ Tera; ✅ weather now handler-driven |
 | 6. Expose it | not started — needs the `@pdz/calc` package first |
@@ -742,10 +749,20 @@ KO chance is now computed on the node model instead (`knockoutChances`,
 `guaranteedKnockoutTurn`), where hazards and residuals can be added as ordinary state
 transitions rather than special cases. The old method stays as-is until that path is retired.
 
-## Tier-3 search
+## Tier 3 — turns
 
-`search(state, {turns, policy, epsilon, maxOutcomes})` repeatedly applies `resolveMove`,
+`resolveTurns(state, {turns, policy, epsilon, maxOutcomes})` repeatedly applies `resolveMove`,
 merging by `stateKey` between turns and treating fainted states as terminal.
+
+**Renamed from `resolveTurns` on 2026-09-05, and the name was actively misleading.** It performs no
+search: no exploration of alternatives, no objective, no game tree, and it never chooses — the
+`Policy` is injected and it does as told. It propagates a probability distribution forward N
+steps, which is a Markov chain evolution, not a search. The old name described the tier-3
+sketch's ambition — once `Policy` becomes a solver rather than a fixed action it *would* become
+a search — but naming for the aspiration hid how little the thing actually does: one side acts,
+a "turn" means one more use of the move, and `startOfTurn` clearing `hurtThisTurn` is the whole
+between-turn model. `resolveTurns` sits beside `resolveMove` as the next tier up. Nothing
+consumed it yet, so the rename was free; it would not have been later.
 
 - **`Policy` is injected**, as Phase 1 decided. `repeatMove` is the default fixed-action
   policy; a policy can vary the move per turn.
@@ -758,7 +775,7 @@ merging by `stateKey` between turns and treating fainted states as terminal.
 - `hurtThisTurn` is cleared between turns, which is both correct and improves merging.
 
 **Not modelled yet:** end-of-turn residuals (burn, poison, sand, Leftovers) and hazards. KO
-chances from `search` are therefore move-damage-only and will understate attrition wins.
+chances from `resolveTurns` are therefore move-damage-only and will understate attrition wins.
 
 ### Turns-to-KO is a distribution, not a number
 
@@ -776,7 +793,7 @@ So "4HKO, 3–5 turns", where `@smogon/calc` would render a single "guaranteed 5
 server exposes this as `ko.exactlyOnTurn` beside `ko.chances`, plus `earliestTurn`,
 `likeliestTurn` and a human `summary`.
 
-**Censoring is the trap.** `search` runs a fixed horizon, so mass that has not fainted by the
+**Censoring is the trap.** `resolveTurns` runs a fixed horizon, so mass that has not fainted by the
 last turn is *not* absent — it is unresolved. A default horizon of 4 silently truncated the
 example above. `ko.unresolved` now reports it and the debug chart draws it as a distinct grey
 "none" bar. **Never present a turns-to-KO distribution without the residual mass** — it is the
@@ -784,7 +801,7 @@ difference between "3–5 turns" and "3–5 turns *or longer*".
 
 ### Still wanted: per-turn HP distribution
 
-`search` returns only the final distribution plus `knockoutByTurn`. A fan chart of remaining HP
+`resolveTurns` returns only the final distribution plus `knockoutByTurn`. A fan chart of remaining HP
 by turn (median with 25/75 and 10/90 bands) needs a per-turn snapshot recorded inside the
 existing loop — cheap to add, and the natural companion to the turns-to-KO PMF.
 
@@ -908,11 +925,11 @@ chainable composition. Not decisions yet — flagged for follow-up, not agreed t
       `leastCommonMultiple` before merging, so exactness holds across heterogeneous branches; verified
       that a 2-way and a 3-way branch from equally-weighted inputs land at 1/4 and 1/6, and that five
       chained binary splits stay inside the exact horizon. **Call-site migration is still open** —
-      `search.ts`'s turn loop and `advance()` still hand-roll their own merge loops. Migrate them when
-      building the turn tier, which is where it pays; `search` needs the float+pruning variant, not
+      `turns.ts`'s turn loop and `advance()` still hand-roll their own merge loops. Migrate them when
+      building the turn tier, which is where it pays; `resolveTurns` needs the float+pruning variant, not
       this one.
       The standing rule it encodes: **mechanic functions stay `State → Distribution<State>`** — do not
-      reshape `resolveMove`/`search` to take `Distribution<State>` as input. The single-state-in
+      reshape `resolveMove`/`resolveTurns` to take `Distribution<State>` as input. The single-state-in
       signature is what makes oracle differential-testing a clean one-to-one comparison, and keeps the
       per-call branching-factor budget (~128 raw branches) auditable regardless of caller-supplied
       ensemble size. `flatMap` gets the chainability by lifting `State → Distribution<State>`
@@ -960,13 +977,13 @@ threshold) surfaced gaps at specific, identifiable seams — not a missing tier.
 - [ ] **`onResidual` is a hook declared on both ends and wired to neither.** `Handler.onResidual`
       (`handlers.ts:23`) is threaded through `Context.Move`'s type, but every occurrence across
       `abilities.ts`/`items.ts`/`moves.ts` is commented-out PS source (zero real bodies), and there is
-      no call site anywhere in `resolve.ts`, `search.ts`, or `mechanics/index.ts`. End-of-turn
+      no call site anywhere in `resolve.ts`, `turns.ts`, or `mechanics/index.ts`. End-of-turn
       residual (burn/poison/sand tick, Leftovers, weather/screen decay, Leech Seed) needs a new
       Kleisli arrow of the same shape as `resolveMove` — `endOfTurn(State) → Distribution<State>` —
-      that `search()` flatMaps in between resolving the move and advancing to the next turn, using the
+      that `resolveTurns()` flatMaps in between resolving the move and advancing to the next turn, using the
       same composition primitive as the `Distribution.flatMap` item above.
 - [ ] **Switching is not modeled as an event at all — scope question, not yet decided.** A faint is
-      currently a terminal state in `search()`; there is no representation of a new Pokémon coming in
+      currently a terminal state in `resolveTurns()`; there is no representation of a new Pokémon coming in
       afterward. Hazards, Intimidate, and other entry abilities have no trigger point without it.
       Needs an explicit scope decision — is multi-Pokémon/switch modeling in scope for this project,
       or is 1v1-until-faint the intended horizon — before anything gets built toward it.
@@ -1003,7 +1020,7 @@ asymmetry is structural rather than cosmetic:
   Plus/Minus, Fairy Aura, Friend Guard) and `team?` only `{species: {baseStats: {atk}}, status,
   fainted, position}` (for Beat Up). A benched Pokémon's HP, item or boosts are **unrepresentable**.
 - `State.move` is singular and top-level, so a second actor's action has nowhere to go.
-- Consumers bake it in too: `withDamage()` only damages `p2.pokemon`; `search()`'s `knockedOutMass`
+- Consumers bake it in too: `withDamage()` only damages `p2.pokemon`; `resolveTurns()`'s `knockedOutMass`
   and `startOfTurn` only inspect `p2`; `Context` exposes `get attacker()`/`get target()` as `p1`/`p2`;
   tier 1's `offensiveBoost`/`defensiveBoost` read `p1`/`p2` directly.
 
@@ -1017,9 +1034,9 @@ review — that was correct only for a 1v1, one-attacker scope.
 | 1 — damage | the formula, 16 rolls | exists |
 | 2 — one **action** | roughly today's `resolveMove` | exists |
 | **2.5 — one turn** | speed-order branch → actions in order with cancellation → end-of-turn residuals | **missing** |
-| 3 — many turns | policy, pruning, switching on faint | partial (`search`) |
+| 3 — many turns | policy, pruning, switching on faint | partial (`resolveTurns`) |
 
-`search()`'s "turn" is currently just "p1 uses one move," which is precisely why residuals, opponent
+`resolveTurns()`'s "turn" is currently just "p1 uses one move," which is precisely why residuals, opponent
 actions and speed order have nowhere to live. Two things make tier 2.5 cheaper than it looks:
 `advance()`'s `finished` flag is already turn-order cancellation in miniature (an actor that fainted
 before acting is the same shape as a multi-hit step that missed and stopped), and speed order is just
@@ -1110,15 +1127,247 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       doubles/VGC — the 99% case. True free-for-all must not drive the design.
 - [ ] **Actions become explicit and addressable** (actor slot + move) instead of one top-level
       `state.move`. This is what unblocks "both attack" and the turn tier.
-- [ ] **Damage targets a slot, not `p2`.** Same for the KO checks in `search`.
+- [ ] **Damage targets a slot, not `p2`.** Same for the KO checks in `resolveTurns`.
 - [ ] **Build tier 2.5 (the turn)** — it buys both "both attack" and end-of-turn residuals at once.
 - [ ] **Keep the simple case one line** via a `State.oneOnOne(...)`-style constructor. Generality of
       the model must not become verbosity at the API.
-- [ ] **Fix per-branch `Context` reification first.** `damageRolls` builds `new State(...)` and
-      `calculateDamage` calls `Context.fromState` on every crit branch, every hit, every step — the
-      exact thing "Runtime budget" warns against (*"reify `Context` lazily… reifying per branch would
-      multiply that cost by the branching factor"*). It is cheap enough to hide at 2 Pokémon and will
-      not hide at 12. Fix before the state grows, not after.
+- [x] **Fix per-branch `Context` reification first.** ✅ **DONE 2026-09-05.** `tsc` clean; 257 passed /
+      1 todo / 2 failed — the 6 new tests on top of the same baseline, same two documented failures.
+
+      `damageRolls` no longer builds a `State` and a `Context` per branch. `resolve.ts` threads one
+      `Reification` (`context.ts`) through the branch tree, which hands out a `Context` per *distinct
+      state* and reuses every sub-context whose source `State` fragment is unchanged **by reference** —
+      which works precisely because `withPokemonAt` / `withMove` share everything they don't touch.
+      Reused today: `Context.Field`, and each side's `sideConditions` / `allies` / `team`.
+
+      Two things fall out of the design that are worth stating:
+
+      - **Reuse is gated on the `Relevancy` being the same object.** A reified handler closes over the
+        `Relevancy` fragment it was built against, so sharing a sub-context across two different
+        `Relevancy` objects would silently record provenance into the wrong one. `Reification` threads
+        one `Relevancy`, and the constructor refuses to consult `previous` unless it matches. The
+        effect is that a derived `Context`'s relevancy is the **union across the branches evaluated**,
+        which is the sound form this document already asks for.
+      - **`Context.Pokemon` is deliberately *not* reused.** It holds `side` and `move` back-pointers
+        (`sniper` reads `pokemon.move.crit`, the weather abilities read `pokemon.side.field.weather`),
+        so sharing one across contexts would need those rewired on every hand-out and would alias the
+        parent context's Pokemon. Removing the back-pointers means passing `Context` to ability and
+        item handlers instead of the bare Pokemon — a real change to ~130 live handler signatures, not
+        worth spending here.
+
+      **Crit is now applied after `updateData`, not before.** `damageRolls` sets `context.move.crit`
+      on an already-built context rather than baking the flag into a `State.Move` first. That is how
+      the cartridge orders it — crit is rolled after the move's data is resolved — and no live handler
+      reads `crit` during `updateData` (only `sniper`, at damage time, via `getFinalModifier`).
+      `context.test.ts` pins the invariant so a future crit-reading `basePowerCallback` fails loudly
+      instead of silently changing a branch.
+
+- [ ] **`stateKey` is the actual bottleneck — `Context` reification never was.** Measured while doing
+      the item above, and it inverts its premise. Profiling one `resolveMove` of Rock Blast
+      (Cloyster → Blissey):
+
+      | | calls | time | share |
+      | --- | --- | --- | --- |
+      | `stateKey` | 40,050 | 239.5ms | **79.6%** |
+      | `calculateDamage` | 2,450 | 5.3ms | 1.8% |
+      | everything else (incl. all `Context` construction) | | ~56ms | ~19% |
+
+      So the fix above bought ~3.3× on the per-branch path (14.3µs → ~4.3µs: move spread 5.06 → 0.05µs,
+      `Context.fromState` 7.93 → 6.20µs and now amortised across crit branches, `calculateDamage`
+      1.19 → 1.11µs) and moved the end-to-end number very little, because the per-branch path was never
+      where the time was.
+
+      The prediction that it *"will not hide at 12"* was right about the symptom and wrong about the
+      mechanism: adding 5 allies + 6 team members per side took Rock Blast from 247ms to 501ms, but
+      that is `stateKey` serialising allies and team on every branch, not `Context` copying them. That
+      case is now 279ms.
+
+      **The fix is the same reference-identity trick, one layer up:** memoise `pokemonKey` / `sideKey`
+      on object identity in a `WeakMap`, because the attacker's side is keyed once instead of 40,050
+      times. Measured on the real branch shape against the full keyer, with output asserted identical
+      to the current one:
+
+      | | per call | vs today |
+      | --- | --- | --- |
+      | `stateKey` today | 5.45µs | — |
+      | + `WeakMap` memo on `sideKey` | 0.834µs | 6.5× |
+      | + building the key by concatenation instead of `map`/`join`/`sort` | 0.370µs | **14.7×** |
+
+      **The concatenation half shipped 2026-09-05** — a local rewrite of `key.ts` with no assumptions
+      attached, output format unchanged. It beat its own estimate:
+
+      | | before | after |
+      | --- | --- | --- |
+      | `stateKey` | 5.45µs | **1.63µs** (3.3×) |
+      | Aura Sphere resolve | 0.97ms | **0.49ms** |
+      | Rock Blast resolve | 233ms | **129ms** |
+      | Icicle Spear resolve | ~300ms | **166ms** |
+      | Rock Blast + 5 allies + 6 team | 279ms | **184ms** |
+      | `resolveTurns(Aura Sphere, 4 turns)` | 89ms | **57ms** |
+      | **576-calc matchup grid** | ~560ms | **136ms** |
+
+      **The memo half also shipped 2026-09-05, but only on `sideKey` — and the reason matters.**
+      Memoising `pokemonKey` as well made `resolveMove` *slower* (Rock Blast 129ms → 149ms), because
+      the benchmark that justified it re-keys the same states while a real resolve keys each state
+      exactly once: every fresh target Pokémon paid a `WeakMap.set` that was never read again. A
+      memo-hit `sideKey` short-circuits before it ever calls `pokemonKey`, so the per-Pokémon memo
+      earned nothing on the attacker either. Side-only is free where it cannot help and worth 1.6× on
+      the grid where it can:
+
+      | | concat only | + per-Pokémon memo | + side-only memo |
+      | --- | --- | --- | --- |
+      | Rock Blast resolve | 129ms | 149ms | **129ms** |
+      | 576-calc grid | 136ms | 94ms | **85ms** |
+      | `resolveTurns(Aura Sphere, 4 turns)` | 57ms | 45ms | **41ms** |
+
+      **The lesson generalises: memoise the fragment that *repeats*, not the one that changes.** In a
+      resolve the target mutates every branch and the attacker never does.
+
+      **The soundness contract this now rests on**: a `State.Side` must not be mutated after it has
+      been keyed. Construction-time mutation is fine — the memo only sees objects once keying starts.
+      The one place that could violate it is `Appliers.apply`, which mutates a `State` in place; there
+      is exactly one real `apply` in the mechanics tree today, which is why settling this now was
+      cheap. Any new `apply` must return a new `State` rather than mutate a keyed one.
+
+      **The memo is blocked on one decision, deliberately not taken here:** memoising on object identity is
+      only sound if a `State.Pokemon` is never mutated after it has been keyed — which is exactly the
+      *"Builder outputs are immutable values"* decision still open under "The end-user API" below, and
+      the live inconsistency it names (`State.Pokemon` is documented mutable and `Applier` mutates it,
+      while `resolve.ts` spreads everywhere and treats states as immutable). Settle that first; a stale
+      key silently merges distinct states and corrupts every probability downstream, which is the one
+      failure mode this project cannot absorb.
+
+      For scale, the same profiling found `resolveTurns(Rock Blast, 2 turns)` takes **52.7 seconds**. Tier 3
+      over a multi-hit move is not usable until the keyer is fixed.
+
+- [x] **Population Bomb could not be resolved at all.** ✅ **FIXED 2026-09-05** — it now resolves in
+      127ms with mass conserved to 12 decimal places, as does the Loaded Dice variant. Found by
+      walking up the multi-hit ladder; it was not a speed problem but a hard failure on a legal gen 9
+      move:
+
+      | | outcomes | denominator | |
+      | --- | --- | --- | --- |
+      | Rock Blast | 513 | 6.18e13 | ok, ~145× under the horizon |
+      | Icicle Spear + Loaded Dice | 158 | 1.67e13 | ok |
+      | Population Bomb | — | 6.97e35 | **throws** |
+      | Population Bomb + Loaded Dice | — | 4.88e36 | **throws** |
+
+      `resolveMove` puts every branch on the common denominator `expansion ** maxHits`, where
+      `expansion` is `totalWeight(hitAccuracy) * critExpansion` — 384 for an ordinary crit ratio, and
+      3,840 once a 90%-accuracy `multiaccuracy` move multiplies it. At 10 hits that is `3840^10`, some
+      20 orders of magnitude past `2^53`, so the counts stop being exact integers and the totals no
+      longer agree.
+
+      **The error blames the wrong thing.** It surfaces as `ProbabilityMassError` ("probability mass
+      changed during merge"), which reads as a merge bug. The mass did not change; the *counts* left
+      the safe-integer range. `assertExact` checks mass before it checks the horizon, so
+      `ExactHorizonError` — the diagnosis that would actually point here — never fires. Fix the
+      ordering regardless of what else is done, or the next person debugs a phantom merge bug.
+
+      **GCD normalisation cannot fix this — measured, not assumed.** The obvious move is to normalise
+      the step map after each `advance` pass instead of only at the end. It buys exactly nothing: the
+      counts are coprime at every single pass, because hit 1 already produces counts of 23 (non-crit)
+      and 1 (crit) and a 1 never leaves the set.
+
+      | after hit | states | denominator | gcd |
+      | --- | --- | --- | --- |
+      | 1 | 32 | 3.84e2 | 1 |
+      | 2 | 125 | 1.47e5 | 1 |
+      | 3 | 215 | 5.66e7 | 1 |
+      | 4 | 287 | 2.17e10 | 1 |
+      | 5 | 250 | 8.35e12 | 1 |
+      | 6 | 158 | 3.21e15 | 1 |
+      | 7 | 65 | 1.23e18 | 1 — **past 2^53** |
+
+      So **any move of 7+ hits is exactly unrepresentable in float64 integers**, independent of which
+      move it is. Note the shape of that table: the state count peaks at hit 4 and then *falls* as the
+      target dies. The distribution being computed is small and getting smaller — it is only the
+      bookkeeping that explodes. Paying 18 digits of denominator to describe 65 states is the tell.
+
+      **Resolved in favour of float past the horizon** (Phase 1 decision #4 settled by use, 2026-09-05).
+      The key realisation is that **the arithmetic never needed changing** — JS numbers are already
+      float64, and summing positive counts has no cancellation, so past `2^53` the sums stay correct
+      to ~1e-16 *relative*. Only the assertion was broken. So:
+
+      - `Distribution.assertMassConserved(expected?)` is the new check: exact equality while both
+        totals are safe integers, relative tolerance (`1e-9`) once they are not. `resolveMove`,
+        `flatMap`, `combine` and `chain` all use it, so **any hit count works**.
+      - `assertExact` keeps its original strict meaning and still throws `ExactHorizonError`, for
+        callers that genuinely require exactness.
+      - `Distribution.exact` reports which régime a result is in. `normalize()` skips its GCD reduction
+        when inexact, since a "GCD" of non-integers is meaningless.
+
+      Nothing underflows, which was the other worry: the smallest probability in a ten-hit enumeration
+      is ~1e-36 against float64's ~1e-308 floor, so no branch needs discarding for representability.
+      Pruning tiny branches remains a separate, deliberate choice.
+
+      **Still unverified: the mechanics, not the arithmetic.** The `@pkmn/sim` oracle does not cover
+      7+ hit moves, so Population Bomb's numbers are self-consistent and mass-conserving but have never
+      been differentially tested. Extending `oracle.ts` up the ladder is the follow-up.
+
+- [x] **`assertExact` blamed the wrong thing.** ✅ **FIXED 2026-09-05.** It checked `total !==
+      expectedTotal` before `Number.isSafeInteger(total)`, so once past the horizon both numbers were
+      float-rounded differently and it raised `ProbabilityMassError` ("mass changed during merge") —
+      a phantom merge bug — instead of `ExactHorizonError`, which names the actual condition. The
+      horizon is now checked first, on both totals.
+
+- [ ] **Tier 3 is unbounded, and `maxOutcomes` is the wrong tool to bound it.** `resolveTurns` costs
+      (states carried into a turn) × `resolveMove`, so a multi-hit move is brutal:
+      `resolveTurns(Rock Blast, 4 turns)` is **90s**, against 57ms for Aura Sphere. Depth is not the
+      driver; state count is.
+
+      "Runtime budget" above asks for *"exact at depth 1–2, **merged** + pruned at 3–5"*, and only the
+      pruning half exists. **Turning it on by default was tried on 2026-09-05 and reverted, because it
+      makes the answer wrong**, not merely approximate. `capOutcomes` keeps the top N outcomes by
+      probability, which suits a peaked distribution; an HP distribution is smooth, so 500 states each
+      carry ~0.002 and keeping N keeps roughly N/total of the *mass*:
+
+      | cap | time | pruned mass | KO by turn 4 |
+      | --- | --- | --- | --- |
+      | 500 | 93s | 0.049 | 0.896 |
+      | 200 | 42s | 0.311 | 0.663 |
+      | 100 | 18s | 0.525 | 0.465 |
+      | 50 | 12s | 0.768 | 0.227 |
+      | 25 | 6s | 0.899 | 0.099 |
+
+      Half the probability mass discarded at cap=100. `prunedMass` does report it, so it is not
+      *silent* — but `knockoutByTurn` becomes a severe underestimate with nothing in that number
+      saying so. **Do not ship a default `maxOutcomes`.**
+
+      The missing half is *merging*: bin nearby HP values into one representative instead of dropping
+      the tail, which conserves mass. That is a real departure from decision #3 (*"nodes merge on
+      resulting state, never on path"*) — binning merges states that are genuinely distinct — so it
+      needs deciding rather than sliding in. A cheaper interim: report KO chance as the interval
+      `[ko, ko + prunedMass]` so an aggressive budget cannot be mistaken for a precise answer.
+
+- [ ] **`Result.toString()` is broken for every state — a Slice B regression hiding behind a red
+      test.** Found while establishing the baseline for the work above. `Result.text()` does
+      `extend({}, relevant ?? this.relevant)` (`result.ts:315`, and again at `:107`), which flattens
+      the `Relevancy` into a plain object literal. That was safe when `Relevancy` was pure data; Slice
+      B gave it `side()` and `pokemon()` **methods**, which live on the prototype and do not survive
+      the flatten, so `Relevancy.simplify` then throws `TypeError: relevant.side is not a function`.
+
+      The failure is recorded in `CLAUDE.md` as *"Flower Gift / Power Spot / Battery encoding has a
+      spacing bug"* — it is not that any more, and because `mechanics/index.test.ts` was the only test
+      touching `toString()` and was already red, nothing flagged it. Verified independently: a plain
+      Lucario → Blissey Aura Sphere `calculate(...).toString()` throws.
+
+      Not fixed here — it is a different subsystem (`Result`, the legacy convolution path) and the fix
+      is a real choice, not a typo: either stop flattening `Relevancy` through `extend`, or take the
+      methods back off it and make `side`/`pokemon` free functions over plain data. The second reads
+      better against `simplify`/`combine`, which are already free functions.
+
+- [ ] **`extend` returns dictionary-mode objects, and anything hot that copies them pays ~90×.**
+      Found while profiling the above. `extend` grows its target through a megamorphic keyed store, so
+      V8 normalises the result to dictionary mode; `State.createMove`'s output was one, and every
+      `{...state.move}` on the branch path cost **5.06µs instead of 0.05µs** for the same 45 keys.
+      `createMove` now returns `fastProperties(move)` (`utils.ts`) — a one-time re-copy at construction.
+      `createPokemon` builds its object literally and was never affected.
+
+      `Context.Move` is still built by `extend(this, state)` and is still dictionary-mode. It measured
+      3.2µs to construct against 1.4µs for the same copy onto a clean object, so there is a little more
+      here — but it is small next to `stateKey`, and it is the object `calculateDamage` reads ~30 fields
+      off, so the change wants its own before/after rather than being smuggled in.
 
 Deferred until there is a concrete need: full benches carrying real Pokémon data, switching, and
 anything touching hidden information.

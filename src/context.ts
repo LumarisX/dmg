@@ -30,6 +30,17 @@ import {Relevancy} from './relevancy';
 import {Action, Slot, State} from './state';
 import {DeepReadonly, extend, toID} from './utils';
 
+const EFFECTIVENESS_BIT: {[key: number]: number} = {
+  0: -5,
+  0.125: -3,
+  0.25: -2,
+  0.5: -1,
+  1: 0,
+  2: 1,
+  4: 2,
+  8: 3,
+};
+
 interface TestData {
   gen: Generation;
   attacker?: Context.Pokemon;
@@ -47,22 +58,29 @@ export class Context {
   field: Context.Field;
 
   readonly relevant: Relevancy;
+  readonly handlers: Handlers;
   private readonly source: DeepReadonly<State>;
 
   constructor(
     state: DeepReadonly<State>,
     handlers: Handlers = HANDLERS,
-    relevant: Relevancy = new Relevancy(state.sides.length)
+    relevant: Relevancy = new Relevancy(state.sides.length),
+    previous?: Context
   ) {
     this.source = state;
+    this.handlers = handlers;
     this.gameType = state.gameType;
     this.gen = state.gen as Generation;
     const actor = state.action.actor as Slot;
     const target = state.action.target as Slot;
+    const reusable = previous?.relevant === relevant ? previous : undefined;
     this.move = new Context.Move(state.action.move, relevant.move, handlers);
-    this.field = new Context.Field(state.field, relevant.field, handlers);
-    this.attackerSide = new Context.Side(this, state.sides[actor.side], actor, relevant, handlers);
-    this.targetSide = new Context.Side(this, state.sides[target.side], target, relevant, handlers);
+    this.field =
+      reusable?.field.source === state.field
+        ? reusable.field
+        : new Context.Field(state.field, relevant.field, handlers);
+    this.attackerSide = new Context.Side(this, state.sides[actor.side], actor, relevant, handlers, reusable?.attackerSide);
+    this.targetSide = new Context.Side(this, state.sides[target.side], target, relevant, handlers, reusable?.targetSide);
     this.move.updateData(this);
     this.relevant = relevant;
   }
@@ -111,6 +129,25 @@ export class Context {
   }
 }
 
+export class Reification {
+  private readonly handlers: Handlers;
+  private previous?: Context;
+
+  constructor(handlers: Handlers = HANDLERS) {
+    this.handlers = handlers;
+  }
+
+  of(state: State): Context {
+    const context = new Context(state as DeepReadonly<State>, this.handlers, this.previous?.relevant, this.previous);
+    this.previous = context;
+    return context;
+  }
+
+  get relevant(): Relevancy | undefined {
+    return this.previous?.relevant;
+  }
+}
+
 export namespace Context {
   export class Field {
     weather?: {name: WeatherName} & Partial<Handler<Context>>;
@@ -120,9 +157,11 @@ export namespace Context {
     };
 
     readonly relevant: Relevancy.Field;
+    readonly source: DeepReadonly<State.Field>;
 
     constructor(state: DeepReadonly<State.Field>, relevant: Relevancy.Field, handlers: Handlers) {
       this.relevant = relevant;
+      this.source = state;
 
       if (state.weather) {
         const id = toID(state.weather);
@@ -179,23 +218,43 @@ export namespace Context {
     }>;
     readonly relevant: Relevancy.Side;
     readonly field?: Context.Field;
+    readonly source: DeepReadonly<State.Side>;
 
-    constructor(context: Context, side: DeepReadonly<State.Side>, slot: Slot, relevant: Relevancy, handlers: Handlers) {
+    constructor(
+      context: Context,
+      side: DeepReadonly<State.Side>,
+      slot: Slot,
+      relevant: Relevancy,
+      handlers: Handlers,
+      previous?: Context.Side
+    ) {
       this.relevant = relevant.side(slot.side);
       this.field = context.field;
+      this.source = side;
       this.pokemon = new Pokemon(context.gen, side.active[slot.active], relevant.pokemon(slot), {
         handlers,
         move: context.move,
         side: this,
       });
-      this.sideConditions = {};
-      for (const sc in side.sideConditions) {
-        this.sideConditions[sc] = reify(extend({}, side.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
-          this.relevant.sideConditions[sc] = true;
-        });
+
+      const reusable = previous?.relevant === this.relevant ? previous : undefined;
+
+      if (reusable && reusable.source.sideConditions === side.sideConditions) {
+        this.sideConditions = reusable.sideConditions;
+      } else {
+        this.sideConditions = {};
+        for (const sc in side.sideConditions) {
+          this.sideConditions[sc] = reify(extend({}, side.sideConditions[sc]), sc as ID, handlers.Conditions, () => {
+            this.relevant.sideConditions[sc] = true;
+          });
+        }
       }
-      this.allies = side.allies?.map(p => extend({}, p));
-      this.team = side.team?.map(p => extend({}, p)) as Side['team'];
+
+      this.allies =
+        reusable && reusable.source.allies === side.allies ? reusable.allies : side.allies?.map(p => extend({}, p));
+      this.team = (
+        reusable && reusable.source.team === side.team ? reusable.team : side.team?.map(p => extend({}, p))
+      ) as Side['team'];
     }
 
     toState(base: State.Side, index: number): State.Side {
@@ -529,23 +588,12 @@ export namespace Context {
       reify(this, this.id, handlers.Moves);
     }
 
-    private EFFECTIVENESSBIT: {[key: number]: number} = {
-      0: -5,
-      0.125: -3,
-      0.25: -2,
-      0.5: -1,
-      1: 0,
-      2: 1,
-      4: 2,
-      8: 3,
-    };
-
     updateData(context: Context) {
       if (context.attacker.ability?.onModifyMove) context.attacker.ability.onModifyMove(context.attacker);
       if (context.attacker.item?.onModifyMove) context.attacker.item.onModifyMove(context.attacker);
 
       this.effectiveness =
-        this.EFFECTIVENESSBIT[context.gen.types.totalEffectiveness(this.type, context.target) as keyof typeof this.EFFECTIVENESSBIT];
+        EFFECTIVENESS_BIT[context.gen.types.totalEffectiveness(this.type, context.target) as keyof typeof EFFECTIVENESS_BIT];
       if (context.target.move?.onEffectiveness) {
         let effectiveness = context.target.move.onEffectiveness(context);
         if (effectiveness !== undefined) this.effectiveness = effectiveness;

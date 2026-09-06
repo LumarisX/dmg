@@ -9,8 +9,8 @@ export {Distribution, NumberDistribution, ExactHorizonError, ProbabilityMassErro
 export type {Keyer, Outcome} from './distribution';
 export {stateKey, stateDistribution, pokemonKey, sideKey, fieldKey, moveKey} from './key';
 export {resolveMove, assertSupported, UnsupportedMoveError, accuracyBranches, critBranches, hitCountBranches, secondaryBranches} from './resolve';
-export {search, knockoutChances, guaranteedKnockoutTurn, repeatMove} from './search';
-export type {Policy, SearchOptions, SearchOutcome, SearchResult} from './search';
+export {resolveTurns, knockoutChances, guaranteedKnockoutTurn, repeatMove} from './turns';
+export type {Policy, TurnsOptions, TurnsOutcome, TurnsResult} from './turns';
 
 // parsing
 export {parse, ParseError} from './parse';
