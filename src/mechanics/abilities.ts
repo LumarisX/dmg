@@ -198,6 +198,9 @@ export const Abilities: {
     },
   },
   bulletproof: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return !!pokemon.move?.flags['bullet'];
+    },
     //   onTryHit(pokemon, target, move) {
     //     if (move.flags['bullet']) {
     //       this.add('-immune', pokemon, '[from] ability: Bulletproof');
@@ -504,6 +507,14 @@ export const Abilities: {
     //     }
     //   },
   },
+  dragonsmaw: {
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Dragon')) return 0x1800;
+    },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Dragon')) return 0x1800;
+    },
+  },
   drizzle: {
     //   onStart(source) {
     //     for (const action of this.queue) {
@@ -544,6 +555,11 @@ export const Abilities: {
     //       this.damage(target.baseMaxhp / 8, target, target);
     //     }
     //   },
+  },
+  eartheater: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Ground');
+    },
   },
   effectspore: {
     //   onDamagingHit(damage, target, source, move) {
@@ -611,6 +627,9 @@ export const Abilities: {
     },
   },
   flashfire: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Fire');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Fire')) {
     //       move.accuracy = true;
@@ -944,7 +963,7 @@ export const Abilities: {
     //   },
   },
   heatproof: {
-    onBasePower(pokemon: Context.Pokemon) {
+    onSourceBasePower(pokemon: Context.Pokemon) {
       if (is(pokemon.move?.type, 'Fire')) {
         return 0x800;
       }
@@ -1244,6 +1263,9 @@ export const Abilities: {
     //   },
   },
   lightningrod: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Electric');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.boost({spa: 1})) {
@@ -1510,6 +1532,9 @@ export const Abilities: {
     //   },
   },
   motordrive: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Electric');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.boost({spe: 1})) {
@@ -2002,6 +2027,14 @@ export const Abilities: {
       }
     },
   },
+  purifyingsalt: {
+    onSourceModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Ghost')) return 0x800;
+    },
+    onSourceModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Ghost')) return 0x800;
+    },
+  },
   purepower: {
     onModifyAtk() {
       return 0x2000;
@@ -2135,6 +2168,14 @@ export const Abilities: {
     //     }
     //   },
   },
+  rockypayload: {
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Rock')) return 0x1800;
+    },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Rock')) return 0x1800;
+    },
+  },
   roughskin: {
     //   onDamagingHit(damage, target, source, move) {
     //     if (move.flags['contact']) {
@@ -2189,6 +2230,9 @@ export const Abilities: {
     //   },
   },
   sapsipper: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Grass');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Grass')) {
     //       if (!this.boost({atk: 1})) {
@@ -2300,6 +2344,11 @@ export const Abilities: {
     //       pokemon.cureStatus();
     //     }
     //   },
+  },
+  sharpness: {
+    onBasePower(pokemon: Context.Pokemon) {
+      if (pokemon.move?.flags['slicing']) return 0x1800;
+    },
   },
   sheerforce: {
     onModifyMove(pokemon): void {
@@ -2472,6 +2521,9 @@ export const Abilities: {
     //   },
   },
   soundproof: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return !!pokemon.move?.flags['sound'];
+    },
     //   onTryHit(target, source, move) {
     //     if (move.target !== 'self' && move.flags['sound']) {
     //       this.add('-immune', target, '[from] ability: Soundproof');
@@ -2599,6 +2651,9 @@ export const Abilities: {
     //   },
   },
   stormdrain: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Water');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Water')) {
     //       if (!this.boost({spa: 1})) {
@@ -2757,6 +2812,12 @@ export const Abilities: {
     //   },
   },
   thickfat: {
+    onSourceModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Ice') || is(pokemon.move?.type, 'Fire')) return 0x800;
+    },
+    onSourceModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Ice') || is(pokemon.move?.type, 'Fire')) return 0x800;
+    },
     //   onSourceModifyAtk(atk, attacker, defender, move) {
     //     if (is(move.type,'Ice') || is(move.type,'Fire')) {
     //       this.debug('Thick Fat weaken');
@@ -2799,6 +2860,14 @@ export const Abilities: {
       if ((is(pokemon.status?.name, 'psn') || is(pokemon.status?.name, 'tox')) && is(pokemon.move?.category, 'Physical')) {
         return 0x1800;
       }
+    },
+  },
+  transistor: {
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Electric')) return 0x14cd;
+    },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Electric')) return 0x14cd;
     },
   },
   trace: {
@@ -2923,6 +2992,9 @@ export const Abilities: {
     //   },
   },
   voltabsorb: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Electric');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Electric')) {
     //       if (!this.heal(target.baseMaxhp / 4)) {
@@ -2949,6 +3021,9 @@ export const Abilities: {
     //   },
   },
   waterabsorb: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Water');
+    },
     //   onTryHit(target, source, move) {
     //     if (target !== source && is(move.type,'Water')) {
     //       if (!this.heal(target.baseMaxhp / 4)) {
@@ -2959,11 +3034,18 @@ export const Abilities: {
     //   },
   },
   waterbubble: {
-    //   onSourceModifyAtk(atk, attacker, defender, move) {
-    //     if (is(move.type,'Fire')) {
-    //       return this.chainModify(0.5);
-    //     }
-    //   },
+    onSourceModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Fire')) return 0x800;
+    },
+    onSourceModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Fire')) return 0x800;
+    },
+    onModifyAtk(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Water')) return 0x2000;
+    },
+    onModifySpA(pokemon: Context.Pokemon) {
+      if (is(pokemon.move?.type, 'Water')) return 0x2000;
+    },
     //   onSourceModifySpA(atk, attacker, defender, move) {
     //     if (is(move.type,'Fire')) {
     //       return this.chainModify(0.5);
@@ -3024,6 +3106,11 @@ export const Abilities: {
     //     }
     //   },
   },
+  wellbakedbody: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return is(pokemon.move?.type, 'Fire');
+    },
+  },
   whitesmoke: {
     //   onBoost(boost, target, source, effect) {
     //     if (source && is(target,source)) { return; }
@@ -3052,7 +3139,17 @@ export const Abilities: {
     //     this.add('-activate', target, 'ability: Wimp Out');
     //   },
   },
+  windrider: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      return !!pokemon.move?.flags['wind'];
+    },
+  },
   wonderguard: {
+    onTryImmunity(pokemon: Context.Pokemon) {
+      const move = pokemon.move;
+      if (!move || is(move.category, 'Status') || is(move.id, 'struggle')) return false;
+      return move.effectiveness <= 0;
+    },
     //   onTryHit(target, source, move) {
     //     if (is(target,source) || is(move.category,'Status') || is(move.type,'???') || is(move.id,'struggle')) { return; }
     //     if (is(move.id,'skydrop') && !source.volatiles['skydrop']) { return; }

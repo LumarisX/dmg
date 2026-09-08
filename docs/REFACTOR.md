@@ -171,6 +171,12 @@ used to enumerate combinations instead of permutations. Keep iterating per hit.
 
 ### Two guarded mechanics do not fire
 
+**Corrected 2026-09-08: the Sitrus half is not a coverage gap, it is a dead hook.** `onEat` is
+declared, implemented for two berries (`items.ts:633`, `:1826`) and **never invoked anywhere**, so
+Sitrus cannot be consumed under any input. See [`PIPELINE.md`](PIPELINE.md). The conclusion below —
+that HP dependence should be derived from the handlers rather than a central list — still stands,
+but do not treat the 0% as evidence about the gate.
+
 - `sitrusberry` is in `TARGET_HP_SENSITIVE_ITEMS`, but Rock Blast taken to 0 HP consumed it in
   **0%** of outcomes.
 - `multiscale` is in `TARGET_HP_SENSITIVE_ABILITIES`, but Dragonite at full HP produced the same
@@ -282,26 +288,51 @@ The shapes below are known and outstanding. Two of them contradict a sizing assu
 
 ## Phases
 
-Each phase is behaviour-preserving and independently revertable. If a number moves, the harness
-names the phase that moved it.
+**Rewritten 2026-09-08.** Phase 1 was absorbed into [`PIPELINE.md`](PIPELINE.md), and the ordering
+changed with it: correctness work now comes *first*, because phase 0 freezes a baseline and the
+census found a dozen answers that are silently wrong. Phases 2 and 3 are unchanged in content and
+keep their success criteria.
 
-### Phase 0 — characterization harness
+**Only phases 2 and 3 are behaviour-preserving.** Phase 1 changes answers by design; it is verified
+against the `@pkmn/sim` oracle rather than against a self-baseline.
 
-Snapshot current `resolveMove` / `resolveTurns` output — states, counts, crit breakdowns — over
-a corpus: every existing test case, plus randomized states from the generator already sitting in
+### Phase 1 — transitions (replaces "extract the kernel boundary")
+
+Was: *"split damage derivation from state application. No representation change, no memoization.
+Prove identical."*
+
+That boundary is exactly what a weighted state transition draws, so the work is now
+[`PIPELINE.md`](PIPELINE.md): make `State → Distribution<State>` the primitive, fold the six
+hand-rolled branch axes onto `Distribution.flatMap`, and give termination and per-resolution
+metadata a home in a `Resolution` wrapper.
+
+Two of this document's own findings arrive at the same construct from the other direction, which is
+why the merge is safe:
+
+- **The kernel is the damage transition.** Crit and the 16 rolls are one transition producing
+  23×16 + 1×16 weighted states — the `~32 (damage, crit)` entries measured above.
+- **The bucket tuple is a packed `Resolution`.** `(hp, hits, crits, variantId)` is
+  `{state, done, labels}` with the state flattened.
+
+Not behaviour-preserving: it makes dead handlers fire. Verified against the oracle, differential per
+axis as each is migrated.
+
+### Phase 0 — characterization harness *(now after phase 1)*
+
+Snapshot `resolveMove` / `resolveTurns` output — states, counts, crit breakdowns — over a corpus:
+every existing test case, plus randomized states from the generator already sitting in
 `src/test/helpers/`. Stamina, Focus Sash and a `multiaccuracy` move are required fixtures.
 
-Nothing else starts until this is green and reproducible.
-
-### Phase 1 — extract the kernel boundary
-
-Split damage derivation from state application. No representation change, no memoization. Prove
-identical.
+**Runs after phase 1, not before.** Characterizing first would pin a dozen known-wrong answers as
+"correct" for the remaining phases. Nothing after this starts until it is green and reproducible.
 
 ### Phase 2 — numeric inner loop
 
-Buckets replace `State` in the hit loop; `State` is materialized only for surviving outcomes.
-Prove identical, measure.
+Buckets replace `Resolution` in the hit loop; `State` is materialized only for surviving outcomes.
+Prove identical against the phase 0 baseline, measure.
+
+Unchanged in substance — the bucket tuple was already `(hp, hits, crits, variantId)`, which phase 1
+makes an explicit type instead of an inference about what varies.
 
 ### Phase 3 — memoize kernels
 
@@ -333,8 +364,10 @@ sensitivity output changes meaning without anyone noticing.
 
 ## Success criteria
 
-- Every phase: output identical to the phase 0 baseline over the whole corpus — same states,
-  same counts, same `(hits, crits)` breakdown.
+- **Phase 1 is the exception**: it changes answers on purpose, so it is verified against the
+  `@pkmn/sim` oracle, differential per axis as each is migrated — not against a self-baseline.
+- Every phase after phase 0: output identical to the phase 0 baseline over the whole corpus — same
+  states, same counts, same `(hits, crits)` breakdown.
 - Phase 2: Rock Blast `stateKey` builds fall from 46,961 to ~513, and `State` allocations with
   them. Resolve time well under 145 ms.
 - Phase 3: Rock Blast `calculateDamage` calls fall from 2,858 to 10.

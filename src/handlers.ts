@@ -24,9 +24,12 @@ export interface Handler<S> {
   damageCallback(scope: S): number;
   onAnyBasePower(scope: S): number | undefined;
   onBasePower(scope: S): number | undefined;
+  onSourceBasePower(scope: S): number | undefined;
   onModifyMove(scope: S): void;
   onModifyAtk(scope: S): number | undefined;
   onModifySpA(scope: S): number | undefined;
+  onSourceModifyAtk(scope: S): number | undefined;
+  onSourceModifySpA(scope: S): number | undefined;
   onModifyDef(scope: S): number | undefined;
   onModifySpD(scope: S): number | undefined;
   onModifySpe(scope: S): number | undefined;
@@ -48,9 +51,12 @@ const HANDLER_FN_KEYS: {[K in keyof Handler<unknown>]: true} = {
   damageCallback: true,
   onAnyBasePower: true,
   onBasePower: true,
+  onSourceBasePower: true,
   onModifyMove: true,
   onModifyAtk: true,
   onModifySpA: true,
+  onSourceModifyAtk: true,
+  onSourceModifySpA: true,
   onModifyDef: true,
   onModifySpD: true,
   onModifySpe: true,

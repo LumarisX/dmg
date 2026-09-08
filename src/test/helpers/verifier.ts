@@ -1,4 +1,4 @@
-import {Generation, ID, PokemonSet, Specie} from '@pkmn/data';
+import {Generation, ID, PokemonSet, Specie, StatusName} from '@pkmn/data';
 import {Battle, Dex, PRNG, PRNGSeed} from '@pkmn/sim';
 
 import {Conditions} from '../../conditions';
@@ -142,7 +142,7 @@ export function applySide(player: 'p1' | 'p2', battle: Battle, state: State) {
   const pokemon = side.active[0];
   pokemon.weighthg = p.weighthg;
   if (p.status) {
-    pokemon.setStatus(pokemon.status);
+    pokemon.setStatus(p.status as StatusName);
     if (p.statusState?.toxicTurns) pokemon.statusState.stage = p.statusState.toxicTurns;
   }
   for (let id in p.volatiles) {

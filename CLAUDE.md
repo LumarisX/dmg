@@ -272,11 +272,34 @@ removed deliberately.
 
 - **`resolveMove` refuses unsupported *moves*, and silently ignores unsupported *abilities and
   items*.** The only ability guards are `UNMODELLED_STATUS_ABILITIES` / `UNMODELLED_BOOST_ABILITIES`,
-  both narrow and both about secondaries. Gen 9 tables cover **243 of 310 abilities** and **149 of
-  249 items**; 24 of the missing abilities and 9 of the missing items have damage-relevant handlers
-  in the sim, and every one of them produces a plausible wrong number with no complaint. Sharpness
-  is 1.5× low, Purifying Salt ~2× high, and **Well-Baked Body, Earth Eater and Wind Rider report
-  full damage where the real answer is zero**. `docs/PLAN.md` has the measured table.
+  both narrow and both about secondaries.
+
+  **Most entries in `mechanics/abilities.ts` are present but entirely commented out, so "is it in
+  the table" is not a coverage measure** — count entries that actually define a function. Of the 121
+  gen 9 abilities the sim gives damage-relevant hooks, **39 are implemented in the table, 14 more
+  are handled directly in `resolve.ts` (Serene Grace, Mold Breaker, Sturdy, Water Bubble, Magic
+  Guard, Rock Head, Infiltrator…), and 68 do nothing and say nothing.** Items are far better: 73 of
+  89. Sharpness is 1.5× low, Purifying Salt ~2× high, and thirteen absorb abilities — Flash Fire,
+  Water Absorb, Volt Absorb, Sap Sipper, Storm Drain, Lightning Rod, Motor Drive, Earth Eater,
+  Well-Baked Body, Wind Rider, Bulletproof, Soundproof, Wonder Guard — **report full damage where
+  the real answer is zero**. `docs/PLAN.md` has the measured tables.
+
+  **Both structural holes were closed 2026-09-08.** `calculateDamage` now consults the target's
+  ability and item for `onTryImmunity`, and there is an ability stat-modifier stage in the damage
+  path — before that, `calculateDamage` read `context.attacker.stats[stat]` raw and **no ability
+  stat modifier was applied anywhere**, which is why Dragon's Maw, Transistor, Fur Coat and the Ruin
+  quartet were silent. `onSourceBasePower` / `onSourceModifyAtk` / `onSourceModifySpA` now exist for
+  defender-side reductions.
+
+  **Every target-side ability in the table used to be dead code**, so the "implemented" count was
+  optimistic on top of everything else: `Context.Move.updateData` chained `onBasePower` for the
+  *attacker's* ability and item only. `heatproof` was fully written and had never once fired. If you
+  add a defender-side effect, put it on an `onSource*` hook — chaining the target's plain
+  `onBasePower` would make a defender's Technician boost the attacker.
+
+  Ability suppression lives in `ignoresTargetAbility` (`context.ts`), covering `move.ignoreAbility`
+  plus Mold Breaker / Teravolt / Turboblaze. It gates every target-ability read in the damage path.
+  `resolve.ts` still has its own `MOLD_BREAKERS` copy for `endures()`; unify when convenient.
 
   **The fix is a warning, not a refusal (decided 2026-09-08), and it extends to moves** — the 29
   charge/delayed/counter/condition moves whose preconditions are unmodelled should carry it too.

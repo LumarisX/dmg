@@ -615,6 +615,14 @@ export namespace Context {
         basePowerMod = chain(basePowerMod, context.attacker.item.onBasePower(context.attacker));
       }
 
+      if (context.target?.ability?.onSourceBasePower && !ignoresTargetAbility(context)) {
+        basePowerMod = chain(basePowerMod, context.target.ability.onSourceBasePower(context.target));
+      }
+
+      if (context.target?.item?.onSourceBasePower) {
+        basePowerMod = chain(basePowerMod, context.target.item.onSourceBasePower(context.target));
+      }
+
       if (this.onBasePower) basePowerMod = chain(basePowerMod, this.onBasePower(context));
 
       this.basePower = apply(this.basePower, basePowerMod);
@@ -624,6 +632,14 @@ export namespace Context {
       return extend({}, this);
     }
   }
+}
+
+const ABILITY_IGNORING_ABILITIES = new Set(['moldbreaker', 'teravolt', 'turboblaze']);
+
+/** Whether the attacker's move or ability suppresses the target's ability for this hit. */
+export function ignoresTargetAbility(context: Context): boolean {
+  if (context.move.ignoreAbility) return true;
+  return ABILITY_IGNORING_ABILITIES.has(context.attacker.ability?.id ?? '');
 }
 
 function reify<T>(obj: T & Partial<Handler<Context | Context.Pokemon | TestData>>, id: ID, handlers: Handlers[HandlerKind], cbfn?: () => void) {

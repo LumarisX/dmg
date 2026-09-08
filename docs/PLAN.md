@@ -1464,9 +1464,30 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       `mechanics/items.ts` produces no error, no flag and a plausible wrong number** — the same root
       cause as Fickle Beam, one level up.
 
-      Gen 9 coverage: **243 of 310 abilities** and **149 of 249 items**. Of what is missing, 24
-      abilities and 9 items have damage-relevant handlers in the sim. Spot-checked against the
-      oracle:
+      Gen 9 coverage, **corrected 2026-09-08 — an earlier count of "243 of 310 abilities" was
+      wrong** because it counted a table entry as covered when most entries are present but
+      completely commented out. Counting only entries that actually define a function, and only
+      effects the sim gives damage-relevant hooks:
+
+      | | implemented in the table | handled elsewhere in `src` | **unimplemented and silent** |
+      | --- | --- | --- | --- |
+      | abilities | 39 | 14 | **68** |
+      | items | 73 | — | 16 |
+
+      The 14 are real: Serene Grace, Mold Breaker, Sturdy, Water Bubble, Magic Guard, Rock Head,
+      Infiltrator and friends are handled directly in `resolve.ts` rather than the handler table, so
+      a table-only count understates coverage too. Items are in decent shape at 73 of 89; **abilities
+      are at 53 of 121.**
+
+      The silent 68 are not obscure. They include **Thick Fat, Analytic, Neuroforce, Stakeout,
+      Rivalry, Fur Coat, Marvel Scale, Solar Power, Steelworker, Steely Spirit, Gorilla Tactics**,
+      the whole type-changing family (**Aerilate, Pixilate, Refrigerate, Galvanize, Normalize**), and
+      — worst — thirteen absorb/immunity abilities (**Flash Fire, Water Absorb, Volt Absorb, Sap
+      Sipper, Storm Drain, Lightning Rod, Motor Drive, Earth Eater, Well-Baked Body, Wind Rider,
+      Bulletproof, Soundproof, Wonder Guard**) that each make the calculator report full damage where
+      the true answer is zero.
+
+      Spot-checked against the oracle:
 
       | | dmg | sim | |
       | --- | --- | --- | --- |
@@ -1484,7 +1505,36 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       | Adamant Crystal / Lustrous Globe | 117-138 | 139-165 | 1.2× |
 
       The immunity three are the worst class: substantial damage reported where the true answer is
-      zero, on abilities whose entire purpose is making that matchup safe.
+      zero, on abilities whose entire purpose is making that matchup safe. They are three of
+      thirteen.
+
+      **Both structural holes are now closed (2026-09-08), and 21 abilities went in with them.**
+      The immunity hook plus the thirteen absorbs (Flash Fire, Water Absorb, Volt Absorb, Sap Sipper,
+      Storm Drain, Lightning Rod, Motor Drive, Earth Eater, Well-Baked Body, Wind Rider, Bulletproof,
+      Soundproof, Wonder Guard); the ability stat-modifier stage plus `onSource*` hooks, which fixed
+      Heatproof, Thick Fat, Water Bubble and Purifying Salt; and the four attacker-side multipliers
+      the sweep had measured wrong — Dragon's Maw, Rocky Payload, Transistor, Sharpness. All verified
+      against the oracle, Mold Breaker suppression included, with controls for the types each ability
+      should *not* touch. Full suite unchanged at the 2-failure baseline.
+
+      **A third comparator trap for the list: the sim caps reported damage at the target's remaining
+      HP.** Sharpness on a non-slicing Close Combat read as dmg=890 sim=714 — 714 being Blissey's max
+      HP, not a 1.5× error.
+
+      What follows is the state of things *before* that work, kept because it is the reasoning:
+
+      **`calculateDamage` had no hook for a defender-ability immunity at all.** `mechanics/index.ts`
+      consults `onTryImmunity` on `context.move` and `context.field.weather` only — never on the
+      target's ability or item. So the absorb cluster cannot be fixed by adding table entries; the
+      damage path needs to consult the target's ability and item too (Air Balloon wants the same
+      hook). Small and well-scoped, but it is an architecture change, not a data one, which is why
+      it belongs before the refactor rather than after.
+
+      Related architecture gap: **there are no `onSourceModify*` hooks.** `HANDLER_FN_KEYS` has
+      `onModifyAtk`/`SpA`/`Def`/`SpD` but no source-side variants, so a defender weakening the
+      attacker's stat (Thick Fat, Water Bubble, Purifying Salt) cannot be expressed directly.
+      `heatproof` works around it by halving base power in `onBasePower` instead of halving Atk —
+      the same answer only when the rounding happens to agree.
 
       **Decided 2026-09-08: warn, do not refuse — and extend the same mechanism to moves.** Refusing
       would take a working Sharpness Gallade calculation away entirely; a warning lets the answer

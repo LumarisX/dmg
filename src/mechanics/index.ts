@@ -1,6 +1,6 @@
 import type {GameType, Generation, Generations, ID, MoveName, StatID, TypeName} from '@pkmn/data';
 
-import {Context} from '../context';
+import {Context, ignoresTargetAbility} from '../context';
 import {HandlerKind, Handlers, HANDLERS} from '../handlers';
 import {parse} from '../parse';
 import {Result} from '../result';
@@ -129,11 +129,31 @@ function defensiveBoost(context: Context, stat: StatID): number {
   return boost;
 }
 
+function attackMod(context: Context, stat: StatID): number {
+  let mod = 0x1000;
+  const own = stat === 'atk' ? context.attacker.ability?.onModifyAtk : context.attacker.ability?.onModifySpA;
+  if (own) mod = chain(mod, own(context.attacker));
+
+  if (!ignoresTargetAbility(context)) {
+    const weaken = stat === 'atk' ? context.target.ability?.onSourceModifyAtk : context.target.ability?.onSourceModifySpA;
+    if (weaken) mod = chain(mod, weaken(context.target));
+  }
+  return mod;
+}
+
+function defenceMod(context: Context, stat: StatID): number {
+  if (ignoresTargetAbility(context)) return 0x1000;
+  const own = stat === 'def' ? context.target.ability?.onModifyDef : context.target.ability?.onModifySpD;
+  return own ? chain(0x1000, own(context.target)) : 0x1000;
+}
+
 export function calculateDamage(context: Context | State): number | number[] {
   if (!('relevant' in context)) context = Context.fromState(context);
 
   if (context.move.onTryImmunity && context.move.onTryImmunity(context)) return 0;
   if (context.field.weather?.onTryImmunity?.(context)) return 0;
+  if (context.target.item?.onTryImmunity?.(context.target)) return 0;
+  if (!ignoresTargetAbility(context) && context.target.ability?.onTryImmunity?.(context.target)) return 0;
   if (context.move.effectiveness === -5) return 0;
   if (context.move.damageCallback) return context.move.damageCallback(context);
 
@@ -141,10 +161,10 @@ export function calculateDamage(context: Context | State): number | number[] {
   const defensiveStat = defensiveStatId(context.move);
 
   const attackStat = offensiveStat
-    ? computeBoostedStat(context.attacker.stats[offensiveStat], offensiveBoost(context, offensiveStat), context.gen)
+    ? apply(computeBoostedStat(context.attacker.stats[offensiveStat], offensiveBoost(context, offensiveStat), context.gen), attackMod(context, offensiveStat))
     : 0;
   const defenseStat = defensiveStat
-    ? computeBoostedStat(context.target.stats[defensiveStat], defensiveBoost(context, defensiveStat), context.gen)
+    ? apply(computeBoostedStat(context.target.stats[defensiveStat], defensiveBoost(context, defensiveStat), context.gen), defenceMod(context, defensiveStat))
     : 0;
 
   let baseDamage = getBaseDamage(context.attacker.level, context.move.basePower, attackStat, defenseStat);
