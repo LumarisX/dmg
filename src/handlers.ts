@@ -12,6 +12,7 @@ export interface MoveDataBranch {
   label: string;
   weight: number;
   move?: Partial<State.Move>;
+  flags?: {[flag: string]: boolean};
 }
 
 export interface Brancher {

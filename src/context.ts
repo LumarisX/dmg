@@ -469,7 +469,7 @@ export namespace Context {
     effectType!: 'Move';
     kind!: 'Move';
     secondaries!: SecondaryEffect[];
-    flags!: DMove['flags'];
+    flags!: State.Move['flags'];
     zMoveEffect?: ID;
     isZ!: boolean | ID;
     zMove?: {
@@ -557,7 +557,6 @@ export namespace Context {
     noSketch?: boolean;
     stallingMove?: boolean;
 
-    branch?: string;
     crit?: boolean;
     hits?: number;
     magnitude?: number;

@@ -245,6 +245,41 @@ already land on different HP.
 Crit counts already ship — `Outcome.crits` is populated by every `resolveMove`, verified against
 a closed-form binomial mixture to 12 decimals. `hits` is the remaining half.
 
+## Shapes this refactor must account for before phase 0
+
+**This refactor is deliberately deferred until the correctness census is accounted for** (decided
+2026-09-08, see `PLAN.md`). The reason is not caution about breaking things — every phase here is
+behaviour-preserving by construction. It is that this is a **representation** change, and the bucket
+tuple, the kernel key and what `variantId` interns are all determined by *what can vary*. Designing
+them against a corpus that excludes the varying shapes produces a representation that fits today and
+needs surgery later, and "behaviour-preserving" gives no protection against that.
+
+Worse, phase 0 freezes a baseline that phases 1-3 must prove identical against. The census found a
+dozen answers that are silently wrong today; characterizing them pins them as correct for three
+phases.
+
+The shapes below are known and outstanding. Two of them contradict a sizing assumption made above:
+
+- **A damage kernel is not always 16 rolls × 2 crit branches.** `Psywave`'s `damageCallback` is
+  `random(50, 151) * level / 100` — 101 equally likely values, so its kernel is ~202 entries, not
+  ~32. `calculateDamage` already returns `number | number[]` and `damageRolls` already unwraps
+  either, so the numeric loop must stay agnostic to the roll count. **Do not bake 16 into the kernel
+  table, the memo key, or the bucket packing.**
+- **`Moves.<id>.branches` is a static array today and will become a function of the move and
+  attacker**, the way `hitCountBranches` already is — `Magnitude` branches only when the caller has
+  not pinned `move.magnitude`, and `Shell Side Arm` only on an exact physical-vs-special tie. Read
+  the branch list through `moveDataBranches()` rather than touching `.branches` directly, so the
+  change lands in one place.
+- `Tri Attack` and `Dire Claw` pick a status with `sample([...])` inside the secondary's `onHit`;
+  fixing them multiplies `secondaryBranches` by 3 for those moves. That is the one deferred shape
+  this refactor genuinely does not need to plan for, since `applySecondaries` already runs once at
+  materialization rather than inside the hit loop.
+- **`resolveMove` is about to start reporting unmodelled effects rather than silently ignoring
+  them** (`PLAN.md`, decided 2026-09-08). That changes its output — which is the phase 0 baseline —
+  for every state whose attacker or target carries an ability or item our tables lack, currently 67
+  abilities and 100 items in gen 9. Land the warning first, or phase 0 characterizes a corpus that
+  is about to change under it.
+
 ## Phases
 
 Each phase is behaviour-preserving and independently revertable. If a number moves, the harness

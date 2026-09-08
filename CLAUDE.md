@@ -11,7 +11,7 @@ roadmap, and the open decisions. This file holds only the conventions and traps.
 ## Current status
 
 **Phases 0-3 complete, Phase 4 largely complete (2026-09-04).** `npx tsc -p . --noEmit` is
-clean, and 24 of 26 Jest suites pass — 290 passed, 1 todo, 2 failed (2026-09-08).
+clean, and 24 of 26 Jest suites pass — 292 passed, 1 todo, 2 failed (2026-09-08).
 
 `resolveTurns()` (`src/turns.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
 injected `Policy`, epsilon/outcome pruning, and per-turn KO chances. It works in **float**
@@ -207,11 +207,31 @@ removed deliberately.
 - **A move whose own data branches randomly declares those branches; it never rolls them.**
   `Moves.<id>.branches` in `mechanics/moves.ts` is a list of `{label, weight, move?}`, and
   `resolveMove` runs the whole resolution once per branch — a fifth axis alongside accuracy, hit
-  count, crit and secondaries. The engine sets `move.branch` to the label, so a handler reads
-  `context.move.branch` the way Fickle Beam's `onBasePower` does; `moveKey` includes it, so two
-  branches never share a `Context`. The branch is stripped from the resulting states, which is what
-  lets the two lobes merge when they land on the same state — Fickle Beam against a target both
-  branches kill collapses to a single outcome at probability 1, still labelled 70/30.
+  count, crit and secondaries.
+
+  **`move`/`flags` are the mechanism and `label` is only telemetry.** A branch sets real move data —
+  Fickle Beam's all-out branch sets `flags: {allOut: true}` and its `onBasePower` returns `0x2000`
+  when it sees that flag; Present's branches set `basePower` outright. **No handler may read the
+  label.** Branch logic keyed on a label string would make the reporting name load-bearing, so
+  renaming a label in the report would silently change a damage calculation. Labels exist for
+  `Outcome.labels` and nothing else.
+
+  `State.Move.flags` is an open bag (`{[flag: string]: 1 | 0 | boolean | undefined}`) so a move can
+  carry a flag nobody declared — `1 | 0` because that is what the cartridge flags from `@pkmn/data`
+  hold, `boolean` for the ones branches add. That means **`flags` mixes static cartridge properties
+  (`contact`, `protect`, `sound`) with transient per-resolution ones**, so anything iterating flags
+  sees both. `MoveDataBranch.flags` is a separate field from `.move` precisely because `withBranch`
+  has to **merge** it — a `.move` overlay carrying `flags` would replace the whole bag and drop
+  `contact`, and mutating the bag in place would leak the flag into every other branch.
+
+  **`resolveMove` restores the original move before accumulating, and a branch flag must never
+  survive into a resulting state.** `flags` is not part of `moveKey`, so a leaked flag does not show
+  up as a distinct outcome — it silently rides along on whichever state won the merge, and
+  `resolveTurns` then carries a move with `allOut` set into every later turn. `movedata.test` pins
+  that every outcome's move is the original one.
+
+  With that in place, Fickle Beam against a target both branches kill collapses to a single outcome
+  at probability 1, still labelled 70/30 — which is the merge doing the sensitivity work.
 
   The axis is free when unused: an unbranched move gets one synthetic branch of weight 1 and the
   arithmetic is bit-identical to before. `RANDOM_DATA_MOVES` names the moves known to branch in the
@@ -222,6 +242,54 @@ removed deliberately.
   once is refused (`'move-data branches on a multi-hit move'`) — including Fickle Beam under
   Parental Bond. The sim rolls it inside `getDamage`, so per-hit is the faithful placement; the
   guard exists so that when a multi-hit citizen appears it errors instead of quietly averaging.
+
+- **Metronome is not supported and is not planned.** Nor is any other move-calling move — **Sleep
+  Talk, Assist, Copycat, Mirror Move, Me First, Nature Power**. The move that actually resolves is
+  drawn from a pool at runtime, so `state.move` is not knowable at build time and the entire input
+  model stops applying; a faithful Metronome answer is a mixture over ~900 sub-distributions that
+  answers no question anyone asks. They are refused by name. **Do not extend `branches` to reach
+  them** — it is the wrong axis, and this is a stated non-goal in `docs/PLAN.md`, not a gap.
+
+- **`branches` is a static array, and two of its four citizens need it to be conditional.** Magnitude
+  should branch only when the caller has not pinned `move.magnitude` (`createMove` currently *demands*
+  one, so it is refused rather than wrong), and Shell Side Arm is deterministic except on an exact
+  physical-vs-special damage tie, so its branch list depends on the participants. Expect `branches` to
+  become a function of the move and attacker, the way `hitCountBranches` already is.
+
+- **Three moves are silently wrong today, and `branches` fixes none of them** — different layers.
+  `Psywave` has a `damageCallback` returning `random(50,151) * level / 100`; dmg does not implement it
+  and the dex says `basePower: 1`, so it reports **1-4 damage instead of 50-150**. `Tri Attack` and
+  `Dire Claw` pick their status with `this.sample([...])` inside the secondary's `onHit`, and the dex
+  secondary is `{chance: 20}` with **no `status` field** — so `secondaryBranches` splits 20/80
+  correctly and then applies an empty effect, the two branches merge back, and every status is
+  dropped without complaint. Damage is right, status is gone. Random *damage* and random *secondary
+  selection* are two more axes; see `docs/PLAN.md` before adding either.
+
+  **All three, plus Magnitude, are catalogued rather than fixed (2026-09-08)** — known-wrong-and-
+  left-alone, not unnoticed. `docs/REFACTOR.md` records the two assumptions the refactor must not
+  bake in because of them (a damage kernel is not always 16 rolls; `branches` will stop being a
+  static array).
+
+- **`resolveMove` refuses unsupported *moves*, and silently ignores unsupported *abilities and
+  items*.** The only ability guards are `UNMODELLED_STATUS_ABILITIES` / `UNMODELLED_BOOST_ABILITIES`,
+  both narrow and both about secondaries. Gen 9 tables cover **243 of 310 abilities** and **149 of
+  249 items**; 24 of the missing abilities and 9 of the missing items have damage-relevant handlers
+  in the sim, and every one of them produces a plausible wrong number with no complaint. Sharpness
+  is 1.5× low, Purifying Salt ~2× high, and **Well-Baked Body, Earth Eater and Wind Rider report
+  full damage where the real answer is zero**. `docs/PLAN.md` has the measured table.
+
+  **The fix is a warning, not a refusal (decided 2026-09-08), and it extends to moves** — the 29
+  charge/delayed/counter/condition moves whose preconditions are unmodelled should carry it too.
+  Derive the set from the handler tables rather than a hardcoded list: ask whether the sim has
+  damage-relevant hooks for an effect ours lacks. **This lands before `REFACTOR.md` phase 0**,
+  because it changes `resolveMove`'s output and phase 0 freezes the baseline phases 1-3 are proved
+  against.
+
+- **When diffing against the sim in bulk, three traps cost an afternoon.** Multi-hit moves mismatch
+  because our maximum is every hit landing and critting while the sim rolls its own hit count from
+  the seed — force the count. Always-crit moves (Flower Trick, Frost Breath, Surging Strikes) need
+  the sim's crit forced to match. And a type immunity makes `calculateDamage` return the **scalar**
+  `0` against the sim's sixteen zeros, so a naive length comparison reports a bug that is not there.
 
 - **Nothing is hardcoded that a mod should be able to change.** Gen 9 is the first target,
   not an architectural assumption — the end state is that any `@pkmn`-compatible dataset or

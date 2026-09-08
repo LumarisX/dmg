@@ -2,7 +2,7 @@ import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
 import {calculateDamage} from '../mechanics';
-import {UnsupportedMoveError, labelCounts, moveDataBranches, resolveMove} from '../resolve';
+import {UnsupportedMoveError, labelCounts, moveDataBranches, resolveMove, withBranch} from '../resolve';
 import {State} from '../state';
 import {simulateRolls} from './helpers/oracle';
 
@@ -25,8 +25,8 @@ function branchMarginal(state: State): {[label: string]: number} {
   return marginal;
 }
 
-function damagesFor(state: State, branch?: string): number[] {
-  const move = {...state.move, branch, crit: false};
+function damagesFor(state: State, flags: {[flag: string]: boolean} = {}): number[] {
+  const move = {...state.move, flags: {...state.move.flags, ...flags}, crit: false};
   const branched = State.oneOnOne(state.gen, state.sides[0], state.sides[1], move, state.field, state.gameType);
   return calculateDamage(branched) as number[];
 }
@@ -59,17 +59,33 @@ describe('move-data branches', () => {
     expect(branchMarginal(build('Fickle Beam', {hp: 1}))).toEqual({normal: 0.7, allOut: 0.3});
   });
 
-  test('the resulting state carries the original move, not the branch', () => {
+  test('the resulting state carries the original move, not the branched one', () => {
     for (const outcome of resolveMove(build('Fickle Beam')).outcomes) {
-      expect(outcome.data.move.branch).toBeUndefined();
+      expect(outcome.data.move.flags.allOut).toBeUndefined();
       expect(outcome.data.move.basePower).toBe(80);
     }
   });
 
+  test('the branch sets a move flag, and the handler reads that rather than the label', () => {
+    const [normal, allOut] = moveDataBranches(build('Fickle Beam').move);
+
+    expect(normal.flags).toBeUndefined();
+    expect(allOut.flags).toEqual({allOut: true});
+  });
+
+  test('a branch flag joins the cartridge flags rather than replacing them', () => {
+    const state = build('Fickle Beam');
+    const branched = withBranch(state, moveDataBranches(state.move)[1]);
+
+    expect(branched.move.flags.allOut).toBe(true);
+    expect(branched.move.flags.protect).toBe(state.move.flags.protect);
+    expect(state.move.flags.allOut).toBeUndefined();
+  });
+
   test('both lobes appear in the damage distribution', () => {
     const state = build('Fickle Beam');
-    const normal = damagesFor(state, 'normal');
-    const allOut = damagesFor(state, 'allOut');
+    const normal = damagesFor(state);
+    const allOut = damagesFor(state, {allOut: true});
 
     expect(Math.min(...allOut)).toBeGreaterThan(Math.max(...normal));
 
@@ -80,8 +96,8 @@ describe('move-data branches', () => {
   test('each lobe matches what the sim does when that branch is forced', () => {
     const state = build('Fickle Beam');
 
-    expect(damagesFor(state, 'normal')).toEqual(simulateRolls(state, false, undefined, {dataBranch: false}));
-    expect(damagesFor(state, 'allOut')).toEqual(simulateRolls(state, false, undefined, {dataBranch: true}));
+    expect(damagesFor(state)).toEqual(simulateRolls(state, false, undefined, {dataBranch: false}));
+    expect(damagesFor(state, {allOut: true})).toEqual(simulateRolls(state, false, undefined, {dataBranch: true}));
   });
 
   test('mass stays exact across the added axis', () => {

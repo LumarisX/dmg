@@ -42,6 +42,14 @@ Stated up front, because each one is a plausible-looking place to accidentally s
 - **Not multi-generational *in its test surface*.** Gen 9 ships first. But no generation and
   no dataset is baked into the architecture — see "Extensibility contract" below.
 - **Not a replacement for `@pkmn/dmg` upstream.** This is a DraftZone-specific fork.
+- **Metronome is not supported, and neither is any other move-calling move.** Decided 2026-09-08.
+  Metronome picks uniformly from the whole legal move pool, so a faithful answer is a mixture over
+  ~900 sub-distributions — each of which is its own full `resolveMove`, several of which this
+  calculator refuses anyway, and the resulting "distribution" answers no question anybody asks. The
+  same shape covers **Sleep Talk, Assist, Copycat, Mirror Move, Me First and Nature Power**: the
+  move that resolves is chosen at runtime from a pool, so `state.move` is not knowable at build
+  time and the whole input model stops applying. These are refused by name, not approximated.
+  Nothing about the branch machinery below is intended to grow into them.
 
 ## Where it stands today
 
@@ -1397,13 +1405,43 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       synthetic branch of weight 1, so their arithmetic is unchanged bit for bit; the branch weights
       join the common denominator by LCM rather than by assuming every branch expands identically.
 
-      **The label had to be stripped from the resulting states or the whole thing would have been
-      pointless.** `moveKey` includes `move.branch`, which is what keeps two branches from sharing a
-      `Context` — but it also means a doubled Fickle Beam would key differently from a normal one
-      even when both leave the target at 0 HP. Restoring the original move at accumulate time is what
-      lets them merge: against a target both branches kill, the answer is **one outcome at
-      probability 1**, still labelled 70/30. That is the sensitivity thesis paying off on the move
-      that most invites the question "does the 30% matter here?".
+      **Move data is the mechanism; `label` is telemetry and nothing reads it.** The first cut had
+      Fickle Beam's `onBasePower` test `context.move.branch === 'allOut'`, which tied a damage
+      calculation to a reporting name — rename the label in the report and the number changes. A
+      branch now sets real move data and handlers read that. This was possible because
+      `Reification.of` builds a fresh `Context` every call and reuses fragments only by reference
+      identity, so nothing ever needed the branch in `moveKey` to keep two branches' contexts apart.
+
+      **`State.Move.flags` became an open bag rather than a declared field per mechanic.** Fickle
+      Beam sets `flags: {allOut: true}`; the alternative, a `State.Move.allOut?: boolean` on the same
+      shelf as `crit`/`magnitude`/`consecutive`, would have meant every move declaring a field only
+      one move uses, and every future branched move patching `State.Move` again. The bag holds
+      `1 | 0 | boolean | undefined` because `@pkmn/data`'s `MoveFlags` stores `1 | 0`; widening the
+      value type and pointing `Context.Move.flags` at `State.Move['flags']` reconciled both without
+      a cast at any boundary.
+
+      Two consequences worth knowing. `flags` now **mixes static cartridge properties with transient
+      per-resolution ones**, so anything iterating flags sees `allOut` next to `contact`. And
+      `MoveDataBranch.flags` has to be a separate field from `.move`, merged rather than spread — a
+      `.move` overlay carrying `flags` replaces the whole bag and silently drops `contact`, and
+      mutating the bag in place leaks the flag into every other branch. `withBranch` copies it.
+
+      A literal `Pokemon.volatiles` entry was considered and rejected: `setConditions` validates
+      volatiles against `Conditions.get(gen, id)` so a made-up `allout` cannot be constructed at all,
+      and `resolveTurns` carries states between turns, so an attacker volatile that is not explicitly
+      stripped would double every subsequent Fickle Beam.
+
+      **The branch's data has to be stripped from the resulting states, and the reason differs by
+      where it lives.** For Present, `basePower` is in `moveKey`, so an unstripped branch keeps two
+      outcomes apart that both leave the target on the same HP. For Fickle Beam the failure is
+      quieter and worse: `flags` is not keyed at all, so an unstripped `allOut` still merges — it
+      just contaminates whichever state won the merge, and `resolveTurns` then carries a move with
+      `allOut` permanently set into every later turn. `resolveMove` restores the original move before
+      accumulating, and `movedata.test` pins that every outcome's move is the original.
+
+      With that in place the merge does its job: against a target both branches kill, the answer is
+      **one outcome at probability 1**, still labelled 70/30. That is the sensitivity thesis paying
+      off on the move that most invites the question "does the 30% matter here?".
 
       `Outcome.crits` generalised to `Outcome.labels`, an axis → value → weight map, so crits and
       move-data branches share one mechanism instead of the second label repeating the argument.
@@ -1417,6 +1455,148 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       does not model at all, so `resolveMove` refuses on `'target healing'` rather than on a bespoke
       `UNENUMERATED_MOVES` set (now deleted). Three of the four branches are declared and correct;
       the fourth needs the mechanic. Shell Side Arm stays refused as unenumerated.
+
+- [ ] **Refuse-rather-than-guess covers moves only. Abilities and items silently no-op.**
+      Swept 2026-09-08 and this is the structural finding of the sweep, not a coverage list.
+      `unsupportedReasons` guards move properties thoroughly, but the only ability checks are
+      `UNMODELLED_STATUS_ABILITIES` / `UNMODELLED_BOOST_ABILITIES`, both narrow and both about
+      secondaries. **An ability or item that is absent from `mechanics/abilities.ts` /
+      `mechanics/items.ts` produces no error, no flag and a plausible wrong number** — the same root
+      cause as Fickle Beam, one level up.
+
+      Gen 9 coverage: **243 of 310 abilities** and **149 of 249 items**. Of what is missing, 24
+      abilities and 9 items have damage-relevant handlers in the sim. Spot-checked against the
+      oracle:
+
+      | | dmg | sim | |
+      | --- | --- | --- | --- |
+      | Sharpness (Psycho Cut) | 220-261 | 331-390 | 1.5× missing |
+      | Dragon's Maw (Dragon Pulse) | 75-88 | 111-132 | 1.5× |
+      | Rocky Payload (Power Gem) | 45-54 | 67-79 | 1.5× |
+      | Transistor (Thunderbolt) | 79-94 | 102-121 | 1.3× |
+      | Sword of Ruin (Body Slam) | 174-205 | 232-273 | Def reduction |
+      | Purifying Salt (Shadow Ball) | 76-90 | 39-46 | ~2× too high |
+      | **Well-Baked Body** (Flamethrower) | 92-109 | **0** | immunity ignored |
+      | **Earth Eater** (Earthquake) | 102-120 | **0** | immunity ignored |
+      | **Wind Rider** (Bleakwind Storm) | 222-262 | **0** | immunity ignored |
+      | Punching Glove (Mach Punch) | 234-276 | 254-302 | 1.1× |
+      | Fairy Feather (Moonblast) | 88-105 | 106-126 | 1.2× |
+      | Adamant Crystal / Lustrous Globe | 117-138 | 139-165 | 1.2× |
+
+      The immunity three are the worst class: substantial damage reported where the true answer is
+      zero, on abilities whose entire purpose is making that matchup safe.
+
+      **Decided 2026-09-08: warn, do not refuse — and extend the same mechanism to moves.** Refusing
+      would take a working Sharpness Gallade calculation away entirely; a warning lets the answer
+      through while saying it is incomplete. The set needs no hand-maintained list: it is derivable
+      by asking whether the sim has damage-relevant hooks for an effect that our table lacks, which
+      is the same principle `REFACTOR.md` already argues for with `TARGET_HP_SENSITIVE_*` — derive
+      from the handlers, not from a central list. `Relevancy` is the natural carrier.
+
+      **This is shape-relevant, which is why it blocks the refactor rather than following it.** The
+      warning changes what `resolveMove` reports, and the phase 0 corpus is the baseline phases 1-3
+      must prove identical against. Characterizing a baseline that silently contains a dozen wrong
+      answers pins them as "correct" for three phases.
+
+- [ ] **Move-level sweep, 2026-09-08: 354 of ~440 damaging gen 9 moves match the sim exactly.**
+      Method: for every non-status, non-Z, non-Max gen 9 move, Miraidon (252 Atk/SpA) into Dondozo
+      (252 HP/Def/SpD, pure Water so no type immunities), `resolveMove`'s maximum damage against
+      `simulateBranch(state, 100, true)`. Results: **354 match, 66 refused, 21 mismatched, 29 where
+      the sim did nothing, 1 errored** (Belch, "Not all choices done").
+
+      **Genuinely wrong damage — nine moves, none of which refuse:**
+
+      | move | dmg | sim | cause |
+      | --- | --- | --- | --- |
+      | Electro Ball | 8 | 494 | speed-ratio base power not implemented |
+      | Revelation Dance | 184 | 504 | move type should follow the user's primary type |
+      | Freeze-Dry | 72 | 288 | Ice hitting Water super-effectively not implemented |
+      | Ruination | 100 | 252 | halves the target's current HP |
+      | Endeavor | 3 | 163 | sets target HP to the attacker's |
+      | Hard Press | 1 | 52 | base power scales with the target's remaining HP |
+      | Gyro Ball | 1 | 6 | speed-based base power |
+      | Foul Play | 100 | 88 | uses the target's Atk; ours over-computes |
+      | Beat Up | 3 | 15 | one hit per healthy party member |
+
+      **Not bugs — comparator artifacts, recorded so the sweep is not re-run naively.** Eleven
+      multi-hit moves (Arm Thrust, Bone Rush, Bullet Seed, Fury Attack, Fury Swipes, Icicle Spear,
+      Pin Missile, Rock Blast, Scale Shot, Tail Slap, Water Shuriken) mismatch because our maximum is
+      every hit landing and critting while the sim rolls its own hit count from the seed; forcing the
+      count is required to compare them. Fickle Beam mismatches because the oracle's `dataBranch`
+      defaults to the non-doubled branch. An earlier pass also flagged Vessel of Ruin, Beads of Ruin,
+      Good as Gold and Griseous Core, all of which are correct — those were Ghost-vs-Normal immunity
+      cases where `calculateDamage` returns scalar `0` against the sim's sixteen zeros.
+
+      **The 29 "sim did nothing" moves are a semantic difference, not a defect list.** Charge moves
+      (Solar Beam, Solar Blade, Fly, Dig, Dive, Bounce, Phantom Force, Shadow Force, Sky Attack,
+      Meteor Beam, Electro Shot, Freeze Shock, Ice Burn), delayed moves (Future Sight, Doom Desire),
+      counter moves (Counter, Mirror Coat, Metal Burst, Comeuppance) and condition moves (Sucker
+      Punch, Thunderclap, Upper Hand, Snore, Last Resort, Fling, Spit Up, Steel Roller, Poltergeist,
+      Aura Wheel) all do nothing on the sim's turn 1. A calculator answering "what does Solar Beam do
+      when it lands" is right to return a number. But the *precondition* is unmodelled and
+      unreported, which is the same warning the ability/item guard should carry.
+
+- [ ] **The rest of the random-branch census, swept 2026-09-08.** Every move in gens 1-9 whose
+      handler code calls `randomChance` / `random` / `sample`, at any nesting depth, is 28 moves. Most
+      are status moves. Sorted by which machinery they actually need:
+
+      **The `branches` axis as built — four citizens, two live.**
+
+      | move | shape | state |
+      | --- | --- | --- |
+      | Fickle Beam | 30% ×2 BP | done |
+      | Present | 20% heal / 40% 40 BP / 30% 80 BP / 10% 120 BP | declared, blocked on target healing |
+      | Magnitude | `random(100)` → 7 BP branches, weights 5/10/20/30/20/10/5 | refused, see below |
+      | Shell Side Arm | 50/50 category, **only on an exact damage tie** | refused as unenumerated |
+
+      **Magnitude and Shell Side Arm both need conditional branches, which `branches` cannot express.**
+      It is a static array today. Magnitude should branch only when the caller has *not* pinned a
+      magnitude — `State.Move.magnitude`, `MoveOptions.magnitude` and the `MOVE_SUGAR` `"Magnitude 7"`
+      form all exist, and `createMove` currently *requires* one ("The move Magnitude must have a
+      magnitude specified"), so it is refused rather than wrong. Shell Side Arm is deterministic
+      except on an exact tie between physical and special damage, so its branch list depends on the
+      participants. Both want `branches` to become a function of the move and attacker, the way
+      `hitCountBranches` already is. Magnitude is also the first place the "unknown input is a
+      distribution" idea from Phase 1 would pay off concretely.
+
+      **Catalogued rather than implemented, decided 2026-09-08** — together with the three moves
+      below. Shell Side Arm is further out than the others and may never be worth it: its
+      random half fires only on an exact damage tie, and the deterministic 99% of the move (compare
+      the attacker's Atk/SpA against the target's Def/SpD) is not implemented at all, so it is mostly
+      an ordinary mechanics job wearing a branching hat.
+
+- [ ] **Three moves the census found are silently wrong right now — the Fickle Beam failure class,
+      but in two other layers.** None of them is a move-data branch, so `branches` does not fix any
+      of them and `RANDOM_DATA_MOVES` does not guard them.
+
+      - **Psywave** — `damageCallback(pokemon) { return (this.random(50, 151) * pokemon.level) / 100; }`,
+        so 101 equally likely damage values at level 100. dmg has no `damageCallback` for it and the
+        dex lists `basePower: 1`, so it computes **1-4 damage** against a Blissey where the truth is
+        50-150. This is random *damage*, not random data: it belongs beside `damageRolls`, as a move
+        whose damage is its own distribution independent of the 16 rolls.
+      - **Tri Attack** and **Dire Claw** — the status is chosen by `this.sample(['brn','par','frz'])`
+        / `sample(['psn','par','slp'])` inside the secondary's `onHit`. The dex secondary is literally
+        `{chance: 20}` with **no `status` field**, so `secondaryBranches` produces a correct 20/80
+        trigger split and then applies an empty effect: the triggered branch is identical to the
+        untriggered one and merges back. Damage is right, **every status is silently dropped**, and
+        nothing complains. This is a random *secondary selection* and belongs as a sub-axis inside
+        `secondaryBranches`, not in `branches`.
+
+      **Not implemented yet, and not refused either — decided 2026-09-08.** All three, plus
+      Magnitude, stay as they are for now: Psywave and the two status samplers keep returning what
+      they return. They are catalogued rather than fixed because the **refactor is what waits on
+      this census, not the other way round** — the point of writing them down is that the base
+      implementation is designed flexibly enough to absorb them, and `REFACTOR.md` carries the two
+      assumptions that must survive them: a damage kernel is not always 16 rolls (Psywave is 101),
+      and `branches` will become a function rather than a static array (Magnitude, Shell Side Arm).
+
+      They will be reported by the unmodelled-effects warning above rather than silently returning a
+      wrong number, which is the minimum that has to be true before phase 0 freezes a baseline.
+
+      Not damage-relevant, listed so the census is not re-run: Acupressure, Ally Switch, Assist,
+      Attract, Conversion, Conversion 2, Disable, Encore, Metronome, Mimic, Sleep Talk, Spite,
+      Substitute, Taunt (status moves); Bide and Uproar (random *duration*); Pursuit (a speed-tie
+      coin flip on switch-out); the four G-Max moves (Dynamax is out of scope).
 
 - [ ] **The branch is chosen once per move, and the sim chooses it once per hit.** `onBasePower` runs
       inside `getDamage`, so a multi-hit move with random data rolls it per hit. Every current

@@ -129,9 +129,11 @@ export function moveDataBranches(move: State.Move): MoveDataBranch[] {
   return declared?.length ? declared : UNBRANCHED;
 }
 
-function withBranch(state: State, branch: MoveDataBranch): State {
-  if (!branch.label) return state;
-  return state.withMove({...state.move, ...branch.move, branch: branch.label});
+export function withBranch(state: State, branch: MoveDataBranch): State {
+  if (!branch.move && !branch.flags) return state;
+  const move = {...state.move, ...branch.move};
+  if (branch.flags) move.flags = {...move.flags, ...branch.flags};
+  return state.withMove(move);
 }
 
 function punishesContact(defender: State.Pokemon): boolean {

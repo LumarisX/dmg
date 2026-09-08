@@ -1208,10 +1208,10 @@ export const Moves: {
   ficklebeam: {
     branches: [
       {label: 'normal', weight: 7},
-      {label: 'allOut', weight: 3},
+      {label: 'allOut', weight: 3, flags: {allOut: true}},
     ],
     onBasePower(context) {
-      if (context.move.branch === 'allOut') return 0x2000;
+      if (context.move.flags.allOut) return 0x2000;
     },
   },
   finalgambit: {
