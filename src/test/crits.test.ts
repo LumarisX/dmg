@@ -89,7 +89,7 @@ describe('crit counts', () => {
     ] as const) {
       const dist = resolveMove(build(attacker, move, evs));
       for (const outcome of dist.outcomes) {
-        const summed = Object.values(outcome.crits!).reduce((sum, count) => sum + count, 0);
+        const summed = Object.values(outcome.labels!.crits).reduce((sum, count) => sum + count, 0);
         expect(summed).toBeCloseTo(outcome.count, 6);
       }
     }
@@ -105,6 +105,6 @@ describe('crit counts', () => {
 
     expect(dist.size()).toBe(1);
     expect(dist.outcomes[0].data.target.hp).toBe(0);
-    expect(dist.outcomes[0].crits).toEqual({0: 23, 1: 1});
+    expect(dist.outcomes[0].labels!.crits).toEqual({0: 23, 1: 1});
   });
 });

@@ -813,6 +813,7 @@ export namespace State {
   }
 
   export interface Move extends DMove {
+    branch?: string;
     crit?: boolean;
     hits?: number;
     hit?: number;

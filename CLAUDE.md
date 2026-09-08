@@ -11,7 +11,7 @@ roadmap, and the open decisions. This file holds only the conventions and traps.
 ## Current status
 
 **Phases 0-3 complete, Phase 4 largely complete (2026-09-04).** `npx tsc -p . --noEmit` is
-clean, and 22 of 24 Jest suites pass — 273 passed, 1 todo, 2 failed (2026-09-05).
+clean, and 24 of 26 Jest suites pass — 290 passed, 1 todo, 2 failed (2026-09-08).
 
 `resolveTurns()` (`src/turns.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
 injected `Policy`, epsilon/outcome pruning, and per-turn KO chances. It works in **float**
@@ -204,6 +204,25 @@ removed deliberately.
   happens** — the server's now keys off the move's maximum hit count. Timing belongs in
   `meta.elapsedMs` and nowhere else.
 
+- **A move whose own data branches randomly declares those branches; it never rolls them.**
+  `Moves.<id>.branches` in `mechanics/moves.ts` is a list of `{label, weight, move?}`, and
+  `resolveMove` runs the whole resolution once per branch — a fifth axis alongside accuracy, hit
+  count, crit and secondaries. The engine sets `move.branch` to the label, so a handler reads
+  `context.move.branch` the way Fickle Beam's `onBasePower` does; `moveKey` includes it, so two
+  branches never share a `Context`. The branch is stripped from the resulting states, which is what
+  lets the two lobes merge when they land on the same state — Fickle Beam against a target both
+  branches kill collapses to a single outcome at probability 1, still labelled 70/30.
+
+  The axis is free when unused: an unbranched move gets one synthetic branch of weight 1 and the
+  arithmetic is bit-identical to before. `RANDOM_DATA_MOVES` names the moves known to branch in the
+  sim, and any of them without declared branches is refused rather than silently answered from the
+  base data — which is how Fickle Beam was wrong for months.
+
+  **The branch is chosen once per move, not once per hit**, so a branched move that hits more than
+  once is refused (`'move-data branches on a multi-hit move'`) — including Fickle Beam under
+  Parental Bond. The sim rolls it inside `getDamage`, so per-hit is the faithful placement; the
+  guard exists so that when a multi-hit citizen appears it errors instead of quietly averaging.
+
 - **Nothing is hardcoded that a mod should be able to change.** Gen 9 is the first target,
   not an architectural assumption — the end state is that any `@pkmn`-compatible dataset or
   mod works (DraftZone already ships `radicalred` and `insurgance` server-side). So: read
@@ -264,11 +283,17 @@ These will each cost you an afternoon if you trust appearances.
   set **and** the team-preview request is answered — `gen9customgame` has team preview. Touching
   actives earlier throws. `src/test/helpers/verifier.ts` had both bugs and had clearly never run.
 
-- **`battle.randomChance` is shared across accuracy, crit and secondaries.** A blanket override
-  answers all of them — that is how a 90%-accuracy move ends up always missing and the oracle
-  reports zero damage. `oracle.ts` dispatches on the denominator (`(n, 100)` is a percentage
-  roll and is forced to hit; anything else is the crit roll) and records every call. That is
-  the fragile form; full record/replay is the robust one and is wanted before Phase 3 rung 4.
+- **`battle.randomChance` is shared across accuracy, crit, secondaries and move data.** A blanket
+  override answers all of them — that is how a 90%-accuracy move ends up always missing and the
+  oracle reports zero damage. `oracle.ts` dispatches on the call's shape: `(n, 100)` is a percentage
+  roll and is forced to hit, `(1, d)` is the crit roll, and anything else is a move-data branch
+  answered by `BranchOptions.dataBranch` — which is what lets Fickle Beam's 30% be forced
+  independently of the crit. Before that split, forcing a crit also forced the proc and `critCalls`
+  counted `(3, 10)` as a crit.
+
+  **Still ambiguous: `(1, 2)`.** A crit ratio of 3 gives denominator 2, and Shell Side Arm's
+  category tie-break is also `(1, 2)`. Nothing distinguishes them without call-site information,
+  which is one more reason full record/replay is the robust form and is wanted before Phase 3 rung 4.
 
 - **`teraType` is a declaration; `terastallized` is the state.** `createPokemon` still defaults
   `teraType` to the primary type, so a non-empty `teraType` never means "is terastallized" —

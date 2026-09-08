@@ -133,6 +133,22 @@ export const SCENARIOS: Scenario[] = [
     defender: BLISSEY,
   },
   {
+    name: 'Fickle Beam',
+    group: 'Move data',
+    note: 'A 30% base-power double, enumerated — two lobes, not an average',
+    move: 'Fickle Beam',
+    attacker: {species: 'Miraidon', nature: 'Modest', evs: {spa: 252}},
+    defender: BLISSEY,
+  },
+  {
+    name: 'Fickle Beam, weakened target',
+    group: 'Move data',
+    note: 'Both branches kill, so they merge and the 30% stops mattering',
+    move: 'Fickle Beam',
+    attacker: {species: 'Miraidon', nature: 'Modest', evs: {spa: 252}},
+    defender: {...BLISSEY, hp: 120},
+  },
+  {
     name: 'Aura Sphere vs Multiscale',
     group: 'Slow path',
     note: 'Target defence depends on its own HP, so the HP projection is refused and the full state space runs',

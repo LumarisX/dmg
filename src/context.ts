@@ -557,6 +557,7 @@ export namespace Context {
     noSketch?: boolean;
     stallingMove?: boolean;
 
+    branch?: string;
     crit?: boolean;
     hits?: number;
     magnitude?: number;

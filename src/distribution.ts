@@ -2,30 +2,40 @@ import {max, min} from './math';
 
 export type Keyer<T> = (value: T) => string;
 
-export interface CritCounts {
-  [crits: number]: number;
+export interface LabelCounts {
+  [value: string]: number;
+}
+
+export interface Labels {
+  [axis: string]: LabelCounts;
 }
 
 export interface Outcome<T> {
   data: T;
   count: number;
-  crits?: CritCounts;
+  labels?: Labels;
 }
 
-export function addCritCounts(into: CritCounts, from: CritCounts, scale = 1): CritCounts {
-  for (const key of Object.keys(from)) {
-    const crits = Number(key);
-    into[crits] = (into[crits] ?? 0) + from[crits] * scale;
+export function addLabelCounts(into: LabelCounts, from: LabelCounts, scale = 1): LabelCounts {
+  for (const value of Object.keys(from)) {
+    into[value] = (into[value] ?? 0) + from[value] * scale;
   }
   return into;
 }
 
-function scaledCrits(crits: CritCounts | undefined, scale: number): CritCounts | undefined {
-  return crits ? addCritCounts({}, crits, scale) : undefined;
+export function addLabels(into: Labels, from: Labels, scale = 1): Labels {
+  for (const axis of Object.keys(from)) {
+    addLabelCounts((into[axis] ??= {}), from[axis], scale);
+  }
+  return into;
+}
+
+function scaledLabels(labels: Labels | undefined, scale: number): Labels | undefined {
+  return labels ? addLabels({}, labels, scale) : undefined;
 }
 
 function copyOutcome<T>(outcome: Outcome<T>): Outcome<T> {
-  return outcome.crits ? {...outcome, crits: {...outcome.crits}} : {...outcome};
+  return outcome.labels ? {...outcome, labels: addLabels({}, outcome.labels)} : {...outcome};
 }
 
 export class ProbabilityMassError extends Error {
@@ -82,7 +92,7 @@ export class Distribution<T> {
       const existing = merged.get(key);
       if (existing) {
         existing.count += outcome.count;
-        if (outcome.crits) addCritCounts((existing.crits ??= {}), outcome.crits);
+        if (outcome.labels) addLabels((existing.labels ??= {}), outcome.labels);
       } else {
         merged.set(key, copyOutcome(outcome));
       }
@@ -122,9 +132,10 @@ export class Distribution<T> {
     let divisor = this.outcomes[0].count;
     for (const outcome of this.outcomes) {
       divisor = greatestCommonDivisor(divisor, outcome.count);
-      if (outcome.crits) {
-        for (const key of Object.keys(outcome.crits)) {
-          divisor = greatestCommonDivisor(divisor, outcome.crits[Number(key)]);
+      if (outcome.labels) {
+        for (const axis of Object.keys(outcome.labels)) {
+          const counts = outcome.labels[axis];
+          for (const value of Object.keys(counts)) divisor = greatestCommonDivisor(divisor, counts[value]);
         }
       }
       if (divisor === 1) return this;
@@ -132,8 +143,11 @@ export class Distribution<T> {
     if (divisor > 1) {
       for (const outcome of this.outcomes) {
         outcome.count /= divisor;
-        if (outcome.crits) {
-          for (const key of Object.keys(outcome.crits)) outcome.crits[Number(key)] /= divisor;
+        if (outcome.labels) {
+          for (const axis of Object.keys(outcome.labels)) {
+            const counts = outcome.labels[axis];
+            for (const value of Object.keys(counts)) counts[value] /= divisor;
+          }
         }
       }
     }
@@ -150,10 +164,13 @@ export class Distribution<T> {
       if (!Number.isFinite(outcome.count) || outcome.count <= 0) {
         throw new ProbabilityMassError(total, outcome.count);
       }
-      if (outcome.crits) {
-        let sum = 0;
-        for (const key of Object.keys(outcome.crits)) sum += outcome.crits[Number(key)];
-        if (!massMatches(sum, outcome.count)) throw new ProbabilityMassError(outcome.count, sum);
+      if (outcome.labels) {
+        for (const axis of Object.keys(outcome.labels)) {
+          const counts = outcome.labels[axis];
+          let sum = 0;
+          for (const value of Object.keys(counts)) sum += counts[value];
+          if (!massMatches(sum, outcome.count)) throw new ProbabilityMassError(outcome.count, sum);
+        }
       }
     }
     return this;
@@ -176,7 +193,7 @@ export class Distribution<T> {
 
   map(mapFunction: (value: T) => T): this {
     this.outcomes = Distribution.collapse(
-      this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, crits: o.crits})),
+      this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, labels: o.labels})),
       this.keyer
     );
     return this;
@@ -184,7 +201,7 @@ export class Distribution<T> {
 
   mapped(mapFunction: (value: T) => T): this {
     return this.derive(
-      Distribution.collapse(this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, crits: o.crits})), this.keyer)
+      Distribution.collapse(this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, labels: o.labels})), this.keyer)
     );
   }
 
@@ -209,9 +226,9 @@ export class Distribution<T> {
         const existing = merged.get(key);
         if (existing) {
           existing.count += inner.count * scale;
-          if (inner.crits) addCritCounts((existing.crits ??= {}), inner.crits, scale);
+          if (inner.labels) addLabels((existing.labels ??= {}), inner.labels, scale);
         } else {
-          merged.set(key, {data: inner.data, count: inner.count * scale, crits: scaledCrits(inner.crits, scale)});
+          merged.set(key, {data: inner.data, count: inner.count * scale, labels: scaledLabels(inner.labels, scale)});
         }
       }
     }

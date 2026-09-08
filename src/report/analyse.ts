@@ -1,12 +1,13 @@
 import {Generations} from '@pkmn/data';
 
-import {CritCounts} from '../distribution';
+import {LabelCounts} from '../distribution';
 import {
   UnsupportedMoveError,
   accuracyBranches,
   critBranches,
   critCounts,
   hitCountBranches,
+  labelCounts,
   resolveMove,
   secondaryBranches,
 } from '../resolve';
@@ -33,7 +34,8 @@ export interface Analysis {
   totalWeight?: number;
   damage?: {min: number; max: number; expected: number; points: DamagePoint[]};
   survival?: {damage: number; probability: number}[];
-  crits?: CritCounts;
+  crits?: LabelCounts;
+  moveData?: LabelCounts;
   branches?: {label: string; entries: string[]}[];
   turns?: {
     count: number;
@@ -135,6 +137,7 @@ export function analyse(gens: Generations, scenario: Scenario): Analysis {
     exact: distribution.exact,
     totalWeight: total,
     crits: critCounts(distribution),
+    moveData: labelCounts(distribution, 'branch'),
     damage: {
       min: points.length ? points[0].damage : 0,
       max: points.length ? points[points.length - 1].damage : 0,

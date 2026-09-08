@@ -125,6 +125,7 @@ export function fieldKey(field: State.Field): string {
 export function moveKey(move: State.Move): string {
   return (
     move.id +
+    ';' + (move.branch ?? '') +
     ';' + move.basePower +
     ';' + move.type +
     ';' + (move.crit ? 'crit' : '') +

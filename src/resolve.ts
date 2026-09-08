@@ -1,10 +1,11 @@
-import {CritCounts, Distribution, Outcome, addCritCounts, greatestCommonDivisor} from './distribution';
+import {Distribution, LabelCounts, Labels, Outcome, addLabels, greatestCommonDivisor, leastCommonMultiple} from './distribution';
 import {stateDistribution, stateKey} from './key';
 import type {BoostID, SecondaryEffect, TypeName} from '@pkmn/data';
 
 import {Context, Reification} from './context';
+import {MoveDataBranch} from './handlers';
 import {clamp, max, min} from './math';
-import {bondsWith, calculateDamage} from './mechanics';
+import {HANDLERS, bondsWith, calculateDamage} from './mechanics';
 import {State} from './state';
 
 export class UnsupportedMoveError extends Error {
@@ -119,7 +120,19 @@ const CONTACT_PUNISHING_ABILITIES = new Set([
   'iceface',
 ]);
 
-const UNENUMERATED_MOVES = new Set(['present']);
+const UNBRANCHED: MoveDataBranch[] = [{label: '', weight: 1}];
+
+const RANDOM_DATA_MOVES = new Set(['acupressure', 'conversion2', 'ficklebeam', 'metronome', 'present', 'shellsidearm', 'sleeptalk']);
+
+export function moveDataBranches(move: State.Move): MoveDataBranch[] {
+  const declared = HANDLERS.Moves[move.id]?.branches;
+  return declared?.length ? declared : UNBRANCHED;
+}
+
+function withBranch(state: State, branch: MoveDataBranch): State {
+  if (!branch.label) return state;
+  return state.withMove({...state.move, ...branch.move, branch: branch.label});
+}
 
 function punishesContact(defender: State.Pokemon): boolean {
   if (defender.item && CONTACT_PUNISHING_ITEMS.has(defender.item)) return true;
@@ -152,7 +165,15 @@ function unsupportedReasons(state: State): string[] {
   if (move.ohko) reasons.push('OHKO');
   if (move.selfdestruct) reasons.push('self-destruct');
   if (move.flags?.contact && punishesContact(state.target)) reasons.push('contact against a target that punishes it');
-  if (UNENUMERATED_MOVES.has(move.id)) reasons.push('random move-data branches that are not enumerated');
+  const dataBranches = moveDataBranches(move);
+  if (dataBranches === UNBRANCHED) {
+    if (RANDOM_DATA_MOVES.has(move.id)) reasons.push('random move-data branches that are not enumerated');
+  } else {
+    if (hitCountBranches(state.gen.num, move, state.attacker).some(branch => branch.hits > 1)) {
+      reasons.push('move-data branches on a multi-hit move');
+    }
+    if (move.heal || dataBranches.some(branch => branch.move?.heal)) reasons.push('target healing');
+  }
   if (state.target.item === 'focusband') reasons.push('Focus Band');
   if (state.gameType !== 'singles') reasons.push(`game type '${state.gameType}'`);
 
@@ -341,14 +362,22 @@ export function critBranches(state: State): CritBranch[] {
   ];
 }
 
-function accumulate(into: Map<string, Outcome<State>>, state: State, count: number, crits: number) {
+function tally(counts: LabelCounts, value: string | number, count: number) {
+  counts[value] = (counts[value] ?? 0) + count;
+}
+
+function accumulate(into: Map<string, Outcome<State>>, state: State, count: number, crits: number, branch: string) {
   const key = stateKey(state);
   const existing = into.get(key);
   if (existing) {
     existing.count += count;
-    existing.crits![crits] = (existing.crits![crits] ?? 0) + count;
+    const labels = (existing.labels ??= {});
+    tally((labels.crits ??= {}), crits, count);
+    if (branch) tally((labels.branch ??= {}), branch, count);
   } else {
-    into.set(key, {data: state, count, crits: {[crits]: count}});
+    const labels: Labels = {crits: {[crits]: count}};
+    if (branch) labels.branch = {[branch]: count};
+    into.set(key, {data: state, count, labels});
   }
 }
 
@@ -418,49 +447,75 @@ export function resolveMove(state: State): Distribution<State> {
   assertSupported(state);
 
   const reification = new Reification();
-  const crits = critBranches(state);
-  const hitBranches = hitCountBranches(state.gen.num, state.move, state.attacker);
-  const critExp = critExpansion(reification, state, crits);
+  const originalMove = state.move;
+  const dataBranches = moveDataBranches(originalMove);
 
-  const perHit = accuracyBranches(state.move);
-  const usesPerHitAccuracy = !!state.move.multiaccuracy;
-  const wholeMoveAccuracy = usesPerHitAccuracy ? [{lands: true, weight: 1}] : perHit;
-  const hitAccuracy = usesPerHitAccuracy ? perHit : [{lands: true, weight: 1}];
+  const plans = dataBranches.map(data => {
+    const branched = withBranch(state, data);
+    const crits = critBranches(branched);
+    const hitBranches = hitCountBranches(branched.gen.num, branched.move, branched.attacker);
+    const critExp = critExpansion(reification, branched, crits);
 
-  const secondaries = secondaryBranches(state);
-  const secondaryTotal = totalWeight(secondaries);
+    const perHit = accuracyBranches(branched.move);
+    const usesPerHitAccuracy = !!branched.move.multiaccuracy;
+    const expansion = totalWeight(usesPerHitAccuracy ? perHit : [{lands: true, weight: 1}]) * critExp;
+    const maxHits = hitBranches.reduce((highest, branch) => max(highest, branch.hits), 0);
+    const secondaries = secondaryBranches(branched);
+    const secondaryTotal = totalWeight(secondaries);
 
-  const expansion = totalWeight(hitAccuracy) * critExp;
-  const maxHits = hitBranches.reduce((highest, branch) => max(highest, branch.hits), 0);
-  const perResolution = expansion ** maxHits;
-  const hitWeightTotal = totalWeight(hitBranches);
+    return {
+      data,
+      state: branched,
+      crits,
+      hitBranches,
+      critExp,
+      wholeMoveAccuracy: usesPerHitAccuracy ? [{lands: true, weight: 1}] : perHit,
+      hitAccuracy: usesPerHitAccuracy ? perHit : [{lands: true, weight: 1}],
+      secondaries,
+      secondaryTotal,
+      expansion,
+      maxHits,
+      perResolution: expansion ** maxHits,
+      hitWeightTotal: totalWeight(hitBranches),
+    };
+  });
+
+  let common = 1;
+  for (const plan of plans) common = leastCommonMultiple(common, plan.perResolution * plan.secondaryTotal);
 
   const merged = new Map<string, Outcome<State>>();
   let expectedTotal = 0;
 
-  for (const accuracy of wholeMoveAccuracy) {
-    if (!accuracy.lands) {
-      const missed = accuracy.weight * hitWeightTotal * perResolution * secondaryTotal;
-      accumulate(merged, state, missed, 0);
-      expectedTotal += missed;
-      continue;
-    }
+  for (const plan of plans) {
+    const label = plan.data.label;
+    const dataScale = (plan.data.weight * common) / (plan.perResolution * plan.secondaryTotal);
+    const perBranch = plan.data.weight * common;
 
-    for (const hitBranch of hitBranches) {
-      let current = new Map<string, Step>();
-      accumulateStep(current, state, 1, false, 0);
-
-      for (let hit = 1; hit <= hitBranch.hits; hit++) {
-        current = advance(reification, current, crits, hitAccuracy, critExp, hit);
+    for (const accuracy of plan.wholeMoveAccuracy) {
+      if (!accuracy.lands) {
+        const missed = accuracy.weight * plan.hitWeightTotal * plan.perResolution * plan.secondaryTotal * dataScale;
+        accumulate(merged, state, missed, 0, label);
+        expectedTotal += missed;
+        continue;
       }
 
-      const scale = accuracy.weight * hitBranch.weight * expansion ** (maxHits - hitBranch.hits);
-      for (const step of current.values()) {
-        for (const secondary of secondaries) {
-          accumulate(merged, applySecondaries(step.state, secondary.effects), step.count * scale * secondary.weight, step.crits);
+      for (const hitBranch of plan.hitBranches) {
+        let current = new Map<string, Step>();
+        accumulateStep(current, plan.state, 1, false, 0);
+
+        for (let hit = 1; hit <= hitBranch.hits; hit++) {
+          current = advance(reification, current, plan.crits, plan.hitAccuracy, plan.critExp, hit);
         }
+
+        const scale = accuracy.weight * hitBranch.weight * plan.expansion ** (plan.maxHits - hitBranch.hits) * dataScale;
+        for (const step of current.values()) {
+          for (const secondary of plan.secondaries) {
+            const resolved = applySecondaries(step.state, secondary.effects).withMove(originalMove);
+            accumulate(merged, resolved, step.count * scale * secondary.weight, step.crits, label);
+          }
+        }
+        expectedTotal += accuracy.weight * hitBranch.weight * perBranch;
       }
-      expectedTotal += accuracy.weight * hitBranch.weight * perResolution * secondaryTotal;
     }
   }
 
@@ -469,10 +524,15 @@ export function resolveMove(state: State): Distribution<State> {
   return result.assertMassConserved(expectedTotal).normalize();
 }
 
-export function critCounts(distribution: Distribution<State>): CritCounts {
-  const totals: CritCounts = {};
+export function labelCounts(distribution: Distribution<State>, axis: string): LabelCounts {
+  const totals: LabelCounts = {};
   for (const outcome of distribution.outcomes) {
-    if (outcome.crits) addCritCounts(totals, outcome.crits);
+    const counts = outcome.labels?.[axis];
+    if (counts) addLabels({[axis]: totals}, {[axis]: counts});
   }
   return totals;
+}
+
+export function critCounts(distribution: Distribution<State>): LabelCounts {
+  return labelCounts(distribution, 'crits');
 }

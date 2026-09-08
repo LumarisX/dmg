@@ -10,7 +10,12 @@ export const ROLL_PERCENTS = Array.from({length: 16}, (_, i) => 85 + i);
 const PERCENT_DENOMINATOR = 100;
 
 export function critCalls(log: BranchLog): [number, number][] {
-  return log.randomChanceCalls.filter(([, denominator]) => denominator !== PERCENT_DENOMINATOR);
+  return log.randomChanceCalls.filter(([numerator, denominator]) => numerator === 1 && denominator !== PERCENT_DENOMINATOR);
+}
+
+function scriptedChance(numerator: number, denominator: number, crit: boolean, dataBranch: boolean): boolean {
+  if (denominator === PERCENT_DENOMINATOR) return true;
+  return numerator === 1 ? crit : dataBranch;
 }
 
 interface ScriptedBattle {
@@ -36,6 +41,7 @@ export interface BranchOptions {
   crit?: boolean;
   forcedHits?: number;
   secondariesTrigger?: boolean;
+  dataBranch?: boolean;
 }
 
 export function simulateBranch(state: State, rollPercent: number, crit = false, forcedHits?: number, options: BranchOptions = {}): BranchResult {
@@ -73,7 +79,7 @@ export function simulateBranch(state: State, rollPercent: number, crit = false, 
   };
   scripted.randomChance = (numerator: number, denominator: number) => {
     log.randomChanceCalls.push([numerator, denominator]);
-    return denominator === PERCENT_DENOMINATOR ? true : crit;
+    return scriptedChance(numerator, denominator, crit, !!options.dataBranch);
   };
 
   setTeam('p1', battle, state);
@@ -114,7 +120,8 @@ export function simulateFinalState(state: State, rollPercent: number, options: B
     const tr = scripted.trunc;
     return tr(tr(baseDamage * rollPercent) / 100);
   };
-  scripted.randomChance = (_numerator: number, denominator: number) => (denominator === PERCENT_DENOMINATOR ? true : !!options.crit);
+  scripted.randomChance = (numerator: number, denominator: number) =>
+    scriptedChance(numerator, denominator, !!options.crit, !!options.dataBranch);
 
   const originalRandom = scripted.random.bind(battle);
   scripted.random = (from?: number, to?: number): number => {

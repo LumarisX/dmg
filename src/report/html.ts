@@ -1,3 +1,4 @@
+import {LabelCounts} from '../distribution';
 import {Analysis} from './analyse';
 
 const WIDTH = 720;
@@ -142,6 +143,16 @@ function critsTable(crits: {[crits: number]: number} | undefined, total: number 
   return `<h4>Critical hits</h4><table class="kv">${cells}</table>`;
 }
 
+function moveDataTable(moveData: LabelCounts | undefined, total: number | undefined): string {
+  if (!moveData || !total) return '';
+  const entries = Object.keys(moveData).filter(label => moveData[label] > 0);
+  if (!entries.length) return '';
+  const cells = entries
+    .map(label => `<tr><th>${escape(label)}</th><td>${pct(moveData[label] / total, 3)}</td></tr>`)
+    .join('');
+  return `<h4>Move data</h4><table class="kv">${cells}</table>`;
+}
+
 function section(analysis: Analysis): string {
   const head = `<header><h2>${escape(analysis.scenario.name)}</h2>
     <span class="group">${escape(analysis.scenario.group)}</span>
@@ -208,7 +219,8 @@ function section(analysis: Analysis): string {
 
     <div class="columns">
       <div><h4>Branches</h4><div class="branches">${branches}</div></div>
-      <div>${critsTable(analysis.crits, analysis.totalWeight)}</div>
+      <div>${critsTable(analysis.crits, analysis.totalWeight)}
+      ${moveDataTable(analysis.moveData, analysis.totalWeight)}</div>
     </div>
 
     <h4>Heaviest outcomes</h4>

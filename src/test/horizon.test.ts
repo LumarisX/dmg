@@ -20,7 +20,7 @@ function mass(dist: ReturnType<typeof resolveMove>): number {
 
 describe('determinism', () => {
   test('the engine samples no branch — the same state resolves identically', () => {
-    for (const name of ['Aura Sphere', 'Rock Blast', 'Population Bomb']) {
+    for (const name of ['Aura Sphere', 'Rock Blast', 'Population Bomb', 'Fickle Beam']) {
       const first = resolveMove(build('Maushold', name));
       const second = resolveMove(build('Maushold', name));
       expect(second.outcomes.map(o => o.count)).toEqual(first.outcomes.map(o => o.count));
@@ -31,7 +31,7 @@ describe('determinism', () => {
   test('a move whose data branches randomly is rejected, not sampled', () => {
     const reasons = (() => {
       try {
-        resolveMove(build('Maushold', 'Present'));
+        resolveMove(build('Maushold', 'Shell Side Arm'));
         return undefined;
       } catch (e) {
         return e instanceof UnsupportedMoveError ? e.reasons : undefined;

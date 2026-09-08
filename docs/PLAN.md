@@ -1382,6 +1382,50 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       collapsing nearby HP values when other dimensions vary too — remains open, and is what the
       Multiscale/Sturdy/berry cases still fall back to the budgeted full projection for.
 
+- [x] **Moves whose own data branches randomly now enumerate those branches.** ✅ **DONE 2026-09-08.**
+      Found while looking at Fickle Beam, which `resolveMove` answered as a flat 80 BP — the 30%
+      double appeared nowhere in the distribution, and nothing refused the move, because
+      `mechanics/moves.ts` simply had no entry for it. The same failure class `present` had just been
+      quarantined for, except Fickle Beam was not on the quarantine list.
+
+      The gen 9 census is small: **Fickle Beam** (30% ×2 BP), **Present** (20% heal / 40% 40 BP /
+      30% 80 BP / 10% 120 BP), **Shell Side Arm** (50/50 category, but only on an exact damage tie),
+      and Acupressure / Conversion 2 / Metronome / Sleep Talk, which are not damage branches.
+
+      `Moves.<id>.branches` declares `{label, weight, move?}` and `resolveMove` runs once per branch —
+      a fifth axis beside accuracy, hit count, crit and secondaries. Unbranched moves get one
+      synthetic branch of weight 1, so their arithmetic is unchanged bit for bit; the branch weights
+      join the common denominator by LCM rather than by assuming every branch expands identically.
+
+      **The label had to be stripped from the resulting states or the whole thing would have been
+      pointless.** `moveKey` includes `move.branch`, which is what keeps two branches from sharing a
+      `Context` — but it also means a doubled Fickle Beam would key differently from a normal one
+      even when both leave the target at 0 HP. Restoring the original move at accumulate time is what
+      lets them merge: against a target both branches kill, the answer is **one outcome at
+      probability 1**, still labelled 70/30. That is the sensitivity thesis paying off on the move
+      that most invites the question "does the 30% matter here?".
+
+      `Outcome.crits` generalised to `Outcome.labels`, an axis → value → weight map, so crits and
+      move-data branches share one mechanism instead of the second label repeating the argument.
+      Each axis is asserted to sum to its outcome's own count. **Decide before REFACTOR phase 2
+      whether a branch label is a bucket dimension or part of `variantId`** — the bucket tuple there
+      is `(hp, hits, crits, variantId)` and this adds a fourth thing wanting a place.
+
+- [ ] **Present still cannot be resolved — but for an honest reason now.** Its heal branch sets
+      `heal: [1,4]` on a `basePower: 0` move, which heals the *target* a quarter of its max HP and
+      fails outright if the target is already full. That is target healing, a mechanic the engine
+      does not model at all, so `resolveMove` refuses on `'target healing'` rather than on a bespoke
+      `UNENUMERATED_MOVES` set (now deleted). Three of the four branches are declared and correct;
+      the fourth needs the mechanic. Shell Side Arm stays refused as unenumerated.
+
+- [ ] **The branch is chosen once per move, and the sim chooses it once per hit.** `onBasePower` runs
+      inside `getDamage`, so a multi-hit move with random data rolls it per hit. Every current
+      citizen is single-hit, so whole-move placement is exact for all of them and keeps the hit loop
+      untouched — which matters with REFACTOR next. The gap is guarded, not ignored: a branched move
+      with more than one hit is refused, **including Fickle Beam under Parental Bond**. Move the axis
+      into `advance` when a multi-hit citizen actually appears, and note it multiplies `expansion` per
+      hit when it does.
+
 - [ ] **`Result.toString()` is broken for every state — a Slice B regression hiding behind a red
       test.** Found while establishing the baseline for the work above. `Result.text()` does
       `extend({}, relevant ?? this.relevant)` (`result.ts:315`, and again at `:107`), which flattens

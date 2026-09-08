@@ -1,5 +1,5 @@
 import {Generation} from '@pkmn/data';
-import {Applier, Handler} from '../handlers';
+import {Applier, Brancher, Handler} from '../handlers';
 import {Context} from '../context';
 import {floor} from '../math';
 import {has, is} from '../utils';
@@ -7,6 +7,7 @@ import {has, is} from '../utils';
 export const Moves: {
   [id: string]: Partial<
     Applier &
+      Brancher &
       Handler<{
         gen: Generation;
         attacker?: Context.Pokemon;
@@ -1203,6 +1204,15 @@ export const Moves: {
     //   onAfterMoveSecondarySelf(pokemon, target, move) {
     //     if (!target || target.fainted || target.hp <= 0) { this.boost({atk: 3}, pokemon, pokemon, move); }
     //   },
+  },
+  ficklebeam: {
+    branches: [
+      {label: 'normal', weight: 7},
+      {label: 'allOut', weight: 3},
+    ],
+    onBasePower(context) {
+      if (context.move.branch === 'allOut') return 0x2000;
+    },
   },
   finalgambit: {
     //   damageCallback(pokemon) {
@@ -3844,10 +3854,12 @@ export const Moves: {
     // },
   },
   present: {
-    //   onModifyMove(context) {
-    //     20% heal [1,4], 40% BP 40, 30% BP 80, 10% BP 120 — four branches to
-    //     enumerate, not sample. resolveMove rejects the move until they are.
-    //   },
+    branches: [
+      {label: 'heal', weight: 2, move: {basePower: 0, heal: [1, 4]}},
+      {label: '40', weight: 4, move: {basePower: 40}},
+      {label: '80', weight: 3, move: {basePower: 80}},
+      {label: '120', weight: 1, move: {basePower: 120}},
+    ],
   },
   protect: {
     //   onPrepareHit(pokemon) {

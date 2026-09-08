@@ -8,6 +8,16 @@ export interface Applier {
   apply(side: 'p1' | 'p2', state: State, guaranteed?: boolean): void;
 }
 
+export interface MoveDataBranch {
+  label: string;
+  weight: number;
+  move?: Partial<State.Move>;
+}
+
+export interface Brancher {
+  branches: MoveDataBranch[];
+}
+
 export interface Handler<S> {
   basePowerCallback(scope: S): number;
   damageCallback(scope: S): number;
