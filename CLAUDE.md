@@ -11,7 +11,7 @@ roadmap, and the open decisions. This file holds only the conventions and traps.
 ## Current status
 
 **Phases 0-3 complete, Phase 4 largely complete (2026-09-04).** `npx tsc -p . --noEmit` is
-clean, and 22 of 24 Jest suites pass — 269 passed, 1 todo, 2 failed (2026-09-05).
+clean, and 22 of 24 Jest suites pass — 273 passed, 1 todo, 2 failed (2026-09-05).
 
 `resolveTurns()` (`src/turns.ts`) is the tier-3 layer: repeated `resolveMove` with merging, an
 injected `Policy`, epsilon/outcome pruning, and per-turn KO chances. It works in **float**
@@ -57,6 +57,28 @@ server's `speedchart.ts`, which uses `computeStats` and `State` only.
 | Build (compile + UMD bundle) | `npm run build` |
 | Lint | `npm run lint` |
 | Lint + autofix | `npm run fix` |
+
+### The report harness
+
+`npm run report` builds and runs every scenario in `src/report/scenarios.ts`, prints a one-line
+summary per scenario, and writes a self-contained `report.html` — damage distribution, survival
+function, turns-to-KO, cumulative KO, branch structure, crit counts and the heaviest outcomes, as
+inline SVG with no dependencies and no server.
+
+```
+npm run report                      # everything, to ./report.html
+npm run build:cjs && node build/cjs/report/cli.js multi-hit --out /tmp/r.html
+```
+
+Bare arguments filter on name, group or move (the second form avoids npm mangling quoted
+multi-word arguments on Windows). **Adding a case is a few lines in `scenarios.ts`** — only
+`name`, `group`, `move` and the two species are required; `weather`, `terrain`, `turns`,
+`maxResolves`, and per-side `ability`/`item`/`nature`/`evs`/`boosts`/`status`/`hp`/`tera` are
+optional. The console line reports whether each scenario took the `hp` projection or the full
+`state` space, which is the fastest way to see the fast-path gate refusing something.
+
+**Prefer this over the client/server calculator page for iterating on mechanics** — it needs no
+running server, no linked package and no browser round trip.
 
 ### Testing
 
@@ -170,6 +192,18 @@ removed deliberately.
   overridable methods, and `BattleOptions` accepts a `prng` — force each branch and compare
   exactly. 16 runs, not 10,000. Sampling approximates what this project defines exactly, and
   no sim ever runs at calc time.
+- **No clock and no RNG may influence a result — only telemetry.** The same input must produce the
+  same output, byte for byte; a calculator that answers differently on a rerun is worse than a slow
+  one. `Math.random()` no longer appears anywhere in `src` outside tests, and there is no `Date.now()`
+  at all — grep is the check. This has been violated twice: `present` sampled its base power with
+  `random(10)` instead of enumerating four branches (and got the weights wrong doing it, because the
+  thresholds were written for a 0-indexed roll while `random` returned 1..10 — 120 BP came up twice as
+  often as the cartridge, healing half as often), and the `/calc` endpoint once sized its compute
+  budget from the measured wall-clock cost of the first resolve, which made the same request return
+  different answers run to run. **A budget or a threshold must key off something known before any work
+  happens** — the server's now keys off the move's maximum hit count. Timing belongs in
+  `meta.elapsedMs` and nowhere else.
+
 - **Nothing is hardcoded that a mod should be able to change.** Gen 9 is the first target,
   not an architectural assumption — the end state is that any `@pkmn`-compatible dataset or
   mod works (DraftZone already ships `radicalred` and `insurgance` server-side). So: read
@@ -292,12 +326,31 @@ These will each cost you an afternoon if you trust appearances.
   still throws `ExactHorizonError`; `Distribution.exact` says which régime a result is in. Note the
   oracle does not cover 7+ hit moves, so those are self-consistent but not sim-verified.
 
-- **Multi-turn KO on a multi-hit move is not reachable.** `resolveTurns` costs one `resolveMove` per
-  carried state per turn, and a 2-5 hit move produces ~500 outcomes on turn 1 at ~130ms each — so
-  turn 2 alone is a minute. Use `TurnsOptions.maxResolves` to bound it; exhausted states are carried
-  forward *unadvanced* rather than dropped, so mass stays exact and KO chances become an honest lower
-  bound (`TurnsResult.unexpandedMass` says how much was frozen). Tuning the budget does not fix this,
-  it only makes the failure fast and legible — the fix is HP binning, see `docs/PLAN.md`.
+- **`resolveTurns` projects the target's HP marginal, not the full state space, whenever it can.**
+  The full projection costs one `resolveMove` per carried state per turn — a 2-5 hit move produces
+  ~500 outcomes on turn 1 at ~130ms each, so turn 2 alone is a minute and 10 turns is hours. But when
+  the only thing that varies across a turn's outcomes is the target's HP, the *same* damage
+  distribution applies every turn, so one resolve plus an HP-marginal iteration gives the identical
+  answer. Population Bomb over 10 turns went from unanswerable to 606ms, and
+  `turns.test.ts` pins the two paths agreeing to nine decimals.
+
+  **The gate must stay conservative, because the fast path is only exact if per-turn damage really is
+  independent of the target's HP.** Two conditions, both checked in `damageIgnoresTargetHp`:
+  every outcome must key identically to the input once its HP is restored (generic — catches status,
+  boosts, item loss, volatiles via `stateKey`, no hardcoded field list), *and* the target's ability
+  and item and the move must be outside the sets that read target HP — `multiscale`, `shadowshield`,
+  `sturdy`, `figyberry`, `sitrusberry`, `focussash`, `brine`, `crushgrip`, `naturesmadness`,
+  `superfang`, `wringout`. **Those sets were derived by grepping the handler tables for live reads of
+  `target.hp`; re-derive them when adding a handler that reads HP, or the fast path will silently
+  return a wrong answer.** A custom `Policy` also disables it, since the move can then differ by turn.
+
+- **`maxResolves` is a backstop, not a routine control.** It only applies on the full path now. When
+  it is exhausted, states are carried forward *unadvanced* rather than dropped, so mass stays exact
+  and KO chances become a lower bound (`TurnsResult.unexpandedMass` reports how much was frozen), and
+  the budget is spent on the highest-probability states first. Even so, a tight budget produces a
+  floor so far below the truth that it is worse than no answer — 12 resolves reported a 1.7% two-turn
+  KO where the real figure was 41.4%. If you find yourself tuning it, the fast path is being refused;
+  find out why instead.
 
 - **`resolveTurns`'s `maxOutcomes` cannot be given a default.** `capOutcomes` keeps the top N by
   probability, which is wrong for a smooth HP distribution: capping Rock Blast to 100 discards 52%

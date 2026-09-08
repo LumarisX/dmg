@@ -1346,18 +1346,41 @@ it must move in lockstep. Too large for one safe pass, so it splits along the cl
       `resolves` (what it actually spent). Default is unlimited, so library behaviour is unchanged;
       the `/calc` endpoint sets one.
 
-      **This confirmed the limit rather than removing it.** The endpoint sizes the budget from the
-      measured cost of the first resolve (`floor(1500ms / resolveMs)`), which yields:
+      **The budget was the wrong answer, and shipping it proved the point.** Turn 2 of a multi-hit
+      move needs one `resolveMove` per turn-1 outcome — 500+ at 130ms each — so any budget small
+      enough to be fast reported a floor far below the truth: **12 resolves gave a 1.7% two-turn KO
+      where the real figure is 41.4%.** A lower bound that loose is not conservative, it is wrong, and
+      it contradicted the survival-function chart on the same page.
 
-      | | first resolve | budget | result |
-      | --- | --- | --- | --- |
-      | Aura Sphere | 0.4ms | ~3750 | fully resolved, 62ms, 4HKO |
-      | Rock Blast | 130ms | 11 | turn 1 only — turn 2 alone needs ~500 |
-      | Population Bomb | 200ms | 7 | turn 1 only |
+- [x] **Project the target's HP marginal instead.** ✅ **DONE 2026-09-05.** The insight the budget
+      work surfaced: when the only thing varying across a turn's outcomes is the target's HP, every
+      turn shares the *same* damage distribution, so the whole state-space projection is wasted work.
+      One `resolveMove` plus an HP-marginal iteration gives the identical answer.
 
-      Turn 2 of a multi-hit move needs one `resolveMove` per turn-1 outcome — 500+ of them at 130ms
-      each. **Multi-turn KO for multi-hit moves is not reachable by tuning; it needs the merging
-      above.** The budget's job is to fail fast and say so, which it now does.
+      Verified rather than assumed — `turns.test.ts` runs both paths and requires agreement to nine
+      decimals (an earlier 1e-5 gap turned out to be the full path's epsilon pruning, not a modelling
+      difference):
+
+      | | before | after |
+      | --- | --- | --- |
+      | Aura Sphere, 10 turns | 60ms | **6ms**, full |
+      | Rock Blast, 10 turns | 1141ms, turn 1 only | **270ms**, full — 5HKO |
+      | Population Bomb, 10 turns | unanswerable | **606ms**, full — 2HKO, 41.4% on turn 2 |
+
+      **The gate is the whole risk.** `damageIgnoresTargetHp` requires that every outcome keys
+      identically to the input once its HP is restored — generic, via `stateKey`, so it catches
+      status, boosts, item loss and volatiles without a hardcoded field list — *and* that the target's
+      ability and item and the move are outside the sets that actually read target HP (`multiscale`,
+      `shadowshield`, `sturdy`, `figyberry`, `sitrusberry`, `focussash`, `brine`, `crushgrip`,
+      `naturesmadness`, `superfang`, `wringout`). Those were derived by grepping the handler tables
+      for live reads of `target.hp`, which is a snapshot, not an invariant: **a new handler that reads
+      HP without being added to those sets makes the fast path silently wrong.** That is the one place
+      this design can rot, and it is why the equivalence test matters more than the speed.
+
+      This is the *merging* half that "Runtime budget" asked for, in its lossless special case: HP is
+      not being binned, it is being recognised as the only dimension that varies. Genuine binning —
+      collapsing nearby HP values when other dimensions vary too — remains open, and is what the
+      Multiscale/Sturdy/berry cases still fall back to the budgeted full projection for.
 
 - [ ] **`Result.toString()` is broken for every state — a Slice B regression hiding behind a red
       test.** Found while establishing the baseline for the work above. `Result.text()` does
