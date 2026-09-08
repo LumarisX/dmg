@@ -2,7 +2,7 @@ import {Generations} from '@pkmn/data';
 import {Dex} from '@pkmn/sim';
 
 import {State} from '../state';
-import {resolveMove} from '../resolve';
+import {UnsupportedMoveError, resolveMove} from '../resolve';
 
 const gens = new Generations(Dex as any);
 const gen = gens.get(9);
@@ -17,6 +17,30 @@ function mass(dist: ReturnType<typeof resolveMove>): number {
   const total = dist.totalOutcomes;
   return dist.outcomes.reduce((sum, o) => sum + o.count / total, 0);
 }
+
+describe('determinism', () => {
+  test('the engine samples no branch — the same state resolves identically', () => {
+    for (const name of ['Aura Sphere', 'Rock Blast', 'Population Bomb']) {
+      const first = resolveMove(build('Maushold', name));
+      const second = resolveMove(build('Maushold', name));
+      expect(second.outcomes.map(o => o.count)).toEqual(first.outcomes.map(o => o.count));
+      expect(second.totalOutcomes).toBe(first.totalOutcomes);
+    }
+  });
+
+  test('a move whose data branches randomly is rejected, not sampled', () => {
+    const reasons = (() => {
+      try {
+        resolveMove(build('Maushold', 'Present'));
+        return undefined;
+      } catch (e) {
+        return e instanceof UnsupportedMoveError ? e.reasons : undefined;
+      }
+    })();
+
+    expect(reasons).toContain('random move-data branches that are not enumerated');
+  });
+});
 
 describe('past the exact horizon', () => {
   test('a ten-hit move resolves instead of throwing', () => {

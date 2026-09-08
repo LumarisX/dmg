@@ -2,9 +2,30 @@ import {max, min} from './math';
 
 export type Keyer<T> = (value: T) => string;
 
+export interface CritCounts {
+  [crits: number]: number;
+}
+
 export interface Outcome<T> {
   data: T;
   count: number;
+  crits?: CritCounts;
+}
+
+export function addCritCounts(into: CritCounts, from: CritCounts, scale = 1): CritCounts {
+  for (const key of Object.keys(from)) {
+    const crits = Number(key);
+    into[crits] = (into[crits] ?? 0) + from[crits] * scale;
+  }
+  return into;
+}
+
+function scaledCrits(crits: CritCounts | undefined, scale: number): CritCounts | undefined {
+  return crits ? addCritCounts({}, crits, scale) : undefined;
+}
+
+function copyOutcome<T>(outcome: Outcome<T>): Outcome<T> {
+  return outcome.crits ? {...outcome, crits: {...outcome.crits}} : {...outcome};
 }
 
 export class ProbabilityMassError extends Error {
@@ -61,8 +82,9 @@ export class Distribution<T> {
       const existing = merged.get(key);
       if (existing) {
         existing.count += outcome.count;
+        if (outcome.crits) addCritCounts((existing.crits ??= {}), outcome.crits);
       } else {
-        merged.set(key, {data: outcome.data, count: outcome.count});
+        merged.set(key, copyOutcome(outcome));
       }
     }
     return [...merged.values()];
@@ -100,10 +122,20 @@ export class Distribution<T> {
     let divisor = this.outcomes[0].count;
     for (const outcome of this.outcomes) {
       divisor = greatestCommonDivisor(divisor, outcome.count);
+      if (outcome.crits) {
+        for (const key of Object.keys(outcome.crits)) {
+          divisor = greatestCommonDivisor(divisor, outcome.crits[Number(key)]);
+        }
+      }
       if (divisor === 1) return this;
     }
     if (divisor > 1) {
-      for (const outcome of this.outcomes) outcome.count /= divisor;
+      for (const outcome of this.outcomes) {
+        outcome.count /= divisor;
+        if (outcome.crits) {
+          for (const key of Object.keys(outcome.crits)) outcome.crits[Number(key)] /= divisor;
+        }
+      }
     }
     return this;
   }
@@ -117,6 +149,11 @@ export class Distribution<T> {
     for (const outcome of this.outcomes) {
       if (!Number.isFinite(outcome.count) || outcome.count <= 0) {
         throw new ProbabilityMassError(total, outcome.count);
+      }
+      if (outcome.crits) {
+        let sum = 0;
+        for (const key of Object.keys(outcome.crits)) sum += outcome.crits[Number(key)];
+        if (!massMatches(sum, outcome.count)) throw new ProbabilityMassError(outcome.count, sum);
       }
     }
     return this;
@@ -139,14 +176,16 @@ export class Distribution<T> {
 
   map(mapFunction: (value: T) => T): this {
     this.outcomes = Distribution.collapse(
-      this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count})),
+      this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, crits: o.crits})),
       this.keyer
     );
     return this;
   }
 
   mapped(mapFunction: (value: T) => T): this {
-    return this.derive(Distribution.collapse(this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count})), this.keyer));
+    return this.derive(
+      Distribution.collapse(this.outcomes.map(o => ({data: mapFunction(o.data), count: o.count, crits: o.crits})), this.keyer)
+    );
   }
 
   flatMap(f: (value: T) => Distribution<T>): this {
@@ -170,8 +209,9 @@ export class Distribution<T> {
         const existing = merged.get(key);
         if (existing) {
           existing.count += inner.count * scale;
+          if (inner.crits) addCritCounts((existing.crits ??= {}), inner.crits, scale);
         } else {
-          merged.set(key, {data: inner.data, count: inner.count * scale});
+          merged.set(key, {data: inner.data, count: inner.count * scale, crits: scaledCrits(inner.crits, scale)});
         }
       }
     }
@@ -185,7 +225,7 @@ export class Distribution<T> {
   }
 
   filtered(predicate: (value: T) => boolean): this {
-    return this.derive(this.outcomes.filter(outcome => predicate(outcome.data)).map(o => ({...o})));
+    return this.derive(this.outcomes.filter(outcome => predicate(outcome.data)).map(copyOutcome));
   }
 
   forEach(callback: (data: T, count: number) => void): void {
@@ -197,7 +237,7 @@ export class Distribution<T> {
   }
 
   clone(): this {
-    return this.derive(this.outcomes.map(o => ({...o})));
+    return this.derive(this.outcomes.map(copyOutcome));
   }
 
   equals(other: Distribution<T>): boolean {

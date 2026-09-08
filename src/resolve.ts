@@ -1,4 +1,4 @@
-import {Distribution, Outcome, greatestCommonDivisor} from './distribution';
+import {CritCounts, Distribution, Outcome, addCritCounts, greatestCommonDivisor} from './distribution';
 import {stateDistribution, stateKey} from './key';
 import type {BoostID, SecondaryEffect, TypeName} from '@pkmn/data';
 
@@ -119,6 +119,8 @@ const CONTACT_PUNISHING_ABILITIES = new Set([
   'iceface',
 ]);
 
+const UNENUMERATED_MOVES = new Set(['present']);
+
 function punishesContact(defender: State.Pokemon): boolean {
   if (defender.item && CONTACT_PUNISHING_ITEMS.has(defender.item)) return true;
   return !!defender.ability && CONTACT_PUNISHING_ABILITIES.has(defender.ability);
@@ -150,6 +152,7 @@ function unsupportedReasons(state: State): string[] {
   if (move.ohko) reasons.push('OHKO');
   if (move.selfdestruct) reasons.push('self-destruct');
   if (move.flags?.contact && punishesContact(state.target)) reasons.push('contact against a target that punishes it');
+  if (UNENUMERATED_MOVES.has(move.id)) reasons.push('random move-data branches that are not enumerated');
   if (state.target.item === 'focusband') reasons.push('Focus Band');
   if (state.gameType !== 'singles') reasons.push(`game type '${state.gameType}'`);
 
@@ -338,13 +341,14 @@ export function critBranches(state: State): CritBranch[] {
   ];
 }
 
-function accumulate(into: Map<string, Outcome<State>>, state: State, count: number) {
+function accumulate(into: Map<string, Outcome<State>>, state: State, count: number, crits: number) {
   const key = stateKey(state);
   const existing = into.get(key);
   if (existing) {
     existing.count += count;
+    existing.crits![crits] = (existing.crits![crits] ?? 0) + count;
   } else {
-    into.set(key, {data: state, count});
+    into.set(key, {data: state, count, crits: {[crits]: count}});
   }
 }
 
@@ -352,15 +356,16 @@ interface Step {
   state: State;
   count: number;
   finished: boolean;
+  crits: number;
 }
 
-function accumulateStep(into: Map<string, Step>, state: State, count: number, finished: boolean) {
-  const key = `${finished ? 'x' : 'o'}${stateKey(state)}`;
+function accumulateStep(into: Map<string, Step>, state: State, count: number, finished: boolean, crits: number) {
+  const key = `${finished ? 'x' : 'o'}${crits};${stateKey(state)}`;
   const existing = into.get(key);
   if (existing) {
     existing.count += count;
   } else {
-    into.set(key, {state, count, finished});
+    into.set(key, {state, count, finished, crits});
   }
 }
 
@@ -386,7 +391,7 @@ function advance(
 
   for (const step of current.values()) {
     if (step.finished || step.state.target.hp <= 0) {
-      accumulateStep(next, step.state, step.count * expansion, true);
+      accumulateStep(next, step.state, step.count * expansion, true, step.crits);
       continue;
     }
 
@@ -394,12 +399,13 @@ function advance(
 
     for (const accuracy of perHitAccuracy) {
       if (!accuracy.lands) {
-        accumulateStep(next, step.state, step.count * accuracy.weight * critExpansion, true);
+        accumulateStep(next, step.state, step.count * accuracy.weight * critExpansion, true, step.crits);
         continue;
       }
       for (const branch of crits) {
+        const critted = step.crits + (branch.crit ? 1 : 0);
         for (const damage of damageRolls(context, branch.crit)) {
-          accumulateStep(next, withDamage(step.state, damage), step.count * accuracy.weight * branch.weight, false);
+          accumulateStep(next, withDamage(step.state, damage), step.count * accuracy.weight * branch.weight, false, critted);
         }
       }
     }
@@ -435,14 +441,14 @@ export function resolveMove(state: State): Distribution<State> {
   for (const accuracy of wholeMoveAccuracy) {
     if (!accuracy.lands) {
       const missed = accuracy.weight * hitWeightTotal * perResolution * secondaryTotal;
-      accumulate(merged, state, missed);
+      accumulate(merged, state, missed, 0);
       expectedTotal += missed;
       continue;
     }
 
     for (const hitBranch of hitBranches) {
       let current = new Map<string, Step>();
-      accumulateStep(current, state, 1, false);
+      accumulateStep(current, state, 1, false, 0);
 
       for (let hit = 1; hit <= hitBranch.hits; hit++) {
         current = advance(reification, current, crits, hitAccuracy, critExp, hit);
@@ -451,7 +457,7 @@ export function resolveMove(state: State): Distribution<State> {
       const scale = accuracy.weight * hitBranch.weight * expansion ** (maxHits - hitBranch.hits);
       for (const step of current.values()) {
         for (const secondary of secondaries) {
-          accumulate(merged, applySecondaries(step.state, secondary.effects), step.count * scale * secondary.weight);
+          accumulate(merged, applySecondaries(step.state, secondary.effects), step.count * scale * secondary.weight, step.crits);
         }
       }
       expectedTotal += accuracy.weight * hitBranch.weight * perResolution * secondaryTotal;
@@ -461,4 +467,12 @@ export function resolveMove(state: State): Distribution<State> {
   const result = stateDistribution();
   result.outcomes = [...merged.values()];
   return result.assertMassConserved(expectedTotal).normalize();
+}
+
+export function critCounts(distribution: Distribution<State>): CritCounts {
+  const totals: CritCounts = {};
+  for (const outcome of distribution.outcomes) {
+    if (outcome.crits) addCritCounts(totals, outcome.crits);
+  }
+  return totals;
 }

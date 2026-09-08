@@ -1,7 +1,7 @@
 import {Generation} from '@pkmn/data';
 import {Applier, Handler} from '../handlers';
 import {Context} from '../context';
-import {floor, random} from '../math';
+import {floor} from '../math';
 import {has, is} from '../utils';
 
 export const Moves: {
@@ -3844,18 +3844,10 @@ export const Moves: {
     // },
   },
   present: {
-    onModifyMove(context) {
-      const rand = random(10);
-      if (rand < 2) {
-        context.move.heal = [1, 4];
-      } else if (rand < 6) {
-        context.move.basePower = 40;
-      } else if (rand < 9) {
-        context.move.basePower = 80;
-      } else {
-        context.move.basePower = 120;
-      }
-    },
+    //   onModifyMove(context) {
+    //     20% heal [1,4], 40% BP 40, 30% BP 80, 10% BP 120 — four branches to
+    //     enumerate, not sample. resolveMove rejects the move until they are.
+    //   },
   },
   protect: {
     //   onPrepareHit(pokemon) {

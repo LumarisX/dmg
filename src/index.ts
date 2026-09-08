@@ -5,10 +5,10 @@ export {Result} from './result';
 export {Relevancy} from './relevancy';
 
 // outcome distributions
-export {Distribution, NumberDistribution, ExactHorizonError, ProbabilityMassError} from './distribution';
-export type {Keyer, Outcome} from './distribution';
+export {Distribution, NumberDistribution, ExactHorizonError, ProbabilityMassError, addCritCounts} from './distribution';
+export type {CritCounts, Keyer, Outcome} from './distribution';
 export {stateKey, stateDistribution, pokemonKey, sideKey, fieldKey, moveKey} from './key';
-export {resolveMove, assertSupported, UnsupportedMoveError, accuracyBranches, critBranches, hitCountBranches, secondaryBranches} from './resolve';
+export {resolveMove, critCounts, assertSupported, UnsupportedMoveError, accuracyBranches, critBranches, hitCountBranches, secondaryBranches} from './resolve';
 export {resolveTurns, knockoutChances, guaranteedKnockoutTurn, repeatMove} from './turns';
 export type {Policy, TurnsOptions, TurnsOutcome, TurnsResult} from './turns';
 
