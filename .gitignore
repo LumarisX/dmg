@@ -9,3 +9,4 @@ Thumbs.db
 *-debug.log
 .coverage
 src/test/lum.ts
+report.html

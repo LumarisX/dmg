@@ -60,7 +60,8 @@
     "clean": "node -e \"require('fs').rmSync('build',{recursive:true,force:true})\"",
     "test": "jest --runInBand",
     "test:integration": "npm run test && node integration",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "report": "npm run build:cjs && node build/cjs/report/cli.js"
   },
   "jest": {
     "testEnvironment": "node",
