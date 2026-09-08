@@ -14,6 +14,16 @@ function build(moveName = 'Aura Sphere', defenderHp?: number, defender = 'Blisse
   return State.oneOnOne(gen, attacker, target, State.createMove(gen, moveName), State.createField(gen, {}));
 }
 
+function multiscale(moveName: string) {
+  return State.oneOnOne(
+    gen,
+    State.createPokemon(gen, 'Maushold', {nature: 'Adamant', evs: {atk: 252}}),
+    State.createPokemon(gen, 'Dragonite', {ability: 'Multiscale', evs: {hp: 252, def: 252}}),
+    State.createMove(gen, moveName),
+    State.createField(gen, {})
+  );
+}
+
 function totalMass(result: ReturnType<typeof resolveTurns>) {
   return result.outcomes.reduce((sum, o) => sum + o.probability, 0) + result.prunedMass;
 }
@@ -90,23 +100,43 @@ describe('resolveTurns', () => {
     expect(result.outcomes.every(o => o.state.target.hp >= 0)).toBe(true);
   });
 
-  test('a resolve budget bounds the work and reports what it froze', () => {
-    const attacker = State.createPokemon(gen, 'Maushold', {
-      nature: 'Adamant',
-      evs: { atk: 252 },
-    });
-    const target = State.createPokemon(gen, 'Blissey', {
-      evs: { hp: 252, def: 252 },
-    });
-    const state = State.oneOnOne(
-      gen,
-      attacker,
-      target,
-      State.createMove(gen, 'Population Bomb'),
-      State.createField(gen, {})
-    );
+  test('the hp projection agrees exactly with the full state-space projection', () => {
+    const cases: Array<[string, string, number]> = [
+      ['Lucario', 'Aura Sphere', 4],
+      ['Cloyster', 'Rock Blast', 2],
+      ['Maushold', 'Population Bomb', 2],
+    ];
 
-    const result = resolveTurns(state, { turns: 10, maxResolves: 12 });
+    for (const [attacker, move, turns] of cases) {
+      const state = State.oneOnOne(
+        gen,
+        State.createPokemon(gen, attacker, {nature: 'Adamant', evs: {atk: 252, spa: 252}}),
+        State.createPokemon(gen, 'Blissey', {evs: {hp: 252, def: 252, spd: 252}}),
+        State.createMove(gen, move),
+        State.createField(gen, {})
+      );
+
+      const fast = resolveTurns(state, {turns, epsilon: 0});
+      const exact = resolveTurns(state, {turns, epsilon: 0, policy: {chooseMove: s => s.move}});
+
+      expect(fast.resolves).toBe(1);
+      expect(exact.resolves).toBeGreaterThan(1);
+      for (let i = 0; i < turns; i++) {
+        expect(fast.knockoutByTurn[i]).toBeCloseTo(exact.knockoutByTurn[i], 9);
+      }
+    }
+  }, 600000);
+
+  test('a target whose defence depends on its own hp cannot take the fast path', () => {
+    const result = resolveTurns(multiscale('Population Bomb'), {turns: 2});
+    expect(result.resolves).toBeGreaterThan(1);
+  }, 600000);
+
+  test('a resolve budget bounds the work and reports what it froze', () => {
+    const result = resolveTurns(multiscale('Population Bomb'), {
+      turns: 10,
+      maxResolves: 12,
+    });
 
     expect(result.resolves).toBeLessThanOrEqual(12);
     expect(result.unexpandedMass).toBeGreaterThan(0);
@@ -114,7 +144,7 @@ describe('resolveTurns', () => {
   });
 
   test('an unbudgeted run reports no frozen mass', () => {
-    const result = resolveTurns(build(), { turns: 3 });
+    const result = resolveTurns(build(), {turns: 3});
     expect(result.unexpandedMass).toBe(0);
     expect(result.resolves).toBeGreaterThan(0);
     expect(totalMass(result)).toBeCloseTo(1, 9);
@@ -122,8 +152,8 @@ describe('resolveTurns', () => {
 
   test('a budget only ever understates the knockout chance', () => {
     const state = build();
-    const full = resolveTurns(state, { turns: 4 });
-    const budgeted = resolveTurns(state, { turns: 4, maxResolves: 3 });
+    const full = resolveTurns(state, {turns: 4});
+    const budgeted = resolveTurns(state, {turns: 4, maxResolves: 3});
 
     for (let i = 0; i < full.knockoutByTurn.length; i++) {
       expect(budgeted.knockoutByTurn[i]).toBeLessThanOrEqual(

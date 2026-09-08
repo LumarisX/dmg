@@ -1,4 +1,6 @@
+import {Distribution} from './distribution';
 import {stateKey} from './key';
+import {max} from './math';
 import {resolveMove} from './resolve';
 import {State} from './state';
 
@@ -34,6 +36,123 @@ export interface TurnsResult {
 
 const DEFAULT_EPSILON = 1e-9;
 
+const TARGET_HP_SENSITIVE_ABILITIES = new Set(['multiscale', 'shadowshield', 'sturdy']);
+const TARGET_HP_SENSITIVE_ITEMS = new Set(['figyberry', 'sitrusberry', 'focussash']);
+const TARGET_HP_SENSITIVE_MOVES = new Set([
+  'brine',
+  'crushgrip',
+  'naturesmadness',
+  'superfang',
+  'wringout',
+]);
+
+function damageIgnoresTargetHp(state: State, resolved: Distribution<State>): boolean {
+  const target = state.target;
+  if (target.ability && TARGET_HP_SENSITIVE_ABILITIES.has(target.ability)) return false;
+  if (target.item && TARGET_HP_SENSITIVE_ITEMS.has(target.item)) return false;
+  if (TARGET_HP_SENSITIVE_MOVES.has(state.move.id)) return false;
+
+  const baseline = stateKey(state);
+  for (const outcome of resolved.outcomes) {
+    const restored = outcome.data.withPokemonAt(state.action.target, {
+      ...outcome.data.target,
+      hp: target.hp,
+      hurtThisTurn: target.hurtThisTurn,
+    });
+    if (stateKey(restored) !== baseline) return false;
+  }
+  return true;
+}
+
+interface HpBucket {
+  hp: number;
+  hurt: boolean;
+  probability: number;
+}
+
+function projectTargetHp(
+  state: State,
+  resolved: Distribution<State>,
+  options: TurnsOptions,
+  epsilon: number
+): TurnsResult {
+  const slot = state.action.target;
+  const total = resolved.totalOutcomes;
+  const damages = resolved.outcomes.map(outcome => ({
+    damage: state.target.hp - max(0, outcome.data.target.hp),
+    probability: outcome.count / total,
+  }));
+
+  let buckets = new Map<string, HpBucket>([
+    [`${state.target.hp}|${!!state.target.hurtThisTurn}`, {hp: state.target.hp, hurt: !!state.target.hurtThisTurn, probability: 1}],
+  ]);
+  const knockoutByTurn: number[] = [];
+  let prunedMass = 0;
+
+  for (let turn = 1; turn <= options.turns; turn++) {
+    const next = new Map<string, HpBucket>();
+    for (const bucket of buckets.values()) {
+      if (bucket.hp <= 0) {
+        addBucket(next, bucket.hp, bucket.hurt, bucket.probability);
+        continue;
+      }
+      for (const roll of damages) {
+        const probability = bucket.probability * roll.probability;
+        if (probability < epsilon) {
+          prunedMass += probability;
+          continue;
+        }
+        addBucket(next, max(0, bucket.hp - roll.damage), roll.damage > 0, probability);
+      }
+    }
+    buckets = capBuckets(next, options.maxOutcomes, mass => (prunedMass += mass));
+    knockoutByTurn.push(knockedOutHp(buckets));
+  }
+
+  const outcomes: TurnsOutcome[] = [...buckets.values()]
+    .map(bucket => ({
+      state: state.withPokemonAt(slot, {
+        ...state.target,
+        hp: bucket.hp,
+        hurtThisTurn: bucket.hurt ? true : undefined,
+      }),
+      probability: bucket.probability,
+    }))
+    .sort((a, b) => b.probability - a.probability);
+
+  return {turns: options.turns, outcomes, prunedMass, unexpandedMass: 0, resolves: 1, knockoutByTurn};
+}
+
+function capBuckets(
+  buckets: Map<string, HpBucket>,
+  maxOutcomes: number | undefined,
+  onPruned: (mass: number) => void
+): Map<string, HpBucket> {
+  if (!maxOutcomes || buckets.size <= maxOutcomes) return buckets;
+
+  const sorted = [...buckets.entries()].sort((a, b) => b[1].probability - a[1].probability);
+  for (const [, bucket] of sorted.slice(maxOutcomes)) onPruned(bucket.probability);
+  return new Map(sorted.slice(0, maxOutcomes));
+}
+
+function addBucket(into: Map<string, HpBucket>, hp: number, hurt: boolean, probability: number) {
+  const key = `${hp}|${hurt}`;
+  const existing = into.get(key);
+  if (existing) {
+    existing.probability += probability;
+  } else {
+    into.set(key, {hp, hurt, probability});
+  }
+}
+
+function knockedOutHp(buckets: Map<string, HpBucket>): number {
+  let mass = 0;
+  for (const bucket of buckets.values()) {
+    if (bucket.hp <= 0) mass += bucket.probability;
+  }
+  return mass;
+}
+
 function startOfTurn(state: State): State {
   const defender = state.target;
   if (!defender.hurtThisTurn) return state;
@@ -43,6 +162,14 @@ function startOfTurn(state: State): State {
 export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
   const policy = options.policy ?? repeatMove;
   const epsilon = options.epsilon ?? DEFAULT_EPSILON;
+
+  if (policy === repeatMove && options.turns > 0) {
+    const opening = startOfTurn(state);
+    const resolved = resolveMove(opening);
+    if (damageIgnoresTargetHp(opening, resolved)) {
+      return projectTargetHp(opening, resolved, options, epsilon);
+    }
+  }
 
   let current = new Map<string, TurnsOutcome>();
   current.set(stateKey(state), {state, probability: 1});
@@ -57,7 +184,12 @@ export function resolveTurns(state: State, options: TurnsOptions): TurnsResult {
     const next = new Map<string, TurnsOutcome>();
     unexpandedMass = 0;
 
-    for (const outcome of current.values()) {
+    const ordered =
+      budget === Infinity
+        ? [...current.values()]
+        : [...current.values()].sort((a, b) => b.probability - a.probability);
+
+    for (const outcome of ordered) {
       if (outcome.state.target.hp <= 0) {
         accumulate(next, outcome.state, outcome.probability);
         continue;
