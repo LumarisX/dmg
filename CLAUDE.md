@@ -181,6 +181,14 @@ removed deliberately.
 - **No explanatory code comments.** Repo-wide across all DraftZone projects, `/** */`
   included. Write code that reads without them. Plenty of older files carry commented-out
   Pokémon Showdown source — leave those alone unless you are rewriting the block.
+
+  **New files are not an exception, and neither are tests, type declarations or "this is subtle"
+  rationale.** This rule was violated across an entire session on 2026-09-08 — `resolution.ts`,
+  `handlers.ts`, `resolve.ts` and four test files all shipped with doc blocks — on the reasoning
+  that new code and non-obvious invariants deserved explaining. They do not: **that explanation
+  belongs in `docs/`**, where it can be read, argued with and corrected, rather than rotting next
+  to code that changes. If an invariant is load-bearing enough to want a comment, write it in
+  `docs/PIPELINE.md` or `docs/REFACTOR.md` and let the code stand on its naming.
 - **Tier 1 stays tree-unaware.** The moment tree/search logic leaks into `calculateDamage`,
   the damage formula can no longer be differentially tested against `@pkmn/sim` in isolation
   — and that test is the project's definition of correctness.

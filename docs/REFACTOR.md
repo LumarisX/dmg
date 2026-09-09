@@ -317,22 +317,301 @@ why the merge is safe:
 Not behaviour-preserving: it makes dead handlers fire. Verified against the oracle, differential per
 axis as each is migrated.
 
-### Phase 0 — characterization harness *(now after phase 1)*
+### Phase 0 — characterization harness ✅ DONE 2026-09-08 *(runs after phase 1)*
 
-Snapshot `resolveMove` / `resolveTurns` output — states, counts, crit breakdowns — over a corpus:
-every existing test case, plus randomized states from the generator already sitting in
-`src/test/helpers/`. Stamina, Focus Sash and a `multiaccuracy` move are required fixtures.
+`src/test/characterization.test.ts` over the 19-scenario corpus in
+`src/test/helpers/characterize.ts`, as Jest snapshots. Stamina, Focus Sash and a `multiaccuracy`
+move are present as required, alongside every branch axis, both `resolveTurns` paths, an absorb, a
+defender-side reduction and the past-horizon case.
 
-**Runs after phase 1, not before.** Characterizing first would pin a dozen known-wrong answers as
-"correct" for the remaining phases. Nothing after this starts until it is green and reproducible.
+**Ran after phase 1, not before.** Characterizing first would have pinned a dozen known-wrong
+answers as "correct" for every phase that follows.
 
-### Phase 2 — numeric inner loop
+Two properties are load-bearing, both learned by getting them wrong during phase 1:
+
+- **Probabilities, not counts.** `flatMap` ends in `normalize()`, so the denominator is an
+  implementation detail — Population Bomb's total moved 6.97e35 → 8.6e33 during a change that
+  altered no answer.
+- **Rounded to 12 significant figures, and keys sorted.** Past the exact horizon the last ulp moves
+  with accumulation order, exactly as the *Float accumulation order* risk below predicts; and label
+  insertion order produced three phantom failures on the first comparison attempt. Twelve figures is
+  far tighter than any mechanic-level change and far looser than float noise.
+
+**The harness was verified to bite**: perturbing Thick Fat's constant from `0x800` to `0x900` failed
+one snapshot *and* two `coverage.test.ts` oracle cases, independently. A baseline nobody has proved
+detects a change is worth nothing.
+
+Regenerate deliberately with `npx jest --runInBand src/test/characterization -u`, and say in the
+commit message which answer moved and why.
+
+### Phase 2 — numeric inner loop *(started 2026-09-08)*
 
 Buckets replace `Resolution` in the hit loop; `State` is materialized only for surviving outcomes.
 Prove identical against the phase 0 baseline, measure.
 
 Unchanged in substance — the bucket tuple was already `(hp, hits, crits, variantId)`, which phase 1
 makes an explicit type instead of an inference about what varies.
+
+**Step one, done: key the hit sequence on the target alone.** Inside `hitSequence` only the target
+can change — `withDamage` writes through `withPokemonAt(action.target)` and nothing else — yet every
+merge key rebuilt attacker, field, sides and move too. `hitResolutionKey` keys the flags, the labels
+and `pokemonKey(target)`; `rekeyed()` puts the distribution back on the full state key on the way
+out, because `applySecondaries` writes to the attacker and the narrow key stops being sound there.
+
+**Step two, done: key on the fields that actually vary.** `withDamage` writes exactly four —
+`hp`, `boosts`, `item`, `hurtThisTurn` — so the target's species, level, ability, types, stats and
+the rest were being serialised on every branch for nothing.
+
+`VARIES_DURING_HITS` in `resolution.ts` is decision #1 above, implemented: a
+`{[K in keyof State.Pokemon]-?: boolean}` mapping, so **a field added to `State.Pokemon` fails to
+compile until it is classified**. Verified by deleting `weighthg` from the map and confirming
+`TS2741`. A wrong `false` would silently merge distinct states, which is exactly the Stamina trap
+described above — the phase 0 snapshots are what catch it, and did not move.
+
+**Step three, done: stop keying the same outcomes five times.** A resolve made five full-key passes
+over its outcome set — `rekeyed()`, the secondary `flatMap`, a `.mapped()` to restore the move, the
+outer `flatMap`, and the projection. Three were redundant:
+
+- `rekeyed()` merged before handing off to a `flatMap` that merges anyway; it now only re-tags the
+  keyer and leaves the merging to the one pass that was always going to happen.
+- The `.mapped()` that restored the original move is gone; `toStateDistribution` takes the move and
+  restores it while doing the keying pass it already performed.
+- A move with no data branches skips the outer `flatMap` entirely rather than merging an
+  already-merged distribution against itself.
+
+| | pre-phase-1 | after phase 1 | + target key | + varying fields | + fewer passes |
+| --- | --- | --- | --- | --- | --- |
+| Rock Blast | 129 ms | 88 ms | 52 ms | 40 ms | **31 ms** |
+| Icicle Spear | 166 ms | 119 ms | 61 ms | 54 ms | **38 ms** |
+| Population Bomb | 127 ms | 474 ms | 243 ms | 176 ms | **135 ms** |
+| `resolveTurns` Rock Blast ×10 | 270 ms | 313 ms | 108 ms | 90 ms | **89 ms** |
+| Rock Blast full state keys | 46,961 | 27,605 | 4,169 | 4,169 | **2,085** |
+| Population Bomb full state keys | — | 143,020 | 19,392 | 19,392 | **9,696** |
+
+Rock Blast is **4.2×** faster than before any of this, Icicle Spear **4.4×**, the turns case
+**3.0×**. Population Bomb is back to parity — 135 ms against 127 ms originally, from a 474 ms peak
+— so the regression phase 1 introduced is closed.
+
+**All 19 phase 0 snapshots passed unchanged at every step.** That is the sequence working as
+designed: the baseline went in first, and each optimisation proved itself against it rather than
+against judgement.
+
+### The keys are no longer the problem — allocation is
+
+Measured 2026-09-08, after the three steps above, and it **corrects the framing this document opens
+with**. The original measurement blamed a *"~500-character key"*; that cost is now gone, and what is
+left is not a keying problem at all.
+
+CPU profile of Population Bomb, 12 resolves:
+
+```
+ 86.3%  flatMap @distribution.js
+  2.5%  forHit @resolve.js
+  1.2%  (garbage collector)
+  1.0%  hitResolutionKey @resolution.js
+  0.2%  stateKey @key.js
+```
+
+`stateKey` is 5-7% of a resolve by direct timing, `hitResolutionKey` about 1%. **Building and
+hashing keys is ~1-7% of the work.** Counting what `flatMap` actually does per resolve:
+
+| | `f()` invocations | inner outcomes keyed and merged | final outcomes |
+| --- | --- | --- | --- |
+| Rock Blast | 2,073 | 25,520 | 301 |
+| Population Bomb | 13,453 | **133,324** | 636 |
+
+Each `f()` allocates a `Distribution`, an outcomes array, ~32 `Resolution` objects and their label
+objects; each inner outcome is an `Outcome` wrapper that is allocated, keyed, merged and discarded.
+That is on the order of **600,000 objects allocated to produce 636 outcomes** — the same "99% of
+branch work merges away" finding as before, but the waste is now object churn rather than string
+building. Phase 1 made this *worse* in exchange for cheaper keys: a transition returns its branches
+unmerged so `flatMap` can do the single merge.
+
+**A key-type change is therefore the wrong fix, and a micro-benchmark says so independently.** With
+10,000 operations against 700 distinct keys: 258-char string keys 0.72 ms, **short string keys
+0.07 ms**, number keys 0.18 ms. Short strings beat numbers. Interning to integers is not motivated
+by hashing cost.
+
+What it *is* motivated by is not allocating at all.
+
+### The rule: do not relocate the cost
+
+Every option here is tempting because it makes one line cheaper while the work reappears somewhere
+else. Judge a change by total work removed, not by the line it improves.
+
+- **Hash-consing states so `===` is equality** — interning requires hashing at construction, so it
+  relocates the hash rather than removing it.
+- **Phase 1's own trade** — returning branches unmerged halved keying and doubled allocation. It was
+  a net win overall, but it is the same failure mode viewed from the other side.
+
+The only structural win is **not creating the object in the first place.** The dimensions in the hit
+loop are bounded and dense — `hp ∈ [0, maxhp]`, `remaining` and `crits` in `[0, maxHits]`, plus a
+tiny variant set — so a bucket does not need a key at all, it needs an **offset**:
+
+```
+index = ((variant * (maxHits + 1) + remaining) * (maxHits + 1) + crits) * (maxhp + 1) + hp
+```
+
+A `Float64Array` reused across hits, `weights[index] += weight`, and `Resolution`/`State`
+materialised only for the non-zero slots at the end. No key, no hash, no `Map`, no per-branch
+object. Sizing: Rock Blast vs Blissey ~51k slots (0.4 MB), Population Bomb ~173k (1.4 MB), worst
+realistic case ~2.4M (19 MB) — so it needs a size cap with a fallback to the keyed path.
+
+**The hazard, and the reason this is not a quick change.** Expansion is not `hp' = hp - damage`:
+`withDamage` also runs `endures` (Sturdy and Focus Sash, which fire only from full HP and consume
+the item), the Stamina boost, and `hurtThisTurn`. Those change the *variant*, not just the HP. A
+numeric expansion path would therefore reimplement `withDamage`'s mechanics — **two implementations
+of the same rule, free to diverge**, which is precisely the class of bug this whole refactor exists
+to remove. Any dense-buffer implementation has to derive the variant transition from `withDamage`
+rather than restate it.
+
+### Step four: stop paying for axes that do not branch
+
+Two further changes, both proved against the phase 0 snapshots.
+
+**The hit loop no longer uses `flatMap`.** Every damage transition returns the *same* total
+(`expansion`), so the LCM machinery was computing a constant, and the per-branch `Distribution`,
+outcomes array and `Outcome` wrappers existed only to be immediately merged away. `expandHit` writes
+straight into the next hit's map, with `normalize()` per hit to keep counts inside the safe-integer
+range as `flatMap` used to.
+
+**A trivial axis is skipped rather than merged.** An accuracy axis of one landing branch, and a
+secondary axis of one empty branch, each used to trigger a full pass that keyed every outcome with
+`stateKey` and produced an identical distribution. Both now short-circuit, as the single move-data
+branch already did.
+
+| | pre-phase-1 | after step 3 | after step 4 |
+| --- | --- | --- | --- |
+| Rock Blast | 129 ms | 31 ms | **29 ms** |
+| Icicle Spear | 166 ms | 38 ms | **34 ms** |
+| Population Bomb | 127 ms | 135 ms | **124 ms** |
+| `resolveTurns` Rock Blast ×10 | 270 ms | 89 ms | **92 ms** |
+| Rock Blast full state keys | 46,961 | 2,085 | **1,390** |
+| Population Bomb full state keys | — | 9,696 | **3,232** |
+
+Rock Blast is 4.4× faster than where this started and Icicle Spear 4.9×; Population Bomb is now
+slightly *ahead* of its pre-refactor time. Full state keys for Rock Blast are down 34× from the
+original 46,961, against the ~513 criterion below.
+
+### Step five: build the per-hit move once, not once per bucket
+
+Profiling after step 4 put `forHit` at **16.6% of runtime, the single largest entry**:
+
+```ts
+function forHit(state: State, hitNumber: number): State {
+  return state.withMove({...state.move, hit: hitNumber});
+}
+```
+
+It spread a ~45-key move object once per bucket per hit — but every bucket in a hit shares the
+branch's move, so the result was identical each time. Hoisted to once per hit.
+
+| | pre-phase-1 | after step 4 | after step 5 |
+| --- | --- | --- | --- |
+| Rock Blast | 129 ms | 29 ms | **23 ms** |
+| Icicle Spear | 166 ms | 34 ms | **27 ms** |
+| Population Bomb | 127 ms | 124 ms | **98 ms** |
+| `resolveTurns` Rock Blast ×10 | 270 ms | 92 ms | **85 ms** |
+
+Rock Blast **5.6×**, Icicle Spear **6.1×**, turns **3.2×**, and Population Bomb is now faster than
+before the refactor rather than merely level.
+
+### Where it stands, and the correction about keys
+
+Profile after step 5: `accumulateHit` 20.3%, `withDamage` 9.1%, `expandHit` 9.0%, `extend` 6.4%,
+`calculateDamage` 4.2%, `hitResolutionKey` 3.6%.
+
+**An earlier note here claimed short strings beat numbers and that integer keys were not worth it.
+That was measured on 1-3 character keys, which V8 caches, and it is wrong for the keys this code
+actually builds.** Re-measured with realistic ~35-character keys, 400k operations over 5,000
+distinct values:
+
+| | |
+| --- | --- |
+| 35-char string keys, get + set | 14.46 ms |
+| packed number keys, get + set | **4.70 ms** |
+| building the string key alone | 10.15 ms |
+
+So packing *is* worth roughly 3× on the accumulate path, which is ~24% of a resolve
+(`accumulateHit` + `hitResolutionKey`). The subtlety is not the packing — `hp`, `remaining`,
+`crits` and the flags are already integers — it is the **variant** (`boosts`, `item`,
+`hurtThisTurn`), which needs interning to a small id. `withDamage` preserves the `boosts` object
+identity whenever Stamina does not fire, so a `WeakMap` keyed on it makes the common case two cheap
+lookups; a miss costs a small string but is always correct, so the failure mode is slowness, not a
+wrong answer.
+
+### Step six: the hit key is a packed integer
+
+`packHitKey` replaces the string. `hp`, `remaining`, `crits` and the two flags are already integers;
+the variant (`boosts`, `item`, `hurtThisTurn`) interns to a small id, and the whole thing multiplies
+into one number well inside the 53-bit safe range:
+
+```
+((((variant * hitSpan + remaining) * hitSpan + crits) * 4 + flags) * hpSpan) + hp
+```
+
+**The first attempt interned the variant by `boosts` object identity and ran the heap out of
+memory.** `withDamage` preserves that identity only when Stamina does not fire; when it does, every
+branch gets a fresh `boosts` object, so every branch got a fresh variant id, nothing merged, and the
+distribution grew without bound. Correctness was never at risk — distinct keys cannot merge things
+that differ — but "the failure mode is slowness, not a wrong answer" was too generous. It is
+unbounded growth.
+
+`VariantIds` now interns by **value**, with a `WeakMap` memoising the id per `boosts` object so the
+value string is built once per distinct object rather than once per branch.
+
+| | pre-phase-1 | after step 5 | after step 6 |
+| --- | --- | --- | --- |
+| Rock Blast | 129 ms | 23 ms | **16 ms** |
+| Icicle Spear | 166 ms | 27 ms | **17 ms** |
+| Population Bomb | 127 ms | 98 ms | **61 ms** |
+| `resolveTurns` Rock Blast ×10 | 270 ms | 85 ms | **76 ms** |
+| Rock Blast vs Stamina | — | — | 17 ms |
+
+**Rock Blast is 8.3× faster than before the refactor, Icicle Spear 9.8×, Population Bomb 2.1×, the
+turns case 3.6×.** The whole test suite runs in 25 s against 290 s a few steps ago. All 19 phase 0
+snapshots unchanged throughout.
+
+Full state keys are unchanged at 1,390 for Rock Blast, because step 6 removed *hit-loop* keys, which
+were never counted in that figure. The ~513 criterion measures the outer axes and the projection,
+which now cost little enough that the remaining gap is not worth chasing on its own.
+
+### Steps seven and eight: the last two profile entries worth taking
+
+**`Context.Move` no longer copies through `extend`.** `PLAN.md` flagged this and asked for its own
+before/after rather than smuggling it in: `extend` is a jQuery-style deep-extend whose one-source
+shallow case reduces to "copy own enumerable keys, skipping `undefined`". `shallowCopy` does exactly
+that with none of the branching. It also predicted the win would be small, and it was — about 4%.
+
+**The variant id is a number, not a string.** `VariantIds.of` was building
+`boostId + ';' + item + hurt` per branch, 4.0% of the profile in code added one step earlier. Item
+ids intern to integers and the three components multiply into one number, so no string is built on
+the hot path at all.
+
+| | pre-phase-1 | after step 6 | after step 8 |
+| --- | --- | --- | --- |
+| Rock Blast | 129 ms | 16 ms | **14 ms** |
+| Icicle Spear | 166 ms | 17 ms | **15 ms** |
+| Population Bomb | 127 ms | 61 ms | **55 ms** |
+| `resolveTurns` Rock Blast ×10 | 270 ms | 76 ms | **75 ms** |
+
+**Rock Blast 9.2× faster than before the refactor, Icicle Spear 11.1×, Population Bomb 2.3×, the
+turns case 3.6×.** The full test suite runs in 23 s against 290 s. All 19 phase 0 snapshots have
+stayed unchanged across every one of the eight steps.
+
+### What is left
+
+The last structural cost is `withDamage` allocating a `State` and `State.Pokemon` per branch
+(`withDamage` 11.1% of the profile, plus its share of GC), which only the dense buffer removes — and
+that still carries the duplicate-`withDamage` hazard described above. Everything cheaper than that
+has now been taken.
+
+**That cost is also a layering bug, not just a performance one.** `State` is documented as the
+outside, serializable API type, yet it is what the internal hit loop threads through every branch —
+see *"The `State` / `Context` split does not describe what the code does"* in
+[`PIPELINE.md`](PIPELINE.md). `Resolution` is already the engine's working wrapper; it just holds a
+`State` where it wants packed fields. Building the dense buffer and fixing the layering are the same
+piece of work, which is an argument for doing it properly rather than as another micro-optimisation.
 
 ### Phase 3 — memoize kernels
 

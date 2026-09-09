@@ -1,5 +1,5 @@
 import {Distribution, LabelCounts, Outcome, addLabels, greatestCommonDivisor} from './distribution';
-import {LabelValues, Resolution, resolutionDistribution, single, toStateDistribution} from './resolution';
+import {HitBounds, LabelValues, Resolution, fromOutcomes, hitBounds, packHitKey, resolutionDistribution, single, toStateDistribution} from './resolution';
 import {stateDistribution} from './key';
 import type {BoostID, SecondaryEffect, TypeName} from '@pkmn/data';
 
@@ -374,7 +374,6 @@ function totalWeight(branches: {weight: number}[]): number {
   return branches.reduce((sum, branch) => sum + branch.weight, 0);
 }
 
-/** Whether the whole move connects at all. A miss stops the resolution before any hit. */
 function accuracyAxis(opening: Resolution, branches: AccuracyBranch[]): Distribution<Resolution> {
   const distribution = resolutionDistribution();
   distribution.outcomes = branches.map(branch => ({
@@ -384,70 +383,61 @@ function accuracyAxis(opening: Resolution, branches: AccuracyBranch[]): Distribu
   return distribution;
 }
 
-/**
- * One hit: per-hit accuracy, crit and the damage rolls as a single transition. This is the kernel —
- * `REFACTOR.md`'s `(damage, crit)` table is exactly the branches enumerated here.
- */
-function damageTransition(
+function accumulateHit(into: Map<number, Outcome<Resolution>>, resolution: Resolution, count: number, bounds: HitBounds) {
+  const key = packHitKey(resolution, bounds);
+  const existing = into.get(key);
+  if (existing) existing.count += count;
+  else into.set(key, {data: resolution, count});
+}
+
+function expandHit(
+  into: Map<number, Outcome<Resolution>>,
   reification: Reification,
   opening: Resolution,
+  weight: number,
   crits: CritBranch[],
   perHitAccuracy: AccuracyBranch[],
   critExp: number,
-  hitNumber: number
-): Distribution<Resolution> {
+  hitMove: State.Move,
+  bounds: HitBounds
+) {
   const expansion = totalWeight(perHitAccuracy) * critExp;
-  const spent: Resolution = {...opening, done: true, remaining: 0};
-  const outcomes: Outcome<Resolution>[] = [];
 
   if (opening.done || opening.remaining <= 0 || opening.state.target.hp <= 0) {
-    outcomes.push({data: spent, count: expansion});
-  } else {
-    const context = reification.of(forHit(opening.state, hitNumber));
-    const crittedSoFar = Number(opening.labels.crits ?? 0);
-    const remaining = opening.remaining - 1;
+    accumulateHit(into, {...opening, done: true, remaining: 0}, weight * expansion, bounds);
+    return;
+  }
 
-    for (const accuracy of perHitAccuracy) {
-      if (!accuracy.lands) {
-        outcomes.push({data: spent, count: accuracy.weight * critExp});
-        continue;
-      }
-      for (const branch of crits) {
-        const crittedNow = crittedSoFar + (branch.crit ? 1 : 0);
-        const labels = {...opening.labels, crits: crittedNow};
-        for (const damage of damageRolls(context, branch.crit)) {
-          const next: Resolution = {
-            state: withDamage(opening.state, damage),
-            done: remaining === 0,
-            landed: true,
-            remaining,
-            labels,
-          };
-          outcomes.push({data: next, count: accuracy.weight * branch.weight});
-        }
+  const context = reification.of(opening.state.withMove(hitMove));
+  const crittedSoFar = Number(opening.labels.crits ?? 0);
+  const remaining = opening.remaining - 1;
+
+  for (const accuracy of perHitAccuracy) {
+    if (!accuracy.lands) {
+      accumulateHit(into, {...opening, done: true, remaining: 0}, weight * accuracy.weight * critExp, bounds);
+      continue;
+    }
+    for (const branch of crits) {
+      const crittedNow = crittedSoFar + (branch.crit ? 1 : 0);
+      const labels = {...opening.labels, crits: crittedNow};
+      for (const damage of damageRolls(context, branch.crit)) {
+        const next: Resolution = {
+          state: withDamage(opening.state, damage),
+          done: remaining === 0,
+          landed: true,
+          remaining,
+          labels,
+        };
+        accumulateHit(into, next, weight * accuracy.weight * branch.weight, bounds);
       }
     }
   }
-
-  // Deliberately unmerged: `flatMap` keys and merges these itself, and `resolutionKey` is the most
-  // expensive operation in the resolve. Merging here too would key every branch twice.
-  const result = resolutionDistribution();
-  result.outcomes = outcomes;
-  return result.assertMassConserved(expansion);
 }
 
-/** How many hits this use of the move will attempt. */
 function hitCountAxis(opening: Resolution, branches: HitCountBranch[]): Distribution<Resolution> {
-  const distribution = resolutionDistribution();
-  distribution.outcomes = branches.map(branch => ({data: {...opening, remaining: branch.hits}, count: branch.weight}));
-  return distribution;
+  return fromOutcomes(branches.map(branch => ({data: {...opening, remaining: branch.hits}, count: branch.weight})));
 }
 
-/**
- * Iterates the damage transition, retiring mass as lines of play terminate. Lines from every
- * hit-count branch travel in one distribution, so no padding onto a common denominator is needed —
- * a line that has spent its hits simply passes through the remaining iterations.
- */
 function hitSequence(
   reification: Reification,
   opening: Resolution,
@@ -458,10 +448,20 @@ function hitSequence(
 ): Distribution<Resolution> {
   const maxHits = hitBranches.reduce((highest, branch) => max(highest, branch.hits), 0);
 
+  const expansion = totalWeight(hitAccuracy) * critExp;
+  const bounds = hitBounds(opening.state.target, maxHits);
   let current = hitCountAxis(opening, hitBranches);
+
   for (let hit = 1; hit <= maxHits; hit++) {
-    current = current.flatMap(entry => damageTransition(reification, entry, crits, hitAccuracy, critExp, hit));
+    const expected = current.totalOutcomes * expansion;
+    const hitMove = {...opening.state.move, hit};
+    const next = new Map<number, Outcome<Resolution>>();
+    for (const outcome of current.outcomes) {
+      expandHit(next, reification, outcome.data, outcome.count, crits, hitAccuracy, critExp, hitMove, bounds);
+    }
+    current = fromOutcomes([...next.values()]).assertMassConserved(expected).normalize();
   }
+
   return current;
 }
 
@@ -474,11 +474,7 @@ function secondaryAxis(opening: Resolution, branches: SecondaryBranch[]): Distri
   return distribution;
 }
 
-/**
- * Resolves one move-data branch by composing the remaining axes. Each returns weights on its own
- * denominator; `flatMap` puts them on a common one, which is why no scaling appears here.
- */
-function resolveBranch(reification: Reification, opening: Resolution, originalMove: State.Move): Distribution<Resolution> {
+function resolveBranch(reification: Reification, opening: Resolution): Distribution<Resolution> {
   const branched = opening.state;
   const crits = critBranches(branched);
   const hitBranches = hitCountBranches(branched.gen.num, branched.move, branched.attacker);
@@ -490,10 +486,15 @@ function resolveBranch(reification: Reification, opening: Resolution, originalMo
   const hitAccuracy = usesPerHitAccuracy ? perHit : [{lands: true, weight: 1}];
   const secondaries = secondaryBranches(branched);
 
-  return accuracyAxis(opening, wholeMoveAccuracy)
-    .flatMap(entry => (entry.landed ? hitSequence(reification, entry, crits, hitAccuracy, critExp, hitBranches) : single(entry)))
-    .flatMap(entry => (entry.landed ? secondaryAxis(entry, secondaries) : single(entry)))
-    .mapped(entry => ({...entry, state: entry.state.withMove(originalMove)}));
+  const alwaysLands = wholeMoveAccuracy.length === 1 && wholeMoveAccuracy[0].lands;
+  const opened: Resolution = {...opening, landed: true, labels: {...opening.labels, crits: 0}};
+
+  const hit = alwaysLands
+    ? hitSequence(reification, opened, crits, hitAccuracy, critExp, hitBranches)
+    : accuracyAxis(opening, wholeMoveAccuracy).flatMap(entry => (entry.landed ? hitSequence(reification, entry, crits, hitAccuracy, critExp, hitBranches) : single(entry)));
+
+  if (secondaries.length === 1 && !secondaries[0].effects.length) return hit;
+  return hit.flatMap(entry => (entry.landed ? secondaryAxis(entry, secondaries) : single(entry)));
 }
 
 export function resolveMove(state: State): Distribution<State> {
@@ -512,10 +513,13 @@ export function resolveMove(state: State): Distribution<State> {
     };
   });
 
-  const resolved = opening.flatMap(entry => resolveBranch(reification, entry, originalMove));
+  const resolved =
+    opening.outcomes.length === 1
+      ? resolveBranch(reification, opening.outcomes[0].data)
+      : opening.flatMap(entry => resolveBranch(reification, entry));
 
   const result = stateDistribution();
-  result.outcomes = toStateDistribution(resolved);
+  result.outcomes = toStateDistribution(resolved, originalMove);
   return result.assertMassConserved(resolved.totalOutcomes).normalize();
 }
 

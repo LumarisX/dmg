@@ -2,23 +2,6 @@ import {Distribution, Keyer, Labels, Outcome} from './distribution';
 import {stateKey} from './key';
 import {State} from './state';
 
-/**
- * A move resolution in progress: a state, whether this line of play has stopped, whether any hit
- * connected, and the scalar label values describing how it got here.
- *
- * Neither flag is derivable from the state. A missed move leaves the state untouched, so `done`
- * must be carried. And `landed` is not the same as `done` — a move that connected and fainted the
- * target is both done and landed, and still applies its secondaries, while a move that missed
- * outright applies none.
- *
- * `remaining` is how many hits this line still owes. It is what lets one distribution carry lines
- * from different hit-count branches at once: a line that runs out passes through the remaining
- * iterations untouched. Terminated lines are always normalised to `remaining: 0` so that a line
- * which fainted its target on hit 2 of five merges with one that simply had two hits to give.
- *
- * `done`, `landed` and `remaining` participate in the merge key but are not projected: they
- * describe how a resolution got here, not the state it reached.
- */
 export interface Resolution {
   state: State;
   done: boolean;
@@ -45,6 +28,132 @@ export function single(resolution: Resolution): Distribution<Resolution> {
   return distribution;
 }
 
+const BOOST_ORDER: (keyof State.Pokemon['boosts'])[] = ['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion'];
+
+export class VariantIds {
+  private readonly boostIdByObject = new WeakMap<object, number>();
+  private readonly boostIdByValue = new Map<string, number>();
+  private readonly itemIds = new Map<string, number>();
+  private nextBoost = 0;
+
+  private boostId(boosts: State.Pokemon['boosts']): number {
+    const cached = this.boostIdByObject.get(boosts);
+    if (cached !== undefined) return cached;
+
+    let value = '';
+    for (const stat of BOOST_ORDER) {
+      const level = boosts[stat];
+      if (level) value += stat + level;
+    }
+    let id = this.boostIdByValue.get(value);
+    if (id === undefined) {
+      id = this.nextBoost++;
+      this.boostIdByValue.set(value, id);
+    }
+    this.boostIdByObject.set(boosts, id);
+    return id;
+  }
+
+  private itemId(item: string | undefined): number {
+    const key = item ?? '';
+    let id = this.itemIds.get(key);
+    if (id === undefined) {
+      id = this.itemIds.size;
+      this.itemIds.set(key, id);
+    }
+    return id;
+  }
+
+  of(pokemon: State.Pokemon): number {
+    return (this.boostId(pokemon.boosts) * 64 + this.itemId(pokemon.item)) * 2 + (pokemon.hurtThisTurn ? 1 : 0);
+  }
+}
+
+export interface HitBounds {
+  variants: VariantIds;
+  hitSpan: number;
+  hpSpan: number;
+}
+
+export function hitBounds(target: State.Pokemon, maxHits: number): HitBounds {
+  return {variants: new VariantIds(), hitSpan: maxHits + 1, hpSpan: target.maxhp + 1};
+}
+
+export function packHitKey(resolution: Resolution, bounds: HitBounds): number {
+  const target = resolution.state.target;
+  const flags = (resolution.done ? 2 : 0) + (resolution.landed ? 1 : 0);
+  const crits = Number(resolution.labels.crits ?? 0);
+  const variant = bounds.variants.of(target);
+  return ((((variant * bounds.hitSpan + resolution.remaining) * bounds.hitSpan + crits) * 4 + flags) * bounds.hpSpan) + target.hp;
+}
+
+export function fromOutcomes(outcomes: Outcome<Resolution>[]): Distribution<Resolution> {
+  const distribution = resolutionDistribution();
+  distribution.outcomes = outcomes;
+  return distribution;
+}
+
+const VARIES_DURING_HITS: {[K in keyof State.Pokemon]-?: boolean} = {
+  hp: true,
+  boosts: true,
+  item: true,
+  hurtThisTurn: true,
+
+  ability: false,
+  addedType: false,
+  evs: false,
+  gender: false,
+  happiness: false,
+  ivs: false,
+  level: false,
+  maxhp: false,
+  moveLastTurnResult: false,
+  nature: false,
+  position: false,
+  species: false,
+  statusState: false,
+  status: false,
+  stats: false,
+  switching: false,
+  teraType: false,
+  terastallized: false,
+  types: false,
+  volatiles: false,
+  weighthg: false,
+};
+
+const VARYING_FIELDS = (Object.keys(VARIES_DURING_HITS) as (keyof State.Pokemon)[]).filter(field => VARIES_DURING_HITS[field]);
+
+function fieldKeyOf(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'object') {
+    let key = '';
+    for (const k of Object.keys(value).sort()) key += k + ':' + (value as Record<string, unknown>)[k] + ',';
+    return key;
+  }
+  return String(value);
+}
+
+export function hitResolutionKey(resolution: Resolution): string {
+  let key = (resolution.done ? 'x' : 'o') + (resolution.landed ? 'h' : 'm') + resolution.remaining;
+  for (const axis of Object.keys(resolution.labels).sort()) {
+    key += ';' + axis + '=' + resolution.labels[axis];
+  }
+  const target = resolution.state.target;
+  for (const field of VARYING_FIELDS) key += '|' + fieldKeyOf(target[field]);
+  return key;
+}
+
+export function hitDistribution(): Distribution<Resolution> {
+  return new Distribution<Resolution>(undefined, hitResolutionKey as Keyer<Resolution>);
+}
+
+export function rekeyed(distribution: Distribution<Resolution>): Distribution<Resolution> {
+  const result = resolutionDistribution();
+  result.outcomes = distribution.outcomes;
+  return result;
+}
+
 export function resolutionDistribution(): Distribution<Resolution> {
   return new Distribution<Resolution>(undefined, resolutionKey as Keyer<Resolution>);
 }
@@ -53,15 +162,11 @@ export function withLabel(resolution: Resolution, axis: string, value: string | 
   return {...resolution, labels: {...resolution.labels, [axis]: value}};
 }
 
-/**
- * Collapses resolutions to states, turning each resolution's scalar label values into the
- * per-outcome label distributions callers see. Resolutions that reached the same state merge, which
- * is where an irrelevant crit or an irrelevant move-data branch disappears.
- */
-export function toStateDistribution(resolved: Distribution<Resolution>): Outcome<State>[] {
+export function toStateDistribution(resolved: Distribution<Resolution>, move: State.Move): Outcome<State>[] {
   const merged = new Map<string, Outcome<State>>();
   for (const outcome of resolved.outcomes) {
-    const {state, labels} = outcome.data;
+    const {labels} = outcome.data;
+    const state = outcome.data.state.withMove(move);
     const key = stateKey(state);
     const existing = merged.get(key);
     if (existing) {

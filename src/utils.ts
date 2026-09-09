@@ -26,6 +26,16 @@ export function fastProperties<T extends object>(obj: T): T {
   return {...obj};
 }
 
+export function shallowCopy<T extends object>(target: T, source: object): T {
+  const into = target as Record<string, unknown>;
+  const from = source as Record<string, unknown>;
+  for (const name in from) {
+    const value = from[name];
+    if (value !== undefined) into[name] = value;
+  }
+  return target;
+}
+
 /** Convenience function used to determine whether one of `xs` is equal to `x`. */
 export function is(x: string | undefined, xs: (string | undefined)[]): boolean;
 export function is(x: string | undefined, ...xs: (string | undefined)[]): boolean;

@@ -28,7 +28,7 @@ import {apply, chain} from './math';
 import {HANDLERS, HANDLER_FNS, Handler, HandlerKind, Handlers} from './handlers';
 import {Relevancy} from './relevancy';
 import {Action, Slot, State} from './state';
-import {DeepReadonly, extend, toID} from './utils';
+import {DeepReadonly, extend, shallowCopy, toID} from './utils';
 
 const EFFECTIVENESS_BIT: {[key: number]: number} = {
   0: -5,
@@ -582,7 +582,7 @@ export namespace Context {
     effectiveness: number = 0;
 
     constructor(state: DeepReadonly<State.Move>, relevant: Relevancy.Move, handlers: Handlers = HANDLERS) {
-      extend(this, state);
+      shallowCopy(this, state);
       for (const fn of HANDLER_FNS) delete (this as Partial<Record<keyof Handler<unknown>, unknown>>)[fn];
       this.relevant = relevant;
       reify(this, this.id, handlers.Moves);
@@ -636,7 +636,6 @@ export namespace Context {
 
 const ABILITY_IGNORING_ABILITIES = new Set(['moldbreaker', 'teravolt', 'turboblaze']);
 
-/** Whether the attacker's move or ability suppresses the target's ability for this hit. */
 export function ignoresTargetAbility(context: Context): boolean {
   if (context.move.ignoreAbility) return true;
   return ABILITY_IGNORING_ABILITIES.has(context.attacker.ability?.id ?? '');

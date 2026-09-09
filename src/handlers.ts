@@ -75,6 +75,43 @@ const HANDLER_FN_KEYS: {[K in keyof Handler<unknown>]: true} = {
 
 export const HANDLER_FNS = Object.keys(HANDLER_FN_KEYS) as (keyof Handler<unknown>)[];
 
+export type Participant =
+  | 'move'
+  | 'field.weather'
+  | 'attacker.ability'
+  | 'attacker.item'
+  | 'attacker.status'
+  | 'target.ability'
+  | 'target.item';
+
+export const CONSULTS: {[K in keyof Handler<unknown>]: Participant[]} = {
+  basePowerCallback: ['move'],
+  damageCallback: ['move'],
+  onBasePower: ['attacker.ability', 'attacker.item', 'move'],
+  onSourceBasePower: ['target.ability', 'target.item'],
+  onModifyMove: ['attacker.ability', 'attacker.item', 'move'],
+  onModifyAtk: ['attacker.ability', 'attacker.item', 'attacker.status'],
+  onModifySpA: ['attacker.ability', 'attacker.item'],
+  onSourceModifyAtk: ['target.ability'],
+  onSourceModifySpA: ['target.ability'],
+  onModifyDef: ['target.ability', 'target.item'],
+  onModifySpD: ['target.ability', 'target.item'],
+  onModifySpe: ['attacker.ability', 'attacker.item'],
+  onModifyDamageAttacker: ['attacker.ability', 'attacker.item'],
+  onModifyDamageDefender: ['target.ability', 'target.item'],
+  onWeatherModifyDamage: ['field.weather'],
+  onModifySTAB: ['attacker.ability'],
+  onEffectiveness: ['move'],
+  onTryImmunity: ['move', 'field.weather', 'target.ability', 'target.item'],
+
+  onAnyBasePower: [],
+  onModifyWeight: [],
+  onResidual: [],
+  onModifyMoveStat: [],
+  onUpdate: [],
+  onEat: [],
+};
+
 export type HandlerKind = 'Abilities' | 'Items' | 'Moves' | 'Conditions';
 export type Handlers = typeof HANDLERS;
 export const HANDLERS = {Abilities, Conditions, Items, Moves};
